@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/assert"
+
 	"github.com/thomseddon/traefik-forward-auth/internal/provider"
 )
 
