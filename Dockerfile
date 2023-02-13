@@ -3,9 +3,6 @@ FROM golang:1.19 AS builder
 # Setup
 WORKDIR /workspace
 
-# Add libraries
-RUN apk add --no-cache git
-
 # Copy & build
 ENV CGO_ENABLED=0
 ADD . /workspace/
