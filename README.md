@@ -1,5 +1,14 @@
+# About this fork
 
-# Traefik Forward Auth ![Build Status](https://img.shields.io/github/workflow/status/thomseddon/traefik-forward-auth/CI) [![Go Report Card](https://goreportcard.com/badge/github.com/thomseddon/traefik-forward-auth)](https://goreportcard.com/report/github.com/thomseddon/traefik-forward-auth) ![Docker Pulls](https://img.shields.io/docker/pulls/thomseddon/traefik-forward-auth.svg) [![GitHub release](https://img.shields.io/github/release/thomseddon/traefik-forward-auth.svg)](https://GitHub.com/thomseddon/traefik-forward-auth/releases/)
+This is a fork of [thomseddon/traefik-forward-auth](https://github.com/thomseddon/traefik-forward-auth) that includes the following changes:
+
+- Two community-contributed PRs merged:
+  - [Multiple AUTH_HOST support #302](https://github.com/thomseddon/traefik-forward-auth/pull/302)
+  - [Build and push multi-arch image on GitHub Actions #275](https://github.com/thomseddon/traefik-forward-auth/pull/275)
+- All dependencies have been brought up-to-date, and compile with a more recent version of Go
+- Docker image is now based on distroless (nonroot variant)
+
+# Traefik Forward Auth [![Go Report Card](https://goreportcard.com/badge/github.com/thomseddon/traefik-forward-auth)](https://goreportcard.com/report/github.com/thomseddon/traefik-forward-auth) ![Docker Pulls](https://img.shields.io/docker/pulls/thomseddon/traefik-forward-auth.svg) [![GitHub release](https://img.shields.io/github/release/thomseddon/traefik-forward-auth.svg)](https://GitHub.com/thomseddon/traefik-forward-auth/releases/)
 
 
 A minimal forward authentication service that provides OAuth/SSO login and authentication for the [traefik](https://github.com/containous/traefik) reverse proxy/load balancer.
