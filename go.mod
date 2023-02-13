@@ -4,18 +4,17 @@ go 1.19
 
 require (
 	github.com/coreos/go-oidc/v3 v3.5.0
+	github.com/go-jose/go-jose/v3 v3.0.0
 	github.com/sirupsen/logrus v1.9.0
 	github.com/stretchr/testify v1.8.1
 	github.com/thomseddon/go-flags v1.4.1-0.20190507184247-a3629c504486
 	github.com/traefik/traefik/v2 v2.9.6
 	golang.org/x/oauth2 v0.5.0
-	gopkg.in/square/go-jose.v2 v2.6.0
 )
 
 require (
 	github.com/containous/alice v0.0.0-20181107144136-d83ebdd94cbd // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect
-	github.com/go-jose/go-jose/v3 v3.0.0 // indirect
 	github.com/golang/protobuf v1.5.2 // indirect
 	github.com/gorilla/mux v1.8.0 // indirect
 	github.com/gravitational/trace v1.1.16-0.20220114165159-14a9a7dd6aaf // indirect
