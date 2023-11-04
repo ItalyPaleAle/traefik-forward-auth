@@ -51,6 +51,11 @@ func (s *Server) buildRoutes() {
 	} else {
 		s.router.NewRoute().Handler(s.AuthHandler(config.DefaultProvider, "default"))
 	}
+
+	// Health handler
+	s.router.Handle("/healthz", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusNoContent)
+	}))
 }
 
 // RootHandler Overwrites the request method, host and URL with those from the
