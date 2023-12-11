@@ -17,7 +17,7 @@ services:
       - "traefik.http.routers.whoami.middlewares=traefik-forward-auth"
 
   traefik-forward-auth:
-    image: thomseddon/traefik-forward-auth:2
+    image: ghcr.io/italypaleale/traefik-forward-auth:2
     environment:
       - DEFAULT_PROVIDER=oidc
       - PROVIDERS_OIDC_ISSUER_URL=https://login.microsoftonline.com/{tenant}
