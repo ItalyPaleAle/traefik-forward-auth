@@ -2,6 +2,7 @@ package tfa
 
 import (
 	// "fmt"
+	"encoding/hex"
 	"os"
 	"testing"
 	"time"
@@ -141,7 +142,8 @@ func TestConfigFlagBackwardsCompatability(t *testing.T) {
 	assert.Equal(expected3, c.Whitelist, "should read legacy comma separated list whitelist")
 
 	// Name changed
-	assert.Equal([]byte("veryverysecret"), c.Secret)
+	secret, _ := hex.DecodeString("feea6de0230a64a32cb0fea897efe3c5bd602613e69af90452bc85fce9eb06b0")
+	assert.Equal(secret, c.Secret)
 
 	// Google provider params used to be top level
 	assert.Equal("clientid", c.ClientIdLegacy)
@@ -262,7 +264,8 @@ func TestConfigParseEnvironmentBackwardsCompatability(t *testing.T) {
 	assert.Equal(expected3, c.Whitelist, "should read legacy comma separated list whitelist")
 
 	// Name changed
-	assert.Equal([]byte("veryverysecret"), c.Secret)
+	secret, _ := hex.DecodeString("feea6de0230a64a32cb0fea897efe3c5bd602613e69af90452bc85fce9eb06b0")
+	assert.Equal(secret, c.Secret)
 
 	// Google provider params used to be top level
 	assert.Equal("clientid", c.ClientIdLegacy)
@@ -300,7 +303,8 @@ func TestConfigTransformation(t *testing.T) {
 	assert.Equal("/_oauthpath", c.Path, "path should add slash to front")
 
 	assert.Equal("verysecret", c.SecretString)
-	assert.Equal([]byte("verysecret"), c.Secret, "secret should be converted to byte array")
+	secret, _ := hex.DecodeString("4f5c01bae9a0d5d29a5f4449357d7f5e35fd0d65870c9d0de9088ab18eeec256")
+	assert.Equal(secret, c.Secret, "secret should be derived")
 
 	assert.Equal(200, c.LifetimeString)
 	assert.Equal(time.Second*time.Duration(200), c.Lifetime, "lifetime should be read and converted to duration")

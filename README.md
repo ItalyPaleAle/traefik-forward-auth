@@ -15,11 +15,11 @@ A minimal forward authentication service that provides OAuth/SSO login and authe
 ## Why?
 
 - Seamlessly overlays any http service with a single endpoint (see: `url-path` in [Configuration](#configuration))
-- Supports multiple providers including Google and OpenID Connect (supported by Azure, Github, Salesforce etc.)
+- Supports multiple providers including Google and OpenID Connect (supported by Microsoft Entra ID, GitHub, Salesforce etc.)
 - Supports multiple domains/subdomains by dynamically generating redirect_uri's
 - Allows authentication to be selectively applied/bypassed based on request parameters (see `rules` in [Configuration](#configuration))
 - Supports use of centralised authentication host/redirect_uri (see `auth-host` in [Configuration](#configuration))
-- Allows authentication to persist across multiple domains (see [Cookie Domains](#cookie-domains))
+- Allows authentication to persist across multiple domains (see [Auth host mode](#auth-host-mode))
 - Supports extended authentication beyond Google token lifetime (see: `lifetime` in [Configuration](#configuration))
 
 # Contents
@@ -88,7 +88,7 @@ services:
     environment:
       - PROVIDERS_GOOGLE_CLIENT_ID=your-client-id
       - PROVIDERS_GOOGLE_CLIENT_SECRET=your-client-secret
-      - SECRET=something-random
+      - SECRET=something-random # Example: generate with `openssl rand -base64 32`
       - INSECURE_COOKIE=true # Example assumes no https, do not use in production
     labels:
       - "traefik.http.middlewares.traefik-forward-auth.forwardauth.address=http://traefik-forward-auth:4181"
@@ -118,7 +118,7 @@ Head to https://console.developers.google.com and make sure you've switched to t
 
 Create a new project then search for and select "Credentials" in the search bar. Fill out the "OAuth Consent Screen" tab.
 
-Click "Create Credentials" > "OAuth client ID". Select "Web Application", fill in the name of your app, skip "Authorized JavaScript origins" and fill "Authorized redirect URIs" with all the domains you will allow authentication from, appended with the `url-path` (e.g. https://app.test.com/_oauth)
+Click "Create Credentials" > "OAuth client ID". Select "Web Application", fill in the name of your app, skip "Authorized JavaScript origins" and fill "Authorized redirect URIs" with all the domains you will allow authentication from, appended with the `url-path` (e.g. `https://app.test.com/_oauth``)
 
 You must set the `providers.google.client-id` and `providers.google.client-secret` config options.
 
@@ -135,6 +135,7 @@ Please see the [Provider Setup](https://github.com/italypaleale/traefik-forward-
 For providers that don't support OpenID Connect, we also have the Generic OAuth2 provider where you can statically configure the OAuth2 and "user" endpoints.
 
 You must set:
+
 - `providers.generic-oauth.auth-url` - URL the client should be sent to authenticate the authenticate
 - `providers.generic-oauth.token-url` - URL the service should call to exchange an auth code for an access token
 - `providers.generic-oauth.user-url` - URL used to retrieve user info (service makes a GET request)
@@ -142,6 +143,7 @@ You must set:
 - `providers.generic-oauth.client-secret` - Client Secret
 
 You can also set:
+
 - `providers.generic-oauth.scope`- Any scopes that should be included in the request (default: profile, email)
 - `providers.generic-oauth.token-style` - How token is presented when querying the User URL. Can be `header` or `query`, defaults to `header`. With `header` the token is provided in an Authorization header, with query the token is provided in the `access_token` query string value.
 
@@ -174,6 +176,7 @@ Application Options:
   --url-path=                                           Callback URL Path (default: /_oauth) [$URL_PATH]
   --secret=                                             Secret used for signing (required) [$SECRET]
   --whitelist=                                          Only allow given email addresses, can be set multiple times [$WHITELIST]
+  --bind=                                               Address to bind to (default: 0.0.0.0) [$BIND]
   --port=                                               Port to listen on (default: 4181) [$PORT]
   --rule.<name>.<param>=                                Rule definitions, param can be: "action", "rule" or "provider"
 
@@ -232,7 +235,7 @@ All options can be supplied in any of the following ways, in the following prece
 
    Used to specify the path to a configuration file, can be set multiple times, each file will be read in the order they are passed. Options should be set in an INI format, for example:
 
-   ```
+   ```ini
    url-path = _oauthpath
    ```
 
@@ -241,8 +244,10 @@ All options can be supplied in any of the following ways, in the following prece
   When set, if a user successfully completes authentication, then if the host of the original request requiring authentication is a subdomain of a given cookie domain, then the authentication cookie will be set for the higher level cookie domain. This means that a cookie can allow access to multiple subdomains without re-authentication. Can be specificed multiple times.
 
    For example:
+
    ```
-   --cookie-domain="example.com"  --cookie-domain="test.org"
+   --cookie-domain="example.com"
+   --cookie-domain="test.org"
    ```
 
    For example, if the cookie domain `test.com` has been set, and a request comes in on `app1.test.com`, following authentication the auth cookie will be set for the whole `test.com` domain. As such, if another request is forwarded for authentication from `app2.test.com`, the original cookie will be sent and so the request will be allowed without further authentication.
@@ -315,7 +320,7 @@ All options can be supplied in any of the following ways, in the following prece
 
 - `secret`
 
-   Used to sign cookies authentication, should be a random (e.g. `openssl rand -hex 16`)
+   Used to sign cookies authentication, should be a random (e.g. `openssl rand -base64 32`)
 
 - `whitelist`
 
@@ -347,10 +352,11 @@ All options can be supplied in any of the following ways, in the following prece
            - ``Path(`path`, `/articles/{category}/{id:[0-9]+}`, ...)``
            - ``PathPrefix(`/products/`, `/articles/{category}/{id:[0-9]+}`)``
            - ``Query(`foo=bar`, `bar=baz`)``
-       - `whitelist` - optional, same usage as whitelist`](#whitelist)
+       - `whitelist` - optional, same usage as [`whitelist`](#whitelist)
 
    For example:
-   ```
+
+   ```ini
    # Allow requests that being with `/api/public` and contain the `Content-Type` header with a value of `application/json`
    rule.1.action = allow
    rule.1.rule = PathPrefix(`/api/public`) && Headers(`Content-Type`, `application/json`)
@@ -438,7 +444,7 @@ spec:
 
 See the examples directory for more examples.
 
-#### Selective Container Authentication in Swarm
+#### Selective Container Authentication in Docker Compose
 
 You can apply labels to selected containers:
 
@@ -488,7 +494,10 @@ As the hostname in the `redirect_uri` is dynamically generated based on the orig
 This is an optional mode of operation that is useful when dealing with a large number of subdomains, it is activated by using the `auth-host` config option (see [this example docker-compose.yml](https://github.com/italypaleale/traefik-forward-auth/blob/master/examples/traefik-v2/swarm/docker-compose-auth-host.yml) or [this kubernetes example](https://github.com/italypaleale/traefik-forward-auth/tree/master/examples/traefik-v2/kubernetes/advanced-separate-pod)).
 
 For example, if you have a few applications: `app1.test.com`, `app2.test.com`, `appN.test.com`, adding every domain to Google's console can become laborious.
-To utilise an auth host, permit domain level cookies by setting the cookie domain to `test.com` then set the `auth-host` to: `auth.test.com`.
+To utilize an auth host:
+
+1. Permit domain-level cookies by setting the cookie domain to `test.com`
+2. Set the `auth-host` to `auth.test.com`
 
 The user flow will then be:
 

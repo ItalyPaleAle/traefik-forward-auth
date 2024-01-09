@@ -2,11 +2,12 @@ package tfa
 
 import (
 	"bytes"
+	"crypto/hmac"
+	"crypto/sha256"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"os"
 	"regexp"
 	"strconv"
@@ -40,6 +41,7 @@ type Config struct {
 	Path                   string               `long:"url-path" env:"URL_PATH" default:"/_oauth" description:"Callback URL Path"`
 	SecretString           string               `long:"secret" env:"SECRET" description:"Secret used for signing (required)" json:"-"`
 	Whitelist              CommaSeparatedList   `long:"whitelist" env:"WHITELIST" env-delim:"," description:"Only allow given email addresses, can be set multiple times"`
+	Bind                   string               `long:"bind" env:"BIND" default:"0.0.0.0" description:"Address to bind to"`
 	Port                   int                  `long:"port" env:"PORT" default:"4181" description:"Port to listen on"`
 
 	Providers provider.Providers `group:"providers" namespace:"providers" env-namespace:"PROVIDERS"`
@@ -96,7 +98,7 @@ func NewConfig(args []string) (*Config, error) {
 		}
 	}
 
-	// Backwards compatability
+	// Backwards compatibility
 	if c.CookieSecretLegacy != "" && c.SecretString == "" {
 		fmt.Println("cookie-secret config option is deprecated, please use secret")
 		c.SecretString = c.CookieSecretLegacy
@@ -128,8 +130,14 @@ func NewConfig(args []string) (*Config, error) {
 	if len(c.Path) > 0 && c.Path[0] != '/' {
 		c.Path = "/" + c.Path
 	}
-	c.Secret = []byte(c.SecretString)
 	c.Lifetime = time.Second * time.Duration(c.LifetimeString)
+
+	// Stretch the secret
+	if len(c.SecretString) > 0 {
+		h := hmac.New(sha256.New, []byte(c.SecretString))
+		h.Write([]byte("traefik-forward-auth-secret"))
+		c.Secret = h.Sum(nil)
+	}
 
 	return c, nil
 }
@@ -243,7 +251,7 @@ func handleFlagError(err error) error {
 var legacyFileFormat = regexp.MustCompile(`(?m)^([a-z-]+) (.*)$`)
 
 func convertLegacyToIni(name string) (io.Reader, error) {
-	b, err := ioutil.ReadFile(name)
+	b, err := os.ReadFile(name)
 	if err != nil {
 		return nil, err
 	}
