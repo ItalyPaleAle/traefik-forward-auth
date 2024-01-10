@@ -1,0 +1,65 @@
+package utils
+
+import (
+	"context"
+	"errors"
+	"sync"
+)
+
+// Service is a background service
+type Service func(ctx context.Context) error
+
+// ServiceRunner oversees a number of services running in background
+type ServiceRunner struct {
+	mu       sync.Mutex
+	services []Service
+}
+
+// NewServiceRunner creates a new ServiceRunner
+func NewServiceRunner(services ...Service) *ServiceRunner {
+	return &ServiceRunner{
+		services: services,
+	}
+}
+
+// Add a service
+func (r *ServiceRunner) Add(service ...Service) {
+	r.mu.Lock()
+	r.services = append(r.services, service...)
+	r.mu.Unlock()
+}
+
+// Run all background services
+func (r *ServiceRunner) Run(ctx context.Context) error {
+	ctx, cancel := context.WithCancel(ctx)
+	defer cancel()
+
+	errCh := make(chan error)
+	for _, service := range r.services {
+		go func(service Service) {
+			// When a service returns, cancel all other services
+			defer cancel()
+
+			// Run the service
+			rErr := service(ctx)
+
+			// Ignore context canceled errors here as they generally indicate that the service is stopping.
+			if rErr != nil && !errors.Is(rErr, context.Canceled) {
+				errCh <- rErr
+				return
+			}
+			errCh <- nil
+		}(service)
+	}
+
+	// Wait for all services to return
+	errs := make([]error, 0)
+	for i := 0; i < len(r.services); i++ {
+		err := <-errCh
+		if err != nil {
+			errs = append(errs, err)
+		}
+	}
+
+	return errors.Join(errs...)
+}

@@ -1,10 +1,10 @@
 # About this fork
 
-This is a fork of [thomseddon/traefik-forward-auth](https://github.com/thomseddon/traefik-forward-auth) that includes the following changes:
+This is a fork of [thomseddon/traefik-forward-auth](https://github.com/italypaleale/traefik-forward-auth) that includes the following changes:
 
 - Two community-contributed PRs merged:
-  - [Multiple AUTH_HOST support #302](https://github.com/thomseddon/traefik-forward-auth/pull/302)
-  - [Build and push multi-arch image on GitHub Actions #275](https://github.com/thomseddon/traefik-forward-auth/pull/275)
+  - [Multiple AUTH_HOST support #302](https://github.com/italypaleale/traefik-forward-auth/pull/302)
+  - [Build and push multi-arch image on GitHub Actions #275](https://github.com/italypaleale/traefik-forward-auth/pull/275)
 - All dependencies have been brought up-to-date, and compile with a more recent version of Go
 - Docker image is now based on distroless (nonroot variant)
 

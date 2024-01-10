@@ -1,0 +1,11 @@
+aString: "foo"
+anInt: 42
+aBool: true
+aFloat: 123.45
+aDuration: "2m"
+aStringSlice:
+  - "ciao"
+  - "mondo"
+aMap:
+  hello: world
+  salut: monde
