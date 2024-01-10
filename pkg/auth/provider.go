@@ -15,9 +15,9 @@ type Provider interface {
 	// GetProviderName returns the name of the provider
 	GetProviderName() string
 	// AuthorizeURL returns the URL where to redirect users to for authorization.
-	AuthorizeURL(state string) (string, error)
+	AuthorizeURL(state string, redirectURL string) (string, error)
 	// ExchangeCode an authorization code for an access token
-	ExchangeCode(ctx context.Context, code string) (AccessToken, error)
+	ExchangeCode(ctx context.Context, code string, redirectURL string) (AccessToken, error)
 	// RetrieveProfile retrieves the user's profile, using the id_token (if present) or requesting it from the user info endpoint.
 	RetrieveProfile(ctx context.Context, at AccessToken) (UserProfile, error)
 }

@@ -2,7 +2,9 @@ package server
 
 import (
 	"fmt"
+	"net"
 	"net/http"
+	"net/netip"
 	"regexp"
 	"time"
 
@@ -12,6 +14,37 @@ import (
 
 	"github.com/italypaleale/traefik-forward-auth/pkg/config"
 )
+
+var proxyHeaders = []string{
+	"X-Forwarded-Server",
+	"X-Forwarded-For",
+	"X-Forwarded-Port",
+}
+
+// MiddlewareProxyHeaders is a middleware that gets values for source IP and port from the headers set by Traefik.
+// It stops the request if the headers aren't set.
+// This middleware should be used first in the chain.
+func (s *Server) MiddlewareProxyHeaders(c *gin.Context) {
+	// Ensure required headers are present
+	for i := range proxyHeaders {
+		if c.Request.Header.Get(proxyHeaders[i]) == "" {
+			AbortWithErrorJSON(c, NewResponseErrorf(http.StatusBadRequest, "Missing header %s", proxyHeaders[i]))
+			return
+		}
+	}
+
+	// Get and validate the remote address
+	remoteAddr, err := netip.ParseAddrPort(net.JoinHostPort(
+		c.Request.Header.Get("X-Forwarded-For"),
+		c.Request.Header.Get("X-Forwarded-Port"),
+	))
+	if err != nil {
+		AbortWithErrorJSON(c, NewResponseErrorf(http.StatusBadRequest, "Invalid remote address and port: %v", err))
+		return
+	}
+
+	c.Set("remote-addr", remoteAddr)
+}
 
 // MiddlewareRequestId is a middleware that generates a unique request ID for each request
 func (s *Server) MiddlewareRequestId(c *gin.Context) {
@@ -71,6 +104,7 @@ func (s *Server) MiddlewareLogger(parentLog *zerolog.Logger) func(c *gin.Context
 		c.Next()
 
 		// Other fields to include
+		traefik := c.Request.Header.Get("X-Forwarded-Server")
 		duration := time.Since(start)
 		clientIP := c.ClientIP()
 		statusCode := c.Writer.Status()
@@ -117,6 +151,7 @@ func (s *Server) MiddlewareLogger(parentLog *zerolog.Logger) func(c *gin.Context
 			Str("clientIp", clientIP).
 			Dur("duration", duration).
 			Int("respSize", respSize).
+			Str("traefik", traefik).
 			Msg(msg)
 	}
 }

@@ -90,6 +90,10 @@ func (s *Server) initAppServer(log *zerolog.Logger) (err error) {
 	// Healthz route
 	s.appRouter.GET("/healthz", gin.WrapF(s.RouteHealthzHandler))
 
+	// Auth routes
+	appRoutes := s.appRouter.Group("/", s.MiddlewareProxyHeaders)
+	appRoutes.GET("/", s.RouteGetRoot)
+
 	// Test routes, that are enabled when running tests only
 	if s.addTestRoutes != nil {
 		s.addTestRoutes(s)

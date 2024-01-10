@@ -9,21 +9,25 @@ import (
 )
 
 type testConfig struct {
-	AString      string            `env:"A_STRING" yaml:"aString"`
-	AnInt        int               `env:"AN_INT" yaml:"anInt"`
-	ABool        bool              `env:"A_BOOL" yaml:"aBool"`
-	AFloat       float64           `env:"A_FLOAT" yaml:"aFloat"`
-	ADuration    time.Duration     `env:"A_DURATION" yaml:"aDuration"`
-	AStringSlice []string          `env:"A_STRING_SLICE" yaml:"aStringSlice"`
-	AMap         map[string]string `env:"A_MAP" yaml:"aMap"`
+	AString      string            `yaml:"aString"`
+	AnInt        int               `yaml:"anInt"`
+	ABool        bool              `yaml:"aBool"`
+	AFloat       float64           `yaml:"aFloat"`
+	ADuration    time.Duration     `yaml:"aDuration"`
+	AStringSlice []string          `yaml:"aStringSlice"`
+	AMap         map[string]string `yaml:"aMap"`
+	AStruct      struct {
+		AString string `yaml:"aString"`
+		AnInt   int    `yaml:"anInt"`
+		ABool   bool   `yaml:"aBool"`
+	} `yaml:"aStruct"`
 }
 
 func TestConfigLoader(t *testing.T) {
 	t.Run("load from YAML", func(t *testing.T) {
 		cfg := &testConfig{}
 		err := Load(cfg, LoadOptions{
-			FilePath:  "testdata/full.yaml",
-			EnvPrefix: "TEST_",
+			FilePath: "testdata/full.yaml",
 		})
 		require.NoError(t, err)
 

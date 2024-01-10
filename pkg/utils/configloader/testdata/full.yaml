@@ -9,3 +9,7 @@ aStringSlice:
 aMap:
   hello: world
   salut: monde
+aStruct:
+  aString: "foo"
+  anInt: 42
+  aBool: true

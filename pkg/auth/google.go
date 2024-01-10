@@ -13,7 +13,6 @@ type Google struct {
 
 // NewGoogleOptions is the options for NewGoogle
 type NewGoogleOptions struct {
-	BaseURL string
 	// Client ID
 	ClientID string
 	// Client secret
@@ -31,13 +30,11 @@ func NewGoogle(opts NewGoogleOptions) (p Google, err error) {
 		return p, errors.New("value for clientSecret is required in config for auth with provider 'google'")
 	}
 
-	oauth2, err := NewOAuth2(NewOAuth2Options{
-		BaseURL: opts.BaseURL,
+	oauth2, err := NewOAuth2("google", NewOAuth2Options{
 		Config: OAuth2Config{
 			ClientID:     opts.ClientID,
 			ClientSecret: opts.ClientSecret,
 		},
-		ProviderName: "google",
 		Endpoints: OAuth2Endpoints{
 			Authorization: "https://accounts.google.com/o/oauth2/v2/auth",
 			Token:         "https://oauth2.googleapis.com/token",
@@ -54,3 +51,6 @@ func NewGoogle(opts NewGoogleOptions) (p Google, err error) {
 		OAuth2: oauth2,
 	}, nil
 }
+
+// Compile-time interface assertion
+var _ Provider = Google{}

@@ -21,7 +21,6 @@ type GitHub struct {
 
 // NewGitHubOptions is the options for NewGitHub
 type NewGitHubOptions struct {
-	BaseURL string
 	// Client ID
 	ClientID string
 	// Client secret
@@ -39,13 +38,11 @@ func NewGitHub(opts NewGitHubOptions) (p GitHub, err error) {
 		return p, errors.New("value for clientSecret is required in config for auth with provider 'github'")
 	}
 
-	oauth2, err := NewOAuth2(NewOAuth2Options{
-		BaseURL: opts.BaseURL,
+	oauth2, err := NewOAuth2("github", NewOAuth2Options{
 		Config: OAuth2Config{
 			ClientID:     opts.ClientID,
 			ClientSecret: opts.ClientSecret,
 		},
-		ProviderName: "github",
 		Endpoints: OAuth2Endpoints{
 			Authorization: "https://github.com/login/oauth/authorize",
 			Token:         "https://github.com/login/oauth/access_token",
@@ -125,3 +122,6 @@ func (a GitHub) RetrieveProfile(ctx context.Context, at AccessToken) (UserProfil
 		},
 	}, nil
 }
+
+// Compile-time interface assertion
+var _ Provider = GitHub{}

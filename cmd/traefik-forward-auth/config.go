@@ -14,11 +14,11 @@ import (
 	"github.com/italypaleale/traefik-forward-auth/pkg/utils/configloader"
 )
 
-const configEnvPrefix = "TRAEFIKFORWARDAUTH_"
+const configEnvPrefix = "TFA_"
 
 func loadConfig(log *zerolog.Logger) error {
 	// Get the path to the config.yaml
-	// First, try with the TRAEFIKFORWARDAUTH_CONFIG env var
+	// First, try with the TFA_CONFIG env var
 	configFile := os.Getenv(configEnvPrefix + "CONFIG")
 	if configFile != "" {
 		exists, _ := utils.FileExists(configFile)
@@ -35,11 +35,10 @@ func loadConfig(log *zerolog.Logger) error {
 	}
 
 	// Load the configuration
-	// Note that configFile can be empty, if none was found (we can still use env vars)
+	// Note that configFile can be empty
 	cfg := config.Get()
 	err := configloader.Load(cfg, configloader.LoadOptions{
 		FilePath:                 configFile,
-		EnvPrefix:                configEnvPrefix,
 		IgnoreZeroValuesInConfig: true,
 	})
 	if err != nil {

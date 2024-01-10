@@ -13,7 +13,6 @@ type MicrosoftEntraID struct {
 
 // NewMicrosoftEntraIDOptions is the options for NewMicrosoftEntraID
 type NewMicrosoftEntraIDOptions struct {
-	BaseURL string
 	// Tenant ID
 	TenantID string
 	// Client ID
@@ -36,13 +35,11 @@ func NewMicrosoftEntraID(opts NewMicrosoftEntraIDOptions) (p MicrosoftEntraID, e
 		return p, errors.New("value for clientSecret is required in config for auth with provider 'microsoft-entra-id'")
 	}
 
-	oauth2, err := NewOAuth2(NewOAuth2Options{
-		BaseURL: opts.BaseURL,
+	oauth2, err := NewOAuth2("microsoftentraid", NewOAuth2Options{
 		Config: OAuth2Config{
 			ClientID:     opts.ClientID,
 			ClientSecret: opts.ClientSecret,
 		},
-		ProviderName: "microsoft-entra-id",
 		Endpoints: OAuth2Endpoints{
 			Authorization: "https://login.microsoftonline.com/" + opts.TenantID + "/oauth2/v2.0/authorize",
 			Token:         "https://login.microsoftonline.com/" + opts.TenantID + "/oauth2/v2.0/token",
@@ -59,3 +56,6 @@ func NewMicrosoftEntraID(opts NewMicrosoftEntraIDOptions) (p MicrosoftEntraID, e
 		OAuth2: oauth2,
 	}, nil
 }
+
+// Compile-time interface assertion
+var _ Provider = MicrosoftEntraID{}

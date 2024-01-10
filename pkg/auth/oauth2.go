@@ -17,7 +17,6 @@ import (
 
 // OAuth2 is a Provider for authenticating with a generic OAuth2 provider.
 type OAuth2 struct {
-	baseURL        string
 	config         OAuth2Config
 	providerName   string
 	endpoints      OAuth2Endpoints
@@ -46,10 +45,8 @@ type OAuth2Endpoints struct {
 
 // NewOAuth2Options is the options for NewOAuth2
 type NewOAuth2Options struct {
-	BaseURL      string
-	Config       OAuth2Config
-	ProviderName string
-	Endpoints    OAuth2Endpoints
+	Config    OAuth2Config
+	Endpoints OAuth2Endpoints
 	// Optional value for the issuer claim
 	TokenIssuer string
 	// Scopes for requesting the token
@@ -60,18 +57,18 @@ type NewOAuth2Options struct {
 }
 
 // NewOAuth2 returns a new OAuth2 provider
-func NewOAuth2(opts NewOAuth2Options) (p OAuth2, err error) {
+func NewOAuth2(providerName string, opts NewOAuth2Options) (p OAuth2, err error) {
 	if opts.Config.ClientID == "" {
 		return p, errors.New("value for clientId is required in config for auth provider")
 	}
 	if opts.Config.ClientSecret == "" {
 		return p, errors.New("value for clientSecret is required in config for auth provider")
 	}
-	if opts.ProviderName == "" {
+	if providerName == "" {
 		return p, errors.New("missing parameter providerName")
 	}
 	if opts.Endpoints.Authorization == "" || opts.Endpoints.Token == "" || opts.Endpoints.UserInfo == "" {
-		return p, errors.New("All endpoints must be specified")
+		return p, errors.New("all endpoints must be specified")
 	}
 
 	scopes := opts.Scopes
@@ -84,9 +81,8 @@ func NewOAuth2(opts NewOAuth2Options) (p OAuth2, err error) {
 	}
 
 	p = OAuth2{
-		baseURL:        opts.BaseURL,
 		config:         opts.Config,
-		providerName:   opts.ProviderName,
+		providerName:   providerName,
 		endpoints:      opts.Endpoints,
 		tokenIssuer:    opts.TokenIssuer,
 		scopes:         scopes,
@@ -100,13 +96,13 @@ func (a OAuth2) GetProviderName() string {
 	return a.providerName
 }
 
-func (a OAuth2) AuthorizeURL(state string) (string, error) {
+func (a OAuth2) AuthorizeURL(state string, redirectURL string) (string, error) {
 	if state == "" {
 		return "", errors.New("parameter state is required")
 	}
 	params := url.Values{}
 	params.Add("client_id", a.config.ClientID)
-	params.Add("redirect_uri", a.baseURL)
+	params.Add("redirect_uri", redirectURL)
 	params.Add("response_type", "code")
 	params.Add("scope", a.scopes)
 	params.Add("state", state)
@@ -114,7 +110,7 @@ func (a OAuth2) AuthorizeURL(state string) (string, error) {
 	return a.endpoints.Authorization + "?" + params.Encode(), nil
 }
 
-func (a OAuth2) ExchangeCode(ctx context.Context, code string) (AccessToken, error) {
+func (a OAuth2) ExchangeCode(ctx context.Context, code string, redirectURL string) (AccessToken, error) {
 	if code == "" {
 		return AccessToken{}, errors.New("parameter code is required")
 	}
@@ -123,7 +119,7 @@ func (a OAuth2) ExchangeCode(ctx context.Context, code string) (AccessToken, err
 	data.Set("code", code)
 	data.Set("client_id", a.config.ClientID)
 	data.Set("client_secret", a.config.ClientSecret)
-	data.Set("redirect_uri", a.baseURL)
+	data.Set("redirect_uri", redirectURL)
 	data.Set("grant_type", "authorization_code")
 
 	reqCtx, cancel := context.WithTimeout(ctx, a.requestTimeout)
@@ -245,3 +241,6 @@ func (a OAuth2) RetrieveProfile(ctx context.Context, at AccessToken) (profile Us
 
 	return profile, nil
 }
+
+// Compile-time interface assertion
+var _ Provider = OAuth2{}
