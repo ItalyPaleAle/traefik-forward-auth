@@ -46,6 +46,24 @@ func (s *Server) MiddlewareProxyHeaders(c *gin.Context) {
 	c.Set("remote-addr", remoteAddr)
 }
 
+// MiddlewareLoadAuthCookie is a middleware that checks if the request contains a valid authentication token in the cookie.
+func (s *Server) MiddlewareLoadAuthCookie(c *gin.Context) {
+	// Get the cookie and parse it
+	profile, claims, err := getSessionCookie(c)
+	if err != nil {
+		deleteSessionCookie(c)
+		AbortWithErrorJSON(c, fmt.Errorf("cookie error: %w", err))
+		return
+	}
+
+	// If we have a valid session, set it in the context
+	if profile.ID != "" && len(claims) > 0 {
+		c.Set("session-auth", true)
+		c.Set("session-profile", profile)
+		c.Set("session-claims", claims)
+	}
+}
+
 // MiddlewareRequestId is a middleware that generates a unique request ID for each request
 func (s *Server) MiddlewareRequestId(c *gin.Context) {
 	// Check if we have a trusted request ID header and it has a value

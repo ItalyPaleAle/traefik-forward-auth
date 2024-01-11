@@ -86,6 +86,12 @@ func processConfig(log *zerolog.Logger, cfg *config.Config) (err error) {
 		return err
 	}
 
+	// Ensures the token signing key is present
+	err = cfg.SetTokenSigningKey(log)
+	if err != nil {
+		return err
+	}
+
 	return nil
 }
 

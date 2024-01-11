@@ -9,6 +9,7 @@ import (
 	"github.com/rs/zerolog"
 
 	"github.com/italypaleale/traefik-forward-auth/pkg/buildinfo"
+	"github.com/italypaleale/traefik-forward-auth/pkg/config"
 	"github.com/italypaleale/traefik-forward-auth/pkg/server"
 	"github.com/italypaleale/traefik-forward-auth/pkg/utils"
 	"github.com/italypaleale/traefik-forward-auth/pkg/utils/signals"
@@ -44,10 +45,19 @@ func main() {
 			return
 		}
 	}
+	conf := config.Get()
+
+	// Get the auth provider
+	auth, err := conf.GetAuthProvider()
+	if err != nil {
+		log.Fatal().Err(err).Msg("Failed to get auth provider")
+		return
+	}
 
 	// Create the Server object
 	srv, err := server.NewServer(server.NewServerOpts{
-		Log: &log,
+		Log:  &log,
+		Auth: auth,
 	})
 	if err != nil {
 		log.Fatal().Err(err).Msg("Cannot initialize the server")

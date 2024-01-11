@@ -9,6 +9,8 @@ import (
 	"net/http"
 	"strings"
 	"time"
+
+	"github.com/italypaleale/traefik-forward-auth/pkg/user"
 )
 
 const ghGraphQLEndpoint = "https://api.github.com/graphql"
@@ -60,9 +62,9 @@ func NewGitHub(opts NewGitHubOptions) (p GitHub, err error) {
 	}, nil
 }
 
-func (a GitHub) RetrieveProfile(ctx context.Context, at AccessToken) (UserProfile, error) {
+func (a GitHub) RetrieveProfile(ctx context.Context, at AccessToken) (user.Profile, error) {
 	if at.AccessToken == "" {
-		return UserProfile{}, errors.New("missing AccessToken in parameter at")
+		return user.Profile{}, errors.New("missing AccessToken in parameter at")
 	}
 
 	reqCtx, cancel := context.WithTimeout(ctx, a.requestTimeout)
@@ -70,14 +72,14 @@ func (a GitHub) RetrieveProfile(ctx context.Context, at AccessToken) (UserProfil
 	reqBody := strings.NewReader(`{"query": "query { viewer { id, login, avatarUrl, name } }"}`)
 	req, err := http.NewRequestWithContext(reqCtx, http.MethodPost, ghGraphQLEndpoint, reqBody)
 	if err != nil {
-		return UserProfile{}, fmt.Errorf("failed to create HTTP request: %w", err)
+		return user.Profile{}, fmt.Errorf("failed to create HTTP request: %w", err)
 	}
 	req.Header.Set("Authorization", "token "+at.AccessToken)
 	req.Header.Set("User-Agent", "photobox/1")
 
 	res, err := a.httpClient.Do(req)
 	if err != nil {
-		return UserProfile{}, fmt.Errorf("failed to perform request: %w", err)
+		return user.Profile{}, fmt.Errorf("failed to perform request: %w", err)
 	}
 	defer func() {
 		_, _ = io.Copy(io.Discard, res.Body)
@@ -85,7 +87,7 @@ func (a GitHub) RetrieveProfile(ctx context.Context, at AccessToken) (UserProfil
 	}()
 
 	if res.StatusCode != http.StatusOK {
-		return UserProfile{}, fmt.Errorf("invalid response status code: %d", err)
+		return user.Profile{}, fmt.Errorf("invalid response status code: %d", err)
 	}
 
 	var resBody struct {
@@ -100,12 +102,12 @@ func (a GitHub) RetrieveProfile(ctx context.Context, at AccessToken) (UserProfil
 	}
 	err = json.NewDecoder(res.Body).Decode(&resBody)
 	if err != nil {
-		return UserProfile{}, err
+		return user.Profile{}, err
 	}
 
 	userData := resBody.Data.Viewer
 	if userData.ID == "" || userData.Login == "" {
-		return UserProfile{}, errors.New("missing required fields in user profile response")
+		return user.Profile{}, errors.New("missing required fields in user profile response")
 	}
 
 	fn := userData.Name
@@ -113,10 +115,10 @@ func (a GitHub) RetrieveProfile(ctx context.Context, at AccessToken) (UserProfil
 		fn = userData.Login
 	}
 
-	return UserProfile{
+	return user.Profile{
 		ID:      userData.ID,
 		Picture: userData.AvatarUrl,
-		Name: UserProfileName{
+		Name: user.ProfileName{
 			Nickname: userData.Login,
 			FullName: fn,
 		},

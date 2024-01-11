@@ -83,7 +83,12 @@ func TestSetTokenSigningKey(t *testing.T) {
 
 		err := config.SetTokenSigningKey(&logger)
 		require.NoError(t, err)
-		assert.Equal(t, "b8cf67b06159c291d6cc1e27b10cddeab93f48f444995f4b0fb886e3ea75d422", hex.EncodeToString(config.GetTokenSigningKey()))
+
+		tsk := config.GetTokenSigningKey()
+		var tskRaw []byte
+		err = tsk.Raw(&tskRaw)
+		require.NoError(t, err)
+		assert.Equal(t, "b0c4b5e9cd81511ee72e7ecfcaee8fae84de71bc02e575960928cc606f6622fb", hex.EncodeToString(tskRaw))
 	})
 
 	t.Run("tokenSigningKey not present", func(t *testing.T) {
@@ -93,8 +98,11 @@ func TestSetTokenSigningKey(t *testing.T) {
 
 		err := config.SetTokenSigningKey(&logger)
 		require.NoError(t, err)
-		val := config.GetTokenSigningKey()
-		require.Len(t, val, 32)
+		tsk1 := config.GetTokenSigningKey()
+		var tsk1Raw []byte
+		err = tsk1.Raw(&tsk1Raw)
+		require.NoError(t, err)
+		require.Len(t, tsk1Raw, 32)
 
 		logsMsg := logs.String()
 		require.Contains(t, logsMsg, "No 'tokenSigningKey' found in the configuration")
@@ -102,6 +110,11 @@ func TestSetTokenSigningKey(t *testing.T) {
 		// Should be different every time
 		err = config.SetTokenSigningKey(&logger)
 		require.NoError(t, err)
-		assert.NotEqual(t, val, config.GetTokenSigningKey())
+
+		tsk2 := config.GetTokenSigningKey()
+		var tsk2Raw []byte
+		err = tsk2.Raw(&tsk2Raw)
+		require.NoError(t, err)
+		assert.NotEqual(t, tsk1Raw, tsk2Raw)
 	})
 }

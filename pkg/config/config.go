@@ -4,15 +4,20 @@ import (
 	"crypto"
 	"crypto/hmac"
 	"crypto/rand"
+	"crypto/sha256"
+	"encoding/base64"
 	"errors"
 	"fmt"
 	"io"
 	"strings"
 	"time"
 
+	"github.com/lestrrat-go/jwx/v2/jwk"
+	"github.com/rs/zerolog"
+
+	"github.com/italypaleale/traefik-forward-auth/pkg/auth"
 	"github.com/italypaleale/traefik-forward-auth/pkg/utils"
 	"github.com/italypaleale/traefik-forward-auth/pkg/utils/validators"
-	"github.com/rs/zerolog"
 )
 
 // Config is the struct containing configuration
@@ -26,6 +31,19 @@ type Config struct {
 	// If empty, this is set to the value of the `hostname` property.
 	// This value must either be the same as the `hostname` property, or the hostname must be a sub-domain of the cookie domain name.
 	CookieDomain string `env:"COOKIEDOMAIN" yaml:"cookieDomain"`
+
+	// Name of the cookie used to store the session.
+	// +default "tf_sess"
+	CookieName string `env:"COOKIENAME" yaml:"cookieName"`
+
+	// If true, sets cookies as "insecure", which are served on HTTP endpoints too.
+	// By default, this is false and cookies are sent on HTTPS endpoints only.
+	// +default false
+	CookieInsecure bool `env:"COOKIEINSECURE" yaml:"cookieInsecure"`
+
+	// Lifetime for sessions after a successful authentication.
+	// +default 2h
+	SessionLifetime time.Duration `env:"SESSIONLIFETIME" yaml:"sessionLifetime"`
 
 	// Port to bind to.
 	// +default 4181
@@ -60,16 +78,15 @@ type Config struct {
 	// If left empty, it will be randomly generated every time the app starts (recommended, unless you need user sessions to persist after the application is restarted).
 	TokenSigningKey string `env:"TOKENSIGNINGKEY" yaml:"tokenSigningKey"`
 
-	// Authentication method to use
-	// Currently supported auth methods:
+	// Authentication provider to use
+	// Currently supported providers:
 	//
 	// - github
 	// - google
-	// - microsoft-entra-id
-	// - oauth2
+	// - microsoftentraid
 	//
 	// +required
-	AuthMethod string `env:"AUTHMETHOD" yaml:"authMethod"`
+	AuthProvider string `env:"AUTHPROVIDER" yaml:"authProvider"`
 
 	// Client ID for the Google auth application
 	// Ignored if `authMethod` is not `google`
@@ -109,6 +126,10 @@ type Config struct {
 	// +default 10s
 	AuthMicrosoftEntraIDRequestTimeout time.Duration `env:"AUTHMICROSOFTENTRAID_REQUESTTIMEOUT" yaml:"authMicrosoftEntraID_requestTimeout"`
 
+	// Timeout for authenticating with the authentication provider.
+	// +default 5m
+	AuthenticationTimeout time.Duration `env:"AUTHENTICATIONTIMEOUT" yaml:"authenticationTimeout"`
+
 	// Path where to load TLS certificates from. Within the folder, the files must be named `tls-cert.pem` and `tls-key.pem`.
 	// Vault watches for changes in this folder and automatically reloads the TLS certificates when they're updated.
 	// If empty, certificates are loaded from the same folder where the loaded `config.yaml` is located.
@@ -147,7 +168,7 @@ type Dev struct {
 // Internal properties
 type internal struct {
 	configFileLoaded string // Path to the config file that was loaded
-	tokenSigningKey  []byte
+	tokenSigningKey  jwk.Key
 }
 
 // GetLoadedConfigPath returns the path to the config file that was loaded
@@ -161,7 +182,7 @@ func (c *Config) SetLoadedConfigPath(filePath string) {
 }
 
 // GetTokenSigningKey returns the (parsed) token signing key
-func (c Config) GetTokenSigningKey() []byte {
+func (c Config) GetTokenSigningKey() jwk.Key {
 	return c.internal.tokenSigningKey
 }
 
@@ -172,9 +193,9 @@ func (c *Config) Validate(log *zerolog.Logger) error {
 		return errors.New("property 'hostname' is required and must be a valid hostname or IP")
 	}
 
-	c.AuthMethod = strings.ToLower(c.AuthMethod)
-	if c.AuthMethod == "" {
-		return errors.New("property 'authMethod' is required")
+	c.AuthProvider = strings.ReplaceAll(strings.ToLower(c.AuthProvider), "-", "")
+	if c.AuthProvider == "" {
+		return errors.New("property 'authProvider' is required")
 	}
 
 	// Check for invalid values
@@ -186,30 +207,79 @@ func (c *Config) Validate(log *zerolog.Logger) error {
 		return errors.New("property 'hostname' must be a sub-domain of, or equal to, 'cookieName'")
 	}
 
+	if c.SessionLifetime < time.Minute {
+		return errors.New("property 'sessionLifetime' is invalid: must be at least 1 minute")
+	}
+	if c.AuthenticationTimeout < 5*time.Second {
+		return errors.New("property 'authenticationTimeout' is invalid: must be at least 5 seconds")
+	}
+
 	return nil
+}
+
+// GetProvider returns the auth provider.
+func (c *Config) GetAuthProvider() (auth.Provider, error) {
+	switch c.AuthProvider {
+	case "github":
+		return auth.NewGitHub(auth.NewGitHubOptions{
+			ClientID:       c.AuthGitHubClientID,
+			ClientSecret:   c.AuthGitHubClientSecret,
+			RequestTimeout: c.AuthGitHubRequestTimeout,
+		})
+	case "google":
+		return auth.NewGoogle(auth.NewGoogleOptions{
+			ClientID:       c.AuthGoogleClientID,
+			ClientSecret:   c.AuthGoogleClientSecret,
+			RequestTimeout: c.AuthGoogleRequestTimeout,
+		})
+	case "microsoftentraid":
+		return auth.NewMicrosoftEntraID(auth.NewMicrosoftEntraIDOptions{
+			TenantID:       c.AuthMicrosoftEntraIDTenantID,
+			ClientID:       c.AuthMicrosoftEntraIDClientID,
+			ClientSecret:   c.AuthMicrosoftEntraIDClientSecret,
+			RequestTimeout: c.AuthMicrosoftEntraIDRequestTimeout,
+		})
+	default:
+		return nil, fmt.Errorf("invalid value for 'authProvider': %s", c.AuthProvider)
+	}
 }
 
 // SetTokenSigningKey parses the token signing key.
 // If it's empty, will generate a new one.
 func (c *Config) SetTokenSigningKey(logger *zerolog.Logger) (err error) {
+	var rawKey []byte
 	b := []byte(c.TokenSigningKey)
 	if len(b) == 0 {
 		if logger != nil {
 			logger.Debug().Msg("No 'tokenSigningKey' found in the configuration: a random one will be generated")
 		}
 
-		c.internal.tokenSigningKey = make([]byte, 32)
-		_, err = io.ReadFull(rand.Reader, c.internal.tokenSigningKey)
+		rawKey = make([]byte, 32)
+		_, err = io.ReadFull(rand.Reader, rawKey)
 		if err != nil {
 			return fmt.Errorf("failed to generate random bytes: %w", err)
 		}
-		return nil
+	} else {
+		// Compute a HMAC to ensure the key is 256-bit long
+		h := hmac.New(crypto.SHA256.New, b)
+		h.Write([]byte("tfa-token-signing-key"))
+		rawKey = h.Sum(nil)
 	}
 
-	// Compute a HMAC to ensure the key is 256-bit long
-	h := hmac.New(crypto.SHA256.New, b)
-	h.Write([]byte("revaulter-token-signing-key"))
-	c.internal.tokenSigningKey = h.Sum(nil)
+	// Import the key as a jwk.Key
+	c.internal.tokenSigningKey, err = jwk.FromRaw(rawKey)
+	if err != nil {
+		return fmt.Errorf("failed to import tokenSigningKey as jwk.Key: %w", err)
+	}
+
+	// Calculate the key ID
+	c.internal.tokenSigningKey.Set("kid", computeKeyId(rawKey))
 
 	return nil
+}
+
+// Returns the key ID from a key
+func computeKeyId(k []byte) string {
+	h := sha256.Sum256(k)
+	return base64.RawURLEncoding.EncodeToString(h[0:12])
 }

@@ -18,6 +18,7 @@ import (
 	"golang.org/x/net/http2"
 	"golang.org/x/net/http2/h2c"
 
+	"github.com/italypaleale/traefik-forward-auth/pkg/auth"
 	"github.com/italypaleale/traefik-forward-auth/pkg/config"
 	"github.com/italypaleale/traefik-forward-auth/pkg/metrics"
 )
@@ -26,6 +27,7 @@ import (
 type Server struct {
 	appRouter *gin.Engine
 	metrics   metrics.TFAMetrics
+	auth      auth.Provider
 
 	// Servers
 	appSrv     *http.Server
@@ -52,7 +54,8 @@ type Server struct {
 
 // NewServerOpts contains options for the NewServer method
 type NewServerOpts struct {
-	Log *zerolog.Logger
+	Log  *zerolog.Logger
+	Auth auth.Provider
 
 	// Optional function to add test routes
 	// This is used in testing
@@ -63,6 +66,7 @@ type NewServerOpts struct {
 func NewServer(opts NewServerOpts) (*Server, error) {
 	s := &Server{
 		addTestRoutes: opts.addTestRoutes,
+		auth:          opts.Auth,
 	}
 
 	// Init the object
@@ -106,7 +110,7 @@ func (s *Server) initAppServer(log *zerolog.Logger) (err error) {
 
 	// Auth routes
 	appRoutes := s.appRouter.Group("/", s.MiddlewareProxyHeaders)
-	appRoutes.GET("/", s.RouteGetRoot)
+	appRoutes.GET("/", s.MiddlewareLoadAuthCookie, s.RouteGetRoot)
 
 	// Test routes, that are enabled when running tests only
 	if s.addTestRoutes != nil {

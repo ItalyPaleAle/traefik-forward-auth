@@ -13,6 +13,8 @@ import (
 
 	"github.com/lestrrat-go/jwx/v2/jwt"
 	"github.com/lestrrat-go/jwx/v2/jwt/openid"
+
+	"github.com/italypaleale/traefik-forward-auth/pkg/user"
 )
 
 // OAuth2 is a Provider for authenticating with a generic OAuth2 provider.
@@ -175,9 +177,9 @@ type oAuth2TokenResponse struct {
 	IDToken      string `json:"id_token"`
 }
 
-func (a OAuth2) RetrieveProfile(ctx context.Context, at AccessToken) (profile UserProfile, err error) {
+func (a OAuth2) RetrieveProfile(ctx context.Context, at AccessToken) (profile user.Profile, err error) {
 	if at.AccessToken == "" {
-		return UserProfile{}, errors.New("Missing parameter at")
+		return user.Profile{}, errors.New("Missing parameter at")
 	}
 
 	// Check if we have an ID token to get the profile from
@@ -199,7 +201,7 @@ func (a OAuth2) RetrieveProfile(ctx context.Context, at AccessToken) (profile Us
 			return profile, errors.New("failed to parse ID token: included claims cannot be cast to openid.Token")
 		}
 
-		profile, err = NewUserProfileFromOpenIDToken(oidToken)
+		profile, err = user.NewProfileFromOpenIDToken(oidToken)
 		if err != nil {
 			return profile, fmt.Errorf("invalid claims in token: %w", err)
 		}
