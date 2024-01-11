@@ -39,6 +39,7 @@ func loadConfig(log *zerolog.Logger) error {
 	cfg := config.Get()
 	err := configloader.Load(cfg, configloader.LoadOptions{
 		FilePath:                 configFile,
+		EnvPrefix:                configEnvPrefix,
 		IgnoreZeroValuesInConfig: true,
 	})
 	if err != nil {

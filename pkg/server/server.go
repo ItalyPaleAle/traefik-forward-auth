@@ -2,10 +2,12 @@ package server
 
 import (
 	"context"
+	"crypto/tls"
 	"errors"
 	"fmt"
 	"net"
 	"net/http"
+	"path/filepath"
 	"strconv"
 	"sync"
 	"sync/atomic"
@@ -28,6 +30,12 @@ type Server struct {
 	// Servers
 	appSrv     *http.Server
 	metricsSrv *http.Server
+
+	// Method that forces a reload of TLS certificates from disk
+	tlsCertWatchFn tlsCertWatchFn
+
+	// TLS configuration for the app server
+	tlsConfig *tls.Config
 
 	running atomic.Bool
 	wg      sync.WaitGroup
@@ -81,6 +89,12 @@ func (s *Server) init(log *zerolog.Logger) error {
 }
 
 func (s *Server) initAppServer(log *zerolog.Logger) (err error) {
+	// Load the TLS configuration
+	s.tlsConfig, s.tlsCertWatchFn, err = s.loadTLSConfig(log)
+	if err != nil {
+		return fmt.Errorf("failed to load TLS configuration: %w", err)
+	}
+
 	// Create the Gin router and add various middlewares
 	s.appRouter = gin.New()
 	s.appRouter.Use(gin.Recovery())
@@ -155,6 +169,14 @@ func (s *Server) Run(ctx context.Context) error {
 		}()
 	}
 
+	// If we have a tlsCertWatchFn, invoke that
+	if s.tlsCertWatchFn != nil {
+		err = s.tlsCertWatchFn(ctx)
+		if err != nil {
+			return fmt.Errorf("failed to watch for TLS certificates: %w", err)
+		}
+	}
+
 	// Block until the context is canceled
 	<-ctx.Done()
 
@@ -172,10 +194,16 @@ func (s *Server) startAppServer(ctx context.Context) error {
 		MaxHeaderBytes:    1 << 20,
 		ReadHeaderTimeout: 10 * time.Second,
 	}
-
-	// Enable HTTP/2 Cleartext
-	h2s := &http2.Server{}
-	s.appSrv.Handler = h2c.NewHandler(s.appRouter, h2s)
+	if s.tlsConfig != nil {
+		// Using TLS
+		s.appSrv.Handler = s.appRouter
+		s.appSrv.TLSConfig = s.tlsConfig
+	} else {
+		// Not using TLS
+		// Here we also need to enable HTTP/2 Cleartext
+		h2s := &http2.Server{}
+		s.appSrv.Handler = h2c.NewHandler(s.appRouter, h2s)
+	}
 
 	// Create the listener if we don't have one already
 	if s.appListener == nil {
@@ -190,12 +218,18 @@ func (s *Server) startAppServer(ctx context.Context) error {
 	log.Info().
 		Str("bind", cfg.Bind).
 		Int("port", cfg.Port).
+		Bool("tls", s.tlsConfig != nil).
 		Msg("App server started")
 	go func() {
 		defer s.appListener.Close()
 
 		// Next call blocks until the server is shut down
-		srvErr := s.appSrv.Serve(s.appListener)
+		var srvErr error
+		if s.tlsConfig != nil {
+			srvErr = s.appSrv.ServeTLS(s.appListener, "", "")
+		} else {
+			srvErr = s.appSrv.Serve(s.appListener)
+		}
 		if srvErr != http.ErrServerClosed {
 			log.Fatal().Err(srvErr).Msgf("Error starting app server")
 		}
@@ -246,4 +280,69 @@ func (s *Server) startMetricsServer(ctx context.Context) error {
 	}()
 
 	return nil
+}
+
+// Loads the TLS configuration
+func (s *Server) loadTLSConfig(log *zerolog.Logger) (tlsConfig *tls.Config, watchFn tlsCertWatchFn, err error) {
+	cfg := config.Get()
+
+	tlsConfig = &tls.Config{
+		MinVersion: minTLSVersion,
+	}
+
+	// First, check if we have actual keys
+	tlsCert := cfg.TLSCertPEM
+	tlsKey := cfg.TLSKeyPEM
+
+	// If we don't have actual keys, then we need to load from file and reload when the files change
+	if tlsCert == "" && tlsKey == "" {
+		// If "tlsPath" is empty, use the folder where the config file is located
+		tlsPath := cfg.TLSPath
+		if tlsPath == "" {
+			file := cfg.GetLoadedConfigPath()
+			if file != "" {
+				tlsPath = filepath.Dir(file)
+			}
+		}
+
+		if tlsPath == "" {
+			// No config file loaded, so don't attempt to load TLS certs
+			return nil, nil, nil
+		}
+
+		var provider *tlsCertProvider
+		provider, err = newTLSCertProvider(tlsPath)
+		if err != nil {
+			return nil, nil, fmt.Errorf("failed to load TLS certificates from path '%s': %w", tlsPath, err)
+		}
+
+		// If newTLSCertProvider returns nil, there are no TLS certificates, so disable TLS
+		if provider == nil {
+			return nil, nil, nil
+		}
+
+		log.Debug().
+			Str("path", tlsPath).
+			Msg("Loaded TLS certificates from disk")
+
+		tlsConfig.GetCertificate = provider.GetCertificateFn()
+
+		return tlsConfig, provider.Watch, nil
+	}
+
+	// Assume the values from the config file are PEM-encoded certs and key
+	if tlsCert == "" || tlsKey == "" {
+		// If tlsCert and/or tlsKey is empty, do not use TLS
+		return nil, nil, nil
+	}
+
+	cert, err := tls.X509KeyPair([]byte(tlsCert), []byte(tlsKey))
+	if err != nil {
+		return nil, nil, fmt.Errorf("failed to parse TLS certificate or key: %w", err)
+	}
+	tlsConfig.Certificates = []tls.Certificate{cert}
+
+	log.Debug().Msg("Loaded TLS certificates from PEM values")
+
+	return tlsConfig, nil, nil
 }

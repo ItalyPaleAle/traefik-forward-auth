@@ -30,3 +30,9 @@ func FileExists(path string) (bool, error) {
 	}
 	return !s.IsDir(), nil
 }
+
+// IsSubDomain returns true if sub is a sub-domain name of domain, or is equal to domain.
+func IsSubDomain(domain, sub string) bool {
+	return domain == sub ||
+		strings.HasSuffix(sub, "."+domain)
+}
