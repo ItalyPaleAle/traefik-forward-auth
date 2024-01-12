@@ -6,9 +6,11 @@ import (
 	"crypto/rand"
 	"crypto/sha256"
 	"encoding/base64"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
+	"net"
 	"strings"
 	"time"
 
@@ -90,11 +92,9 @@ type Config struct {
 
 	// Client ID for the Google auth application
 	// Ignored if `authMethod` is not `google`
-	// +required
 	AuthGoogleClientID string `env:"AUTHGOOGLE_CLIENTID" yaml:"authGoogle_clientID"`
 	// Client secret for the Google auth application
 	// Ignored if `authMethod` is not `google`
-	// +required
 	AuthGoogleClientSecret string `env:"AUTHGOOGLE_CLIENTSECRET" yaml:"authGoogle_clientSecret"`
 	// Timeout for network requests for Google auth
 	// Ignored if `authMethod` is not `google`
@@ -171,6 +171,12 @@ type internal struct {
 	tokenSigningKey  jwk.Key
 }
 
+// String implements fmt.Stringer and prints out the config for debugging
+func (c Config) String() string {
+	enc, _ := json.Marshal(c)
+	return string(enc)
+}
+
 // GetLoadedConfigPath returns the path to the config file that was loaded
 func (c Config) GetLoadedConfigPath() string {
 	return c.internal.configFileLoaded
@@ -188,23 +194,37 @@ func (c Config) GetTokenSigningKey() jwk.Key {
 
 // Validates the configuration and performs some sanitization
 func (c *Config) Validate(log *zerolog.Logger) error {
-	// Check required variables
-	if c.Hostname == "" || (!validators.IsHostname(c.Hostname) && !validators.IsIP(c.Hostname)) {
-		return errors.New("property 'hostname' is required and must be a valid hostname or IP")
-	}
-
 	c.AuthProvider = strings.ReplaceAll(strings.ToLower(c.AuthProvider), "-", "")
 	if c.AuthProvider == "" {
 		return errors.New("property 'authProvider' is required")
 	}
 
-	// Check for invalid values
-	if c.CookieDomain == "" {
-		c.CookieDomain = c.Hostname
-	} else if !validators.IsHostname(c.CookieDomain) && !validators.IsIP(c.CookieDomain) {
-		return errors.New("property 'cookieDomain' is invalid: must be a valid hostname or IP")
-	} else if !utils.IsSubDomain(c.CookieDomain, c.Hostname) {
-		return errors.New("property 'hostname' must be a sub-domain of, or equal to, 'cookieName'")
+	// Hostname can have an optional port
+	if c.Hostname == "" {
+		return errors.New("property 'hostname' is required and must be a valid hostname or IP")
+	}
+
+	host, port, err := net.SplitHostPort(c.Hostname)
+	if err == nil && host != "" && port != "" {
+		if c.CookieDomain == "" {
+			c.CookieDomain = host
+		} else if !validators.IsHostname(c.CookieDomain) && !validators.IsIP(c.CookieDomain) {
+			return errors.New("property 'cookieDomain' is invalid: must be a valid hostname or IP")
+		} else if !utils.IsSubDomain(c.CookieDomain, host) {
+			return errors.New("property 'hostname' must be a sub-domain of, or equal to, 'cookieName'")
+		}
+	} else {
+		if !validators.IsHostname(c.Hostname) && !validators.IsIP(c.Hostname) {
+			return errors.New("property 'hostname' is required and must be a valid hostname or IP")
+		}
+
+		if c.CookieDomain == "" {
+			c.CookieDomain = c.Hostname
+		} else if !validators.IsHostname(c.CookieDomain) && !validators.IsIP(c.CookieDomain) {
+			return errors.New("property 'cookieDomain' is invalid: must be a valid hostname or IP")
+		} else if !utils.IsSubDomain(c.CookieDomain, c.Hostname) {
+			return errors.New("property 'hostname' must be a sub-domain of, or equal to, 'cookieName'")
+		}
 	}
 
 	if c.SessionLifetime < time.Minute {

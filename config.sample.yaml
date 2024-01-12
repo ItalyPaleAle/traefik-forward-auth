@@ -1,0 +1,193 @@
+## hostname (string)
+## Description:
+##   The hostname the application is reached at.
+##   This is used for setting the "redirect_uri" field for OAuth2 callbacks.
+## Required
+hostname:
+
+## cookieDomain (string)
+## Description:
+##   Domain name for setting cookies.
+##   If empty, this is set to the value of the `hostname` property.
+##   This value must either be the same as the `hostname` property, or the hostname must be a sub-domain of the cookie domain name.
+#cookieDomain: 
+
+## cookieName (string)
+## Description:
+##   Name of the cookie used to store the session.
+## Default: "tf_sess"
+#cookieName: 
+
+## cookieInsecure (boolean)
+## Description:
+##   If true, sets cookies as "insecure", which are served on HTTP endpoints too.
+##   By default, this is false and cookies are sent on HTTPS endpoints only.
+## Default: false
+#cookieInsecure: 
+
+## sessionLifetime (duration)
+## Description:
+##   Lifetime for sessions after a successful authentication.
+## Default: 2h
+#sessionLifetime: 
+
+## port (number)
+## Description:
+##   Port to bind to.
+## Default: 4181
+#port: 
+
+## bind (string)
+## Description:
+##   Address/interface to bind to.
+## Default: "0.0.0.0"
+#bind: 
+
+## logLevel (string)
+## Description:
+##   Controls log level and verbosity. Supported values: `debug`, `info` (default), `warn`, `error`.
+## Default: info
+#logLevel: 
+
+## enableMetrics (boolean)
+## Description:
+##   Enable the metrics server, which exposes a Prometheus-compatible endpoint `/metrics`.
+## Default: false
+#enableMetrics: 
+
+## metricsPort (number)
+## Description:
+##   Port for the metrics server to bind to.
+## Default: 2112
+#metricsPort: 
+
+## metricsBind (string)
+## Description:
+##   Address/interface for the metrics server to bind to.
+## Default: "0.0.0.0"
+#metricsBind: 
+
+## omitHealthCheckLogs (boolean)
+## Description:
+##   If true, calls to the healthcheck endpoint (`/healthz`) are not included in the logs.
+## Default: false
+#omitHealthCheckLogs: 
+
+## tokenSigningKey (string)
+## Description:
+##   String used as key to sign state tokens.
+##   Can be generated for example with `openssl rand -base64 32`
+##   If left empty, it will be randomly generated every time the app starts (recommended, unless you need user sessions to persist after the application is restarted).
+#tokenSigningKey: 
+
+## authProvider (string)
+## Description:
+##   Authentication provider to use
+##   Currently supported providers:
+##
+##   - github
+##   - google
+##   - microsoftentraid
+## Required
+authProvider:
+
+## authGoogle_clientID (string)
+## Description:
+##   Client ID for the Google auth application
+##   Ignored if `authMethod` is not `google`
+#authGoogle_clientID: 
+
+## authGoogle_clientSecret (string)
+## Description:
+##   Client secret for the Google auth application
+##   Ignored if `authMethod` is not `google`
+#authGoogle_clientSecret: 
+
+## authGoogle_requestTimeout (duration)
+## Description:
+##   Timeout for network requests for Google auth
+##   Ignored if `authMethod` is not `google`
+## Default: 10s
+#authGoogle_requestTimeout: 
+
+## authGitHub_clientID (string)
+## Description:
+##   Client ID for the GitHub auth application
+##   Ignored if `authMethod` is not `github`
+#authGitHub_clientID: 
+
+## authGitHub_clientSecret (string)
+## Description:
+##   Client secret for the GitHub auth application
+##   Ignored if `authMethod` is not `github`
+#authGitHub_clientSecret: 
+
+## authGitHub_requestTimeout (duration)
+## Description:
+##   Timeout for network requests for GitHub auth
+##   Ignored if `authMethod` is not `github`
+## Default: 10s
+#authGitHub_requestTimeout: 
+
+## authMicrosoftEntraID_tenantID (string)
+## Description:
+##   Tenant ID for the Microsoft Entra ID auth application
+##   Ignored if `authMethod` is not `microsoftentraid`
+#authMicrosoftEntraID_tenantID: 
+
+## authMicrosoftEntraID_clientID (string)
+## Description:
+##   Client ID for the Microsoft Entra ID auth application
+##   Ignored if `authMethod` is not `microsoftentraid`
+#authMicrosoftEntraID_clientID: 
+
+## authMicrosoftEntraID_clientSecret (string)
+## Description:
+##   Client secret for the Microsoft Entra ID auth application
+##   Ignored if `authMethod` is not `microsoftentraid`
+#authMicrosoftEntraID_clientSecret: 
+
+## authMicrosoftEntraID_requestTimeout (duration)
+## Description:
+##   Timeout for network requests for Microsoft Entra ID auth
+##   Ignored if `authMethod` is not `microsoftentraid`
+## Default: 10s
+#authMicrosoftEntraID_requestTimeout: 
+
+## authenticationTimeout (duration)
+## Description:
+##   Timeout for authenticating with the authentication provider.
+## Default: 5m
+#authenticationTimeout: 
+
+## tlsPath (string)
+## Description:
+##   Path where to load TLS certificates from. Within the folder, the files must be named `tls-cert.pem` and `tls-key.pem`.
+##   Vault watches for changes in this folder and automatically reloads the TLS certificates when they're updated.
+##   If empty, certificates are loaded from the same folder where the loaded `config.yaml` is located.
+## Default: Folder where the `config.yaml` file is located
+#tlsPath: 
+
+## tlsCertPEM (string)
+## Description:
+##   Full, PEM-encoded TLS certificate.
+##   Using `tlsCertPEM` and `tlsKeyPEM` is an alternative method of passing TLS certificates than using `tlsPath`.
+#tlsCertPEM: 
+
+## tlsKeyPEM (string)
+## Description:
+##   Full, PEM-encoded TLS key.
+##   Using `tlsCertPEM` and `tlsKeyPEM` is an alternative method of passing TLS certificates than using `tlsPath`.
+#tlsKeyPEM: 
+
+## trustedRequestIdHeader (string)
+## Description:
+##   String with the name of a header to trust as ID of each request. The ID is included in logs and in responses as `X-Request-ID` header.
+##   Common values include:
+##
+##   - `X-Request-ID`: a [de-facto standard](https://http.dev/x-request-id) that's vendor agnostic
+##   - `CF-Ray`: when the application is served by a [Cloudflare CDN](https://developers.cloudflare.com/fundamentals/get-started/reference/cloudflare-ray-id/)
+##
+##   If this option is empty, or if it contains the name of a header that is not found in an incoming request, a random UUID is generated as request ID.
+#trustedRequestIdHeader: 
+

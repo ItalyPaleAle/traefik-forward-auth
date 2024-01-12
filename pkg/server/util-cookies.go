@@ -8,6 +8,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"net"
 	"net/http"
 	"time"
 
@@ -196,7 +197,11 @@ func setNonceCookie(c *gin.Context) (nonce string, err error) {
 	}
 
 	// Set the cookie
-	c.SetCookie(nonceCookieName, string(cookieValue), int(expiration.Seconds()), "/", cfg.Hostname, !cfg.CookieInsecure, true)
+	host, _, _ := net.SplitHostPort(cfg.Hostname)
+	if host == "" {
+		host = cfg.Hostname
+	}
+	c.SetCookie(nonceCookieName, string(cookieValue), int(expiration.Seconds()), "/", host, !cfg.CookieInsecure, true)
 
 	// Return the nonce
 	return nonce, nil
@@ -204,7 +209,13 @@ func setNonceCookie(c *gin.Context) (nonce string, err error) {
 
 func deleteNonceCookie(c *gin.Context) {
 	cfg := config.Get()
-	c.SetCookie(nonceCookieName, "", -1, "/", cfg.Hostname, !cfg.CookieInsecure, true)
+
+	host, _, _ := net.SplitHostPort(cfg.Hostname)
+	if host == "" {
+		host = cfg.Hostname
+	}
+
+	c.SetCookie(nonceCookieName, "", -1, "/", host, !cfg.CookieInsecure, true)
 }
 
 func nonceCookieSig(c *gin.Context, nonce []byte) string {

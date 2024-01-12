@@ -111,6 +111,7 @@ func (s *Server) initAppServer(log *zerolog.Logger) (err error) {
 	// Auth routes
 	appRoutes := s.appRouter.Group("/", s.MiddlewareProxyHeaders)
 	appRoutes.GET("/", s.MiddlewareLoadAuthCookie, s.RouteGetRoot)
+	appRoutes.GET("/oauth2/callback", s.RouteOAuth2Callback)
 
 	// Test routes, that are enabled when running tests only
 	if s.addTestRoutes != nil {

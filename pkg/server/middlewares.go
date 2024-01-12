@@ -56,12 +56,23 @@ func (s *Server) MiddlewareLoadAuthCookie(c *gin.Context) {
 		return
 	}
 
-	// If we have a valid session, set it in the context
-	if profile.ID != "" && len(claims) > 0 {
-		c.Set("session-auth", true)
-		c.Set("session-profile", profile)
-		c.Set("session-claims", claims)
+	// If we don't have a valid session, stop here
+	if profile.ID == "" && len(claims) == 0 {
+		return
 	}
+
+	// Validate the session claims
+	err = s.auth.ValidateRequestClaims(c, claims)
+	if err != nil {
+		// If the claims are invalid for this session, delete the cookie and return a hard error
+		deleteSessionCookie(c)
+		AbortWithErrorJSON(c, NewResponseErrorf(http.StatusUnauthorized, "Claims are invalid for the request: %v", err))
+		return
+	}
+
+	// Set the claims in the context
+	c.Set("session-auth", true)
+	c.Set("session-profile", profile)
 }
 
 // MiddlewareRequestId is a middleware that generates a unique request ID for each request

@@ -11,6 +11,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/gin-gonic/gin"
 	"github.com/lestrrat-go/jwx/v2/jwt"
 	"github.com/lestrrat-go/jwx/v2/jwt/openid"
 
@@ -242,6 +243,11 @@ func (a OAuth2) RetrieveProfile(ctx context.Context, at AccessToken) (profile us
 	}
 
 	return profile, nil
+}
+
+func (a OAuth2) ValidateRequestClaims(c *gin.Context, claims map[string]any) error {
+	// This implementation doesn't need performing additional validation on the claims
+	return nil
 }
 
 // Compile-time interface assertion
