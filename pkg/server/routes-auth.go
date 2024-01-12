@@ -30,7 +30,7 @@ func (s *Server) RouteGetRoot(c *gin.Context) {
 
 	// If we are here, we have a valid session, so respond with a 200 status code
 	s.metrics.RecordAuthentication(true)
-	c.Header("X-Forwarded-User", profile.ID)
+	c.Header("X-Forwarded-User", s.auth.UserIDFromProfile(profile))
 	c.Status(http.StatusOK)
 }
 
@@ -112,7 +112,7 @@ func (s *Server) redirectToAuth(c *gin.Context) {
 		return
 	}
 
-	c.Redirect(http.StatusTemporaryRedirect, authURL)
+	c.Redirect(http.StatusSeeOther, authURL)
 }
 
 func getRedirectURI(c *gin.Context) string {

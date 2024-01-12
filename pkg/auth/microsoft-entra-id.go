@@ -3,6 +3,8 @@ package auth
 import (
 	"errors"
 	"time"
+
+	"github.com/italypaleale/traefik-forward-auth/pkg/user"
 )
 
 // MicrosoftEntraID manages authentication with Microsoft Entra ID.
@@ -55,6 +57,13 @@ func NewMicrosoftEntraID(opts NewMicrosoftEntraIDOptions) (p MicrosoftEntraID, e
 	return MicrosoftEntraID{
 		OAuth2: oauth2,
 	}, nil
+}
+
+func (a MicrosoftEntraID) UserIDFromProfile(profile user.Profile) string {
+	if profile.Email != nil && profile.Email.Value != "" {
+		return profile.Email.Value
+	}
+	return profile.ID
 }
 
 // Compile-time interface assertion

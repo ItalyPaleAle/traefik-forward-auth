@@ -19,6 +19,8 @@ type Provider interface {
 	ExchangeCode(ctx context.Context, code string, redirectURL string) (AccessToken, error)
 	// RetrieveProfile retrieves the user's profile, using the id_token (if present) or requesting it from the user info endpoint.
 	RetrieveProfile(ctx context.Context, at AccessToken) (user.Profile, error)
+	// UserIDFromProfile returns the user ID to include in the "X-Forwarded-User" header, picking the appropriate value from the profile
+	UserIDFromProfile(profile user.Profile) string
 	// ValidateRequestClaims validates that claims are valid for the incoming request from the client.
 	ValidateRequestClaims(c *gin.Context, claims map[string]any) error
 }

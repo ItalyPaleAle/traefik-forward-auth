@@ -250,5 +250,9 @@ func (a OAuth2) ValidateRequestClaims(c *gin.Context, claims map[string]any) err
 	return nil
 }
 
+func (a OAuth2) UserIDFromProfile(profile user.Profile) string {
+	return profile.ID
+}
+
 // Compile-time interface assertion
 var _ Provider = OAuth2{}

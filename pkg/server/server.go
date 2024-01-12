@@ -8,6 +8,7 @@ import (
 	"net"
 	"net/http"
 	"path/filepath"
+	"regexp"
 	"strconv"
 	"sync"
 	"sync/atomic"
@@ -107,13 +108,17 @@ func (s *Server) initAppServer(log *zerolog.Logger) (err error) {
 	s.appRouter.Use(s.MiddlewareRequestId)
 	s.appRouter.Use(s.MiddlewareLogger(log))
 
+	// Logger middleware that removes the auth code from the URL
+	codeFilterLogMw := s.MiddlewareLoggerMask(regexp.MustCompile(`(\?|&)(code|state|session_state)=([^&]*)`), "$1$2***")
+
 	// Healthz route
 	s.appRouter.GET("/healthz", gin.WrapF(s.RouteHealthzHandler))
 
 	// Auth routes
-	appRoutes := s.appRouter.Group("/"+conf.BasePath, s.MiddlewareProxyHeaders)
+	appRoutes := s.appRouter.Group(conf.BasePath, s.MiddlewareProxyHeaders)
+	appRoutes.GET("", s.MiddlewareLoadAuthCookie, s.RouteGetRoot) // Route with and without trailing slash
 	appRoutes.GET("/", s.MiddlewareLoadAuthCookie, s.RouteGetRoot)
-	appRoutes.GET("/oauth2/callback", s.RouteOAuth2Callback)
+	appRoutes.GET("oauth2/callback", codeFilterLogMw, s.RouteOAuth2Callback)
 
 	// Test routes, that are enabled when running tests only
 	if s.addTestRoutes != nil {
