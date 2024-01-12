@@ -104,18 +104,18 @@ func deleteSessionCookie(c *gin.Context) {
 	c.SetCookie(cfg.CookieName, "", -1, "/", cfg.CookieDomain, !cfg.CookieInsecure, true)
 }
 
-func getNonceCookie(c *gin.Context) (nonce string, err error) {
+func getStateCookie(c *gin.Context) (nonce string, returnURL string, err error) {
 	cfg := config.Get()
 
 	// Get the cookie
 	cookieValue, err := c.Cookie(nonceCookieName)
 	if errors.Is(err, http.ErrNoCookie) {
-		return "", nil
+		return "", "", nil
 	} else if err != nil {
-		return "", fmt.Errorf("failed to get cookie: %w", err)
+		return "", "", fmt.Errorf("failed to get cookie: %w", err)
 	}
 	if cookieValue == "" {
-		return "", fmt.Errorf("cookie %s is empty", cfg.CookieName)
+		return "", "", fmt.Errorf("cookie %s is empty", cfg.CookieName)
 	}
 
 	// Parse the JWT in the cookie
@@ -126,38 +126,42 @@ func getNonceCookie(c *gin.Context) (nonce string, err error) {
 		jwt.WithKey(jwa.HS256, cfg.GetTokenSigningKey()),
 	)
 	if err != nil {
-		return "", fmt.Errorf("failed to parse JWT: %w", err)
+		return "", "", fmt.Errorf("failed to parse JWT: %w", err)
 	}
 
 	// Get the nonce
-	nonceAny, ok := token.Get("nonce")
-	if !ok {
-		return "", errors.New("claim 'nonce' not found in JWT")
-	}
+	nonceAny, _ := token.Get("nonce")
 	nonce, _ = nonceAny.(string)
 	if nonce == "" {
-		return "", errors.New("claim 'nonce' not found in JWT")
+		return "", "", errors.New("claim 'nonce' not found in JWT")
 	}
 	nonceBytes, err := base64.RawURLEncoding.DecodeString(nonce)
 	if err != nil || len(nonceBytes) != nonceSize {
-		return "", errors.New("claim 'nonce' not found in JWT")
+		return "", "", errors.New("claim 'nonce' not found in JWT")
+	}
+
+	// Get the return URL
+	returnURLAny, _ := token.Get("return_url")
+	returnURL, _ = returnURLAny.(string)
+	if returnURL == "" {
+		return "", "", errors.New("claim 'return_url' not found in JWT")
 	}
 
 	// Validate the signature inside the token
 	expectSig := nonceCookieSig(c, nonceBytes)
 	sigAny, ok := token.Get("sig")
 	if !ok {
-		return "", errors.New("claim 'sig' not found in JWT")
+		return "", "", errors.New("claim 'sig' not found in JWT")
 	}
 	sig, _ := sigAny.(string)
 	if sig != expectSig {
-		return "", errors.New("claim 'sig' invalid in JWT")
+		return "", "", errors.New("claim 'sig' invalid in JWT")
 	}
 
-	return nonce, nil
+	return nonce, returnURL, nil
 }
 
-func setNonceCookie(c *gin.Context) (nonce string, err error) {
+func setStateCookie(c *gin.Context, returnURL string) (nonce string, err error) {
 	cfg := config.Get()
 	expiration := cfg.AuthenticationTimeout
 
@@ -183,6 +187,7 @@ func setNonceCookie(c *gin.Context) (nonce string, err error) {
 		NotBefore(now).
 		Claim("nonce", nonce).
 		Claim("sig", sig).
+		Claim("return_url", returnURL).
 		Build()
 	if err != nil {
 		return "", fmt.Errorf("failed to build JWT: %w", err)
@@ -207,7 +212,7 @@ func setNonceCookie(c *gin.Context) (nonce string, err error) {
 	return nonce, nil
 }
 
-func deleteNonceCookie(c *gin.Context) {
+func deleteStateCookie(c *gin.Context) {
 	cfg := config.Get()
 
 	host, _, _ := net.SplitHostPort(cfg.Hostname)

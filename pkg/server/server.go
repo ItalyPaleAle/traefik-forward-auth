@@ -115,10 +115,12 @@ func (s *Server) initAppServer(log *zerolog.Logger) (err error) {
 	s.appRouter.GET("/healthz", gin.WrapF(s.RouteHealthzHandler))
 
 	// Auth routes
+	// For the root route, we add it with and without trailing slash (in case BasePath isn't empty) to avoid Gin setting up a 301 (Permanent) redirect, which causes issues with forward auth
 	appRoutes := s.appRouter.Group(conf.BasePath, s.MiddlewareProxyHeaders)
-	appRoutes.GET("", s.MiddlewareLoadAuthCookie, s.RouteGetRoot) // Route with and without trailing slash
+	appRoutes.GET("", s.MiddlewareLoadAuthCookie, s.RouteGetRoot)
 	appRoutes.GET("/", s.MiddlewareLoadAuthCookie, s.RouteGetRoot)
-	appRoutes.GET("oauth2/callback", codeFilterLogMw, s.RouteOAuth2Callback)
+	appRoutes.GET("oauth2/callback", codeFilterLogMw, s.RouteGetOAuth2Callback)
+	appRoutes.GET("logout", s.RouteGetLogout)
 
 	// Test routes, that are enabled when running tests only
 	if s.addTestRoutes != nil {

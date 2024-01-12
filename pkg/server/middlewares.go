@@ -19,6 +19,7 @@ var proxyHeaders = []string{
 	"X-Forwarded-Server",
 	"X-Forwarded-For",
 	"X-Forwarded-Port",
+	"X-Forwarded-Host",
 }
 
 // MiddlewareProxyHeaders is a middleware that gets values for source IP and port from the headers set by Traefik.
