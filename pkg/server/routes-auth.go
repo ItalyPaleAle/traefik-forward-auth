@@ -95,8 +95,9 @@ func (s *Server) RouteGetOAuth2Callback(c *gin.Context) {
 		return
 	}
 
-	// Redirect back to where the user came from
-	c.Redirect(http.StatusSeeOther, returnURL)
+	// Use a custom redirect code to write a response in the body
+	c.Header("Location", returnURL)
+	c.Data(http.StatusSeeOther, "text/html; charset=utf-8", []byte(`Redirecting to application: <a href="`+returnURL+`">`+returnURL+`</a>`))
 }
 
 // RouteGetLogout is the handler for GET /logout
@@ -127,7 +128,9 @@ func (s *Server) redirectToAuth(c *gin.Context) {
 		return
 	}
 
-	c.Redirect(http.StatusSeeOther, authURL)
+	// Use a custom redirect code to write a response in the body
+	c.Header("Location", authURL)
+	c.Data(http.StatusSeeOther, "text/html; charset=utf-8", []byte(`Redirecting to authentication server: <a href="`+authURL+`">`+authURL+`</a>`))
 }
 
 // Get the return URL, to redirect users to after a successful auth
