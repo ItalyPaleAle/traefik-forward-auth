@@ -93,6 +93,8 @@ func (s *Server) init(log *zerolog.Logger) error {
 }
 
 func (s *Server) initAppServer(log *zerolog.Logger) (err error) {
+	conf := config.Get()
+
 	// Load the TLS configuration
 	s.tlsConfig, s.tlsCertWatchFn, err = s.loadTLSConfig(log)
 	if err != nil {
@@ -109,7 +111,7 @@ func (s *Server) initAppServer(log *zerolog.Logger) (err error) {
 	s.appRouter.GET("/healthz", gin.WrapF(s.RouteHealthzHandler))
 
 	// Auth routes
-	appRoutes := s.appRouter.Group("/", s.MiddlewareProxyHeaders)
+	appRoutes := s.appRouter.Group("/"+conf.BasePath, s.MiddlewareProxyHeaders)
 	appRoutes.GET("/", s.MiddlewareLoadAuthCookie, s.RouteGetRoot)
 	appRoutes.GET("/oauth2/callback", s.RouteOAuth2Callback)
 

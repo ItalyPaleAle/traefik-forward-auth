@@ -116,5 +116,5 @@ func (s *Server) redirectToAuth(c *gin.Context) {
 }
 
 func getRedirectURI(c *gin.Context) string {
-	return c.GetHeader("X-Forwarded-Proto") + "://" + config.Get().Hostname + "/oauth2/callback"
+	return c.GetHeader("X-Forwarded-Proto") + "://" + config.Get().Hostname + config.Get().BasePath + "/oauth2/callback"
 }

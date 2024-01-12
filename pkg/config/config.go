@@ -55,6 +55,11 @@ type Config struct {
 	// +default "0.0.0.0"
 	Bind string `env:"BIND" yaml:"bind"`
 
+	// Base path for all routes.
+	// Set this if Traefik is forwarding requests to traefik-forward-auth for specific paths only.
+	// Note: this applies to all routes except /healthz
+	BasePath string `env:"BASEPATH" yaml:"basePath"`
+
 	// Controls log level and verbosity. Supported values: `debug`, `info` (default), `warn`, `error`.
 	// +default info
 	LogLevel string `env:"LOGLEVEL" yaml:"logLevel"`
@@ -227,6 +232,15 @@ func (c *Config) Validate(log *zerolog.Logger) error {
 		}
 	}
 
+	// Base path
+	if c.BasePath != "" && c.BasePath != "/" {
+		c.BasePath = strings.TrimSuffix(c.BasePath, "/")
+		if !strings.HasPrefix(c.BasePath, "/") {
+			c.BasePath = "/" + c.BasePath
+		}
+	}
+
+	// Timeouts
 	if c.SessionLifetime < time.Minute {
 		return errors.New("property 'sessionLifetime' is invalid: must be at least 1 minute")
 	}
