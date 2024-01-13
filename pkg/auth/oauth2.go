@@ -11,14 +11,12 @@ import (
 	"strings"
 	"time"
 
-	"github.com/lestrrat-go/jwx/v2/jwt"
-	"github.com/lestrrat-go/jwx/v2/jwt/openid"
-
 	"github.com/italypaleale/traefik-forward-auth/pkg/user"
 )
 
-// OAuth2 is a Provider for authenticating with a generic OAuth2 provider.
-type OAuth2 struct {
+// oAuth2 is a Provider for authenticating with OAuth2.
+// This Provider cannot be used directly; instead, other providers can embed this struct and implement OAuth2RetrieveProfile.
+type oAuth2 struct {
 	config         OAuth2Config
 	providerName   string
 	endpoints      OAuth2Endpoints
@@ -38,11 +36,11 @@ type OAuth2Config struct {
 
 type OAuth2Endpoints struct {
 	// Authorization URL
-	Authorization string
+	Authorization string `json:"authorization_endpoint"`
 	// Token URL
-	Token string
+	Token string `json:"token_endpoint"`
 	// User Info URL
-	UserInfo string
+	UserInfo string `json:"userinfo_endpoint"`
 }
 
 // NewOAuth2Options is the options for NewOAuth2
@@ -59,7 +57,7 @@ type NewOAuth2Options struct {
 }
 
 // NewOAuth2 returns a new OAuth2 provider
-func NewOAuth2(providerName string, opts NewOAuth2Options) (p OAuth2, err error) {
+func NewOAuth2(providerName string, opts NewOAuth2Options) (p oAuth2, err error) {
 	if opts.Config.ClientID == "" {
 		return p, errors.New("value for clientId is required in config for auth provider")
 	}
@@ -69,7 +67,7 @@ func NewOAuth2(providerName string, opts NewOAuth2Options) (p OAuth2, err error)
 	if providerName == "" {
 		return p, errors.New("missing parameter providerName")
 	}
-	if opts.Endpoints.Authorization == "" || opts.Endpoints.Token == "" || opts.Endpoints.UserInfo == "" {
+	if !opts.Endpoints.Valid() {
 		return p, errors.New("all endpoints must be specified")
 	}
 
@@ -82,7 +80,7 @@ func NewOAuth2(providerName string, opts NewOAuth2Options) (p OAuth2, err error)
 		reqTimeout = 10 * time.Second
 	}
 
-	p = OAuth2{
+	p = oAuth2{
 		config:         opts.Config,
 		providerName:   providerName,
 		endpoints:      opts.Endpoints,
@@ -94,11 +92,11 @@ func NewOAuth2(providerName string, opts NewOAuth2Options) (p OAuth2, err error)
 	return p, nil
 }
 
-func (a OAuth2) GetProviderName() string {
+func (a oAuth2) GetProviderName() string {
 	return a.providerName
 }
 
-func (a OAuth2) OAuth2AuthorizeURL(state string, redirectURL string) (string, error) {
+func (a oAuth2) OAuth2AuthorizeURL(state string, redirectURL string) (string, error) {
 	if state == "" {
 		return "", errors.New("parameter state is required")
 	}
@@ -112,7 +110,7 @@ func (a OAuth2) OAuth2AuthorizeURL(state string, redirectURL string) (string, er
 	return a.endpoints.Authorization + "?" + params.Encode(), nil
 }
 
-func (a OAuth2) OAuth2ExchangeCode(ctx context.Context, code string, redirectURL string) (OAuth2AccessToken, error) {
+func (a oAuth2) OAuth2ExchangeCode(ctx context.Context, code string, redirectURL string) (OAuth2AccessToken, error) {
 	if code == "" {
 		return OAuth2AccessToken{}, errors.New("parameter code is required")
 	}
@@ -177,85 +175,28 @@ type oAuth2TokenResponse struct {
 	IDToken      string `json:"id_token"`
 }
 
-func (a OAuth2) OAuth2RetrieveProfile(ctx context.Context, at OAuth2AccessToken) (profile *user.Profile, err error) {
-	if at.AccessToken == "" {
-		return nil, errors.New("Missing parameter at")
-	}
-
-	// Check if we have an ID token to get the profile from
-	if at.IDToken != "" && a.tokenIssuer != "" {
-		// We do not verify the JWT's signature since we just retrieved it from the identity server
-		// We limit ourselves to parsing it
-		token, err := jwt.Parse(
-			[]byte(at.IDToken),
-			jwt.WithIssuer(a.tokenIssuer),
-			jwt.WithAudience(a.config.ClientID),
-			jwt.WithVerify(false),
-			jwt.WithToken(openid.New()),
-		)
-		if err != nil {
-			return nil, fmt.Errorf("failed to parse ID token: %w", err)
-		}
-		oidToken, ok := token.(openid.Token)
-		if !ok {
-			return nil, errors.New("failed to parse ID token: included claims cannot be cast to openid.Token")
-		}
-
-		profile, err = user.NewProfileFromOpenIDToken(oidToken)
-		if err != nil {
-			return nil, fmt.Errorf("invalid claims in token: %w", err)
-		}
-		return profile, nil
-	}
-
-	// Retrieve the profile with an API call
-	if at.AccessToken == "" {
-		return nil, errors.New("missing AccessToken in parameter at")
-	}
-
-	reqCtx, cancel := context.WithTimeout(ctx, a.requestTimeout)
-	defer cancel()
-	req, err := http.NewRequestWithContext(reqCtx, http.MethodGet, a.endpoints.UserInfo, nil)
-	if err != nil {
-		return nil, fmt.Errorf("failed to create HTTP request: %w", err)
-	}
-	req.Header.Set("Accept", "application/json")
-	req.Header.Set("Authorization", "Bearer "+at.AccessToken)
-
-	res, err := a.httpClient.Do(req)
-	if err != nil {
-		return nil, fmt.Errorf("failed to perform request: %w", err)
-	}
-	defer func() {
-		_, _ = io.Copy(io.Discard, res.Body)
-		res.Body.Close()
-	}()
-
-	if res.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("invalid response status code: %d", res.StatusCode)
-	}
-
-	claims := map[string]any{}
-	err = json.NewDecoder(res.Body).Decode(&claims)
-	if err != nil {
-		return nil, fmt.Errorf("invalid response body: %w", err)
-	}
-
-	return profile, nil
+func (a oAuth2) OAuth2RetrieveProfile(ctx context.Context, at OAuth2AccessToken) (profile *user.Profile, err error) {
+	// This method needs to be implemented in structs that embed OAuth2
+	panic("Method OAuth2RetrieveProfile must be implemented by a struct inheriting OAuth2")
 }
 
-func (a OAuth2) ValidateRequestClaims(r *http.Request, profile *user.Profile) error {
+func (a oAuth2) ValidateRequestClaims(r *http.Request, profile *user.Profile) error {
 	// This implementation doesn't need performing additional validation on the claims
 	return nil
 }
 
-func (a OAuth2) UserIDFromProfile(profile *user.Profile) string {
+func (a oAuth2) UserIDFromProfile(profile *user.Profile) string {
 	return profile.ID
 }
 
-func (a OAuth2) PopulateAdditionalClaims(claims map[string]any, setClaimFn func(key, val string)) {
+func (a oAuth2) PopulateAdditionalClaims(claims map[string]any, setClaimFn func(key, val string)) {
 	// Nop
 }
 
+// Valid returns true if all fields are set
+func (e OAuth2Endpoints) Valid() bool {
+	return e.Authorization != "" && e.Token != "" && e.UserInfo != ""
+}
+
 // Compile-time interface assertion
-var _ OAuth2Provider = OAuth2{}
+var _ OAuth2Provider = oAuth2{}

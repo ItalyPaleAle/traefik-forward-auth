@@ -23,7 +23,7 @@ const (
 // GitHub manages authentication with GitHub.
 // It is based on the OAuth 2 provider.
 type GitHub struct {
-	OAuth2
+	oAuth2
 }
 
 // NewGitHubOptions is the options for NewGitHub
@@ -63,7 +63,7 @@ func NewGitHub(opts NewGitHubOptions) (p GitHub, err error) {
 	}
 
 	return GitHub{
-		OAuth2: oauth2,
+		oAuth2: oauth2,
 	}, nil
 }
 

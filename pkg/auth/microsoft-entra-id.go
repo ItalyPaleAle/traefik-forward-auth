@@ -8,9 +8,9 @@ import (
 )
 
 // MicrosoftEntraID manages authentication with Microsoft Entra ID.
-// It is based on the OAuth 2 provider.
+// It is based on the OpenIDConnect provider.
 type MicrosoftEntraID struct {
-	OAuth2
+	OpenIDConnect
 }
 
 // NewMicrosoftEntraIDOptions is the options for NewMicrosoftEntraID
@@ -25,37 +25,32 @@ type NewMicrosoftEntraIDOptions struct {
 	RequestTimeout time.Duration
 }
 
+func (o NewMicrosoftEntraIDOptions) ToNewOpenIDConnectOptions() NewOpenIDConnectOptions {
+	return NewOpenIDConnectOptions{
+		ClientID:       o.ClientID,
+		ClientSecret:   o.ClientSecret,
+		RequestTimeout: o.RequestTimeout,
+		TokenIssuer:    "https://login.microsoftonline.com/" + o.TenantID + "/v2.0",
+	}
+}
+
 // NewMicrosoftEntraID returns a new MicrosoftEntraID provider
 func NewMicrosoftEntraID(opts NewMicrosoftEntraIDOptions) (p MicrosoftEntraID, err error) {
 	if opts.TenantID == "" {
 		return p, errors.New("value for clientId is required in config for auth with provider 'microsoft-entra-id'")
 	}
-	if opts.ClientID == "" {
-		return p, errors.New("value for clientId is required in config for auth with provider 'microsoft-entra-id'")
-	}
-	if opts.ClientSecret == "" {
-		return p, errors.New("value for clientSecret is required in config for auth with provider 'microsoft-entra-id'")
-	}
 
-	oauth2, err := NewOAuth2("microsoftentraid", NewOAuth2Options{
-		Config: OAuth2Config{
-			ClientID:     opts.ClientID,
-			ClientSecret: opts.ClientSecret,
-		},
-		Endpoints: OAuth2Endpoints{
-			Authorization: "https://login.microsoftonline.com/" + opts.TenantID + "/oauth2/v2.0/authorize",
-			Token:         "https://login.microsoftonline.com/" + opts.TenantID + "/oauth2/v2.0/token",
-			UserInfo:      "https://graph.microsoft.com/oidc/userinfo",
-		},
-		RequestTimeout: opts.RequestTimeout,
-		TokenIssuer:    "https://login.microsoftonline.com/" + opts.TenantID + "/v2.0",
+	oidc, err := newOpenIDConnectInternal("microsoftentraid", opts.ToNewOpenIDConnectOptions(), OAuth2Endpoints{
+		Authorization: "https://login.microsoftonline.com/" + opts.TenantID + "/oauth2/v2.0/authorize",
+		Token:         "https://login.microsoftonline.com/" + opts.TenantID + "/oauth2/v2.0/token",
+		UserInfo:      "https://graph.microsoft.com/oidc/userinfo",
 	})
 	if err != nil {
 		return p, err
 	}
 
 	return MicrosoftEntraID{
-		OAuth2: oauth2,
+		OpenIDConnect: oidc,
 	}, nil
 }
 

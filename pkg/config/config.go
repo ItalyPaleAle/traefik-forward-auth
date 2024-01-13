@@ -91,6 +91,7 @@ type Config struct {
 	// - github
 	// - google
 	// - microsoftentraid
+	// - openidconnect
 	// - tailscalewhois
 	//
 	// +required
@@ -131,6 +132,21 @@ type Config struct {
 	// Ignored if `authMethod` is not `microsoftentraid`
 	// +default 10s
 	AuthMicrosoftEntraIDRequestTimeout time.Duration `env:"AUTHMICROSOFTENTRAID_REQUESTTIMEOUT" yaml:"authMicrosoftEntraID_requestTimeout"`
+
+	// Client ID for the OpenID Connect auth application
+	// Ignored if `authMethod` is not `openidconnect`
+	AuthOpenIDConnectClientID string `env:"AUTHOPENIDCONNECT_CLIENTID" yaml:"authOpenIDConnect_clientID"`
+	// Client secret for the OpenID Connect auth application
+	// Ignored if `authMethod` is not `openidconnect`
+	AuthOpenIDConnectClientSecret string `env:"AUTHOPENIDCONNECT_CLIENTSECRET" yaml:"authOpenIDConnect_clientSecret"`
+	// OpenID Connect token issuer
+	// The OpenID Connect configuration document will be fetched at `<token-issuer>/.well-known/openid-configuration`
+	// Ignored if `authMethod` is not `openidconnect`
+	AuthOpenIDConnectTokenIssuer string `env:"AUTHOPENIDCONNECT_TOKENISSUER" yaml:"authOpenIDConnect_tokenIssuer"`
+	// Timeout for network requests for OpenID Connect auth
+	// Ignored if `authMethod` is not `openidconnect`
+	// +default 10s
+	AuthOpenIDConnectRequestTimeout time.Duration `env:"AUTHOPENIDCONNECT_REQUESTTIMEOUT" yaml:"authOpenIDConnect_requestTimeout"`
 
 	// If non-empty, requires the Tailnet of the user to match this value
 	// Ignored if `authMethod` is not `tailscalewhois`
@@ -297,12 +313,19 @@ func (c *Config) GetAuthProvider() (auth.Provider, error) {
 			ClientSecret:   c.AuthGoogleClientSecret,
 			RequestTimeout: c.AuthGoogleRequestTimeout,
 		})
-	case "microsoftentraid", "azuread", "aad":
+	case "microsoftentraid", "azuread", "aad", "entraid":
 		return auth.NewMicrosoftEntraID(auth.NewMicrosoftEntraIDOptions{
 			TenantID:       c.AuthMicrosoftEntraIDTenantID,
 			ClientID:       c.AuthMicrosoftEntraIDClientID,
 			ClientSecret:   c.AuthMicrosoftEntraIDClientSecret,
 			RequestTimeout: c.AuthMicrosoftEntraIDRequestTimeout,
+		})
+	case "openidconnect", "oidc":
+		return auth.NewOpenIDConnect(auth.NewOpenIDConnectOptions{
+			ClientID:       c.AuthOpenIDConnectClientID,
+			ClientSecret:   c.AuthOpenIDConnectClientSecret,
+			TokenIssuer:    c.AuthOpenIDConnectTokenIssuer,
+			RequestTimeout: c.AuthOpenIDConnectRequestTimeout,
 		})
 	case "tailscalewhois", "tailscale":
 		return auth.NewTailscaleWhois(auth.NewTailscaleWhoisOptions{

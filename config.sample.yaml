@@ -95,6 +95,7 @@ hostname:
 ##   - github
 ##   - google
 ##   - microsoftentraid
+##   - openidconnect
 ##   - tailscalewhois
 ## Required
 authProvider:
@@ -161,6 +162,32 @@ authProvider:
 ##   Ignored if `authMethod` is not `microsoftentraid`
 ## Default: 10s
 #authMicrosoftEntraID_requestTimeout: 
+
+## authOpenIDConnect_clientID (string)
+## Description:
+##   Client ID for the OpenID Connect auth application
+##   Ignored if `authMethod` is not `openidconnect`
+#authOpenIDConnect_clientID: 
+
+## authOpenIDConnect_clientSecret (string)
+## Description:
+##   Client secret for the OpenID Connect auth application
+##   Ignored if `authMethod` is not `openidconnect`
+#authOpenIDConnect_clientSecret: 
+
+## authOpenIDConnect_tokenIssuer (string)
+## Description:
+##   OpenID Connect token issuer
+##   The OpenID Connect configuration document will be fetched at `<token-issuer>/.well-known/openid-configuration`
+##   Ignored if `authMethod` is not `openidconnect`
+#authOpenIDConnect_tokenIssuer: 
+
+## authOpenIDConnect_requestTimeout (duration)
+## Description:
+##   Timeout for network requests for OpenID Connect auth
+##   Ignored if `authMethod` is not `openidconnect`
+## Default: 10s
+#authOpenIDConnect_requestTimeout: 
 
 ## authTailscaleWhois_expectedTailnet (string)
 ## Description:
