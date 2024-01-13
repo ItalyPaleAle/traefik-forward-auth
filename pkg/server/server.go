@@ -114,6 +114,7 @@ func (s *Server) initAppServer(log *zerolog.Logger) (err error) {
 	codeFilterLogMw := s.MiddlewareLoggerMask(regexp.MustCompile(`(\?|&)(code|state|session_state)=([^&]*)`), "$1$2***")
 
 	// Healthz route
+	// This does not follow BasePath
 	s.appRouter.GET("/healthz", gin.WrapF(s.RouteHealthzHandler))
 
 	// Auth routes
@@ -123,13 +124,18 @@ func (s *Server) initAppServer(log *zerolog.Logger) (err error) {
 	case auth.OAuth2Provider:
 		appRoutes.GET("", s.MiddlewareRequireClientCertificate, s.MiddlewareLoadAuthCookie, s.RouteGetOAuth2Root(provider))
 		appRoutes.GET("/", s.MiddlewareRequireClientCertificate, s.MiddlewareLoadAuthCookie, s.RouteGetOAuth2Root(provider))
-		appRoutes.GET("oauth2/callback", codeFilterLogMw, s.RouteGetOAuth2Callback(provider))
+		appRoutes.GET("/oauth2/callback", codeFilterLogMw, s.RouteGetOAuth2Callback(provider))
 	case auth.SeamlessProvider:
 		appRoutes.GET("", s.MiddlewareRequireClientCertificate, s.MiddlewareLoadAuthCookie, s.RouteGetSeamlessAuthRoot(provider))
 		appRoutes.GET("/", s.MiddlewareRequireClientCertificate, s.MiddlewareLoadAuthCookie, s.RouteGetSeamlessAuthRoot(provider))
 	}
 	appRoutes.GET("profile", s.MiddlewareLoadAuthCookie, s.RouteGetProfile)
 	appRoutes.GET("logout", s.RouteGetLogout)
+
+	// API Routes
+	// These do not follow BasePath and do not require a client certificate, or loading the auth cookie, or the proxy headers
+	apiRoutes := s.appRouter.Group("/api")
+	apiRoutes.GET("/verify", s.RouteGetAPIVerify)
 
 	// Test routes, that are enabled when running tests only
 	if s.addTestRoutes != nil {

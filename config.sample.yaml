@@ -47,7 +47,7 @@ hostname:
 ## Description:
 ##   Base path for all routes.
 ##   Set this if Traefik is forwarding requests to traefik-forward-auth for specific paths only.
-##   Note: this applies to all routes except /healthz
+##   Note: this does not apply to /api and /healthz routes
 #basePath: 
 
 ## logLevel (string)
@@ -212,6 +212,7 @@ authProvider:
 ## Description:
 ##   If true, enables mTLS for client authentication.
 ##   Requests to the root endpoint (normally used by Traefik) must have a valid client certificate signed by the CA.
+## Default: false
 #tlsClientAuth: 
 
 ## trustedRequestIdHeader (string)

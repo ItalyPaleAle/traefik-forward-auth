@@ -35,37 +35,46 @@ func (s *Server) getSessionCookie(c *gin.Context) (profile *user.Profile, err er
 	if errors.Is(err, http.ErrNoCookie) {
 		return nil, nil
 	} else if err != nil {
-		return nil, fmt.Errorf("failed to get cookie: %w", err)
+		return nil, fmt.Errorf("failed to get session cookie: %w", err)
 	}
 	if cookieValue == "" {
-		return nil, fmt.Errorf("cookie %s is empty", cfg.CookieName)
+		return nil, fmt.Errorf("csession ookie %s is empty", cfg.CookieName)
 	}
 
 	// Parse the JWT in the cookie
-	token, err := jwt.Parse([]byte(cookieValue),
-		jwt.WithAcceptableSkew(acceptableClockSkew),
-		jwt.WithIssuer(jwtIssuer+"/"+s.auth.GetProviderName()),
-		jwt.WithAudience(cfg.Hostname),
-		jwt.WithKey(jwa.HS256, cfg.GetTokenSigningKey()),
-	)
+	token, err := s.parseSessionToken(cookieValue)
 	if err != nil {
-		return nil, fmt.Errorf("failed to parse JWT: %w", err)
+		return nil, err
 	}
 
 	// Get the user profile from the claim
 	claims, err := token.AsMap(c.Request.Context())
 	if err != nil {
-		return nil, fmt.Errorf("failed to get claims from JWT: %w", err)
+		return nil, fmt.Errorf("failed to get claims from session token JWT: %w", err)
 	}
 	profile, err = user.NewProfileFromClaims(claims)
 	if err != nil {
-		return nil, fmt.Errorf("failed to parse claims from JWT: %w", err)
+		return nil, fmt.Errorf("failed to parse claims from session token JWT: %w", err)
 	}
 	if len(claims) > 0 {
 		s.auth.PopulateAdditionalClaims(claims, profile.SetAdditionalClaim)
 	}
 
 	return profile, nil
+}
+
+func (s *Server) parseSessionToken(val string) (jwt.Token, error) {
+	cfg := config.Get()
+	token, err := jwt.Parse([]byte(val),
+		jwt.WithAcceptableSkew(acceptableClockSkew),
+		jwt.WithIssuer(jwtIssuer+"/"+s.auth.GetProviderName()),
+		jwt.WithAudience(cfg.Hostname),
+		jwt.WithKey(jwa.HS256, cfg.GetTokenSigningKey()),
+	)
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse session token JWT: %w", err)
+	}
+	return token, nil
 }
 
 func (s *Server) setSessionCookie(c *gin.Context, profile *user.Profile) error {

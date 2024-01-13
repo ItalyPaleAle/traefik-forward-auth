@@ -57,7 +57,7 @@ type Config struct {
 
 	// Base path for all routes.
 	// Set this if Traefik is forwarding requests to traefik-forward-auth for specific paths only.
-	// Note: this applies to all routes except /healthz
+	// Note: this does not apply to /api and /healthz routes
 	BasePath string `env:"BASEPATH" yaml:"basePath"`
 
 	// Controls log level and verbosity. Supported values: `debug`, `info` (default), `warn`, `error`.

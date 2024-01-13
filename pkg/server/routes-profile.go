@@ -8,7 +8,7 @@ import (
 )
 
 // RouteGetProfile is the handler for GET /profile
-// This handles requests from Traefik and redirects users to auth servers if needed
+// This handler serves the profile of authenticated users in clear-text
 func (s *Server) RouteGetProfile(c *gin.Context) {
 	// Check if we have a session
 	profile := s.getProfileFromContext(c)
