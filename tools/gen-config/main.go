@@ -12,18 +12,26 @@ import (
 	"strings"
 )
 
-func generateYAMLFromStruct(filePath string) error {
+func generateFromStruct(filePath string) error {
 	fset := token.NewFileSet()
 	node, err := parser.ParseFile(fset, filePath, nil, parser.ParseComments)
 	if err != nil {
 		return err
 	}
 
-	outFile, err := os.Create("config.sample.yaml")
+	outFileYAML, err := os.Create("config.sample.yaml")
 	if err != nil {
 		return err
 	}
-	defer outFile.Close()
+	defer outFileYAML.Close()
+
+	outFileMD, err := os.Create("config.md")
+	if err != nil {
+		return err
+	}
+	defer outFileMD.Close()
+	fmt.Fprint(outFileMD, "| YAML option | Environmental variable | Type | Description | Default value | Required |\n")
+	fmt.Fprint(outFileMD, "| --- | --- | --- | --- | --- | --- |\n")
 
 	ast.Inspect(node, func(n ast.Node) bool {
 		typeSpec, ok := n.(*ast.TypeSpec)
@@ -39,6 +47,7 @@ func generateYAMLFromStruct(filePath string) error {
 		for _, field := range structType.Fields.List {
 			unquoted, _ := strconv.Unquote(field.Tag.Value)
 			tags := reflect.StructTag(unquoted)
+			envTag, _ := tags.Lookup("env")
 			yamlTag, ok := tags.Lookup("yaml")
 			if !ok || yamlTag == "" || yamlTag == "-" {
 				continue
@@ -64,10 +73,15 @@ func generateYAMLFromStruct(filePath string) error {
 			}
 
 			// Parse field documentation
-			fmt.Fprintf(outFile, "## %s (%s)\n", yamlTag, typ)
+			envTagMD := "-"
+			if envTag != "" && envTag != "-" {
+				envTagMD = "`TFA_" + envTag + "`"
+			}
+			fmt.Fprintf(outFileYAML, "## %s (%s)\n", yamlTag, typ)
+			fmt.Fprintf(outFileMD, "| `%s` | %s | %s | ", yamlTag, envTagMD, typ)
 			doc := field.Doc.Text()
 			if doc != "" {
-				fmt.Fprint(outFile, "## Description:\n")
+				fmt.Fprint(outFileYAML, "## Description:\n")
 				for _, line := range strings.Split(doc, "\n") {
 					if line == "" {
 						lastEmpty = true
@@ -81,22 +95,29 @@ func generateYAMLFromStruct(filePath string) error {
 						required = true
 					default:
 						if lastEmpty {
-							fmt.Fprint(outFile, "##\n")
+							fmt.Fprint(outFileYAML, "##\n")
+							fmt.Fprint(outFileMD, "<br>")
 						}
-						fmt.Fprintf(outFile, "##   %s\n", line)
+						fmt.Fprintf(outFileYAML, "##   %s\n", line)
+						fmt.Fprintf(outFileMD, "%s<br>", strings.ReplaceAll(line, "\n", "<br>"))
 						lastEmpty = false
 					}
 				}
 
 				if defaultText != "" {
-					fmt.Fprintf(outFile, "## Default: %s\n", defaultText)
+					fmt.Fprintf(outFileYAML, "## Default: %s\n", defaultText)
+					fmt.Fprintf(outFileMD, " | %s | ", defaultText)
+				} else {
+					fmt.Fprint(outFileMD, " | | ")
 				}
 			}
 
 			if required {
-				fmt.Fprintf(outFile, "## Required\n%s:\n\n", yamlTag)
+				fmt.Fprintf(outFileYAML, "## Required\n%s:\n\n", yamlTag)
+				fmt.Fprint(outFileMD, "**Required** |\n")
 			} else {
-				fmt.Fprintf(outFile, "#%s: \n\n", yamlTag)
+				fmt.Fprintf(outFileYAML, "#%s: \n\n", yamlTag)
+				fmt.Fprint(outFileMD, "|\n")
 			}
 		}
 
@@ -107,7 +128,7 @@ func generateYAMLFromStruct(filePath string) error {
 }
 
 func main() {
-	err := generateYAMLFromStruct("pkg/config/config.go")
+	err := generateFromStruct("pkg/config/config.go")
 	if err != nil {
 		panic(err)
 	}

@@ -6,7 +6,7 @@ A minimal service that provides authentication and SSO with OAuth2, OpenID Conne
 
 ## Highlights
 
-- Supports authentication with Google, Microsoft Entra ID (formerly Azure AD), GitHub. (More OAuth2 and OpenID Connect providers can be added)
+- Supports authentication with Google, Microsoft Entra ID (formerly Azure AD), GitHub, and generic OpenID Connect providers (including Auth0, Okta, etc).
 - Single Sign-On with Tailscale Whois (similarly to Tailscale's [nginx-auth](https://github.com/tailscale/tailscale/tree/main/cmd/nginx-auth))
 - Protect multiple Traefik services with a single instance of traefik-forward-auth.
 
@@ -26,7 +26,7 @@ You can also pin to the latest patch release as found in the [Releases page](htt
 ghcr.io/italypaleale/traefik-forward-auth:3.x.x
 ```
 
-## Usage
+## Quickstart
 
 ### Docker Compose
 
@@ -46,18 +46,25 @@ services:
   traefik-forward-auth:
     image: ghcr.io/italypaleale/traefik-forward-auth:3
     environment:
-      - PROVIDERS_GOOGLE_CLIENT_ID=your-client-id
-      - PROVIDERS_GOOGLE_CLIENT_SECRET=your-client-secret
-      - SECRET=something-random # Example: generate with `openssl rand -base64 32`
-      - INSECURE_COOKIE=true # Example assumes no https, do not use in production
+      # Hostname where the application can be reached at externally
+      - TFA_HOSTNAME=auth.example.com
+      # Domain for setting cookies
+      - TFA_COOKIEDOMAIN=example.com
+      # Configure authentication with Google
+      - TFA_AUTHPROVIDER=google
+      - AUTHGOOGLE_CLIENTID=...
+      - AUTHGOOGLE_CLIENTSECRET=...
+      - SECRET=... # Example: generate with `openssl rand -base64 32`
+      - INSECURE_COOKIE=true # Example assumes no HTTPS, do not use in production
     labels:
       - "traefik.http.middlewares.traefik-forward-auth.forwardauth.address=http://traefik-forward-auth:4181"
       - "traefik.http.middlewares.traefik-forward-auth.forwardauth.authResponseHeaders=X-Forwarded-User"
       - "traefik.http.services.traefik-forward-auth.loadbalancer.server.port=4181"
+      - "traefik.http.routers.traefik-forward-auth.rule=Host(`auth.example.com`)"
 
   whoami:
     image: containous/whoami
     labels:
-      - "traefik.http.routers.whoami.rule=Host(`whoami.mycompany.com`)"
+      - "traefik.http.routers.whoami.rule=Host(`whoami.example.com`)"
       - "traefik.http.routers.whoami.middlewares=traefik-forward-auth"
 ```
