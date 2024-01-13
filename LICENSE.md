@@ -1,6 +1,7 @@
 MIT License
 
-Copyright (c) [2018] [Thom Seddon]
+Copyright (c) 2018, Thom Seddon & Contributors
+Copyright (c) 2023, Alessandro Segala & Contributors
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
