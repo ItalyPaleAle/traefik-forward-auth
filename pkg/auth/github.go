@@ -87,7 +87,7 @@ func (a GitHub) OAuth2RetrieveProfile(ctx context.Context, at OAuth2AccessToken)
 	}()
 
 	if res.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("invalid response status code: %d", err)
+		return nil, fmt.Errorf("invalid response status code: %d", res.StatusCode)
 	}
 
 	var resBody struct {

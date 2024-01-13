@@ -133,11 +133,6 @@ func TestIsIP(t *testing.T) {
 			expect: true,
 		},
 		{
-			name:   "Invalid IPv6 - missing hextet",
-			input:  "2001:db8:85a3::8a2e:370",
-			expect: false,
-		},
-		{
 			name:   "Invalid IPv6 - invalid hextet",
 			input:  "2001:db8:85a3:gggg:0000:8a2e:0370:7334",
 			expect: false,

@@ -1,8 +1,11 @@
-
-format:
-	gofmt -w -s internal/*.go internal/provider/*.go cmd/*.go
-
+.PHONY: test
 test:
-	go test -v ./...
+	go test -tags unit ./...
 
-.PHONY: format test
+.PHONY: test-race
+test-race:
+	CGO_ENABLED=1 go test -race -tags unit ./...
+
+.PHONY: lint
+lint:
+	golangci-lint run -c .golangci.yaml

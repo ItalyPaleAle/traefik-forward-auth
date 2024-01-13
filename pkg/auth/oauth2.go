@@ -143,7 +143,7 @@ func (a OAuth2) OAuth2ExchangeCode(ctx context.Context, code string, redirectURL
 	}()
 
 	if res.StatusCode != http.StatusOK {
-		return OAuth2AccessToken{}, fmt.Errorf("invalid response status code: %d", err)
+		return OAuth2AccessToken{}, fmt.Errorf("invalid response status code: %d", res.StatusCode)
 	}
 
 	var tokenResponse oAuth2TokenResponse
@@ -232,7 +232,7 @@ func (a OAuth2) OAuth2RetrieveProfile(ctx context.Context, at OAuth2AccessToken)
 	}()
 
 	if res.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("invalid response status code: %d", err)
+		return nil, fmt.Errorf("invalid response status code: %d", res.StatusCode)
 	}
 
 	claims := map[string]any{}

@@ -231,15 +231,16 @@ func (c *Config) Validate(log *zerolog.Logger) error {
 	host, port, err := net.SplitHostPort(c.Hostname)
 	if err == nil && host != "" && port != "" {
 		isIP := validators.IsIP(c.CookieDomain)
-		if c.CookieDomain == "" {
+		switch {
+		case c.CookieDomain == "":
 			c.CookieDomain = host
 			if validators.IsIP(host) {
 				// If the CookieDomain is an IP, we must make it empty
 				c.CookieDomain = ""
 			}
-		} else if !validators.IsHostname(c.CookieDomain) && !isIP {
+		case !validators.IsHostname(c.CookieDomain) && !isIP:
 			return errors.New("property 'cookieDomain' is invalid: must be a valid hostname or IP")
-		} else if !isIP && !utils.IsSubDomain(c.CookieDomain, host) {
+		case !isIP && !utils.IsSubDomain(c.CookieDomain, host):
 			return errors.New("property 'hostname' must be a sub-domain of, or equal to, 'cookieName'")
 		}
 	} else {
@@ -248,15 +249,16 @@ func (c *Config) Validate(log *zerolog.Logger) error {
 		}
 
 		isIP := validators.IsIP(c.CookieDomain)
-		if c.CookieDomain == "" {
+		switch {
+		case c.CookieDomain == "":
 			c.CookieDomain = c.Hostname
 			if validators.IsIP(c.Hostname) {
 				// If the CookieDomain is an IP, we must make it empty
 				c.CookieDomain = ""
 			}
-		} else if !validators.IsHostname(c.CookieDomain) && !isIP {
+		case !validators.IsHostname(c.CookieDomain) && !isIP:
 			return errors.New("property 'cookieDomain' is invalid: must be a valid hostname or IP")
-		} else if !isIP && !utils.IsSubDomain(c.CookieDomain, c.Hostname) {
+		case !isIP && !utils.IsSubDomain(c.CookieDomain, c.Hostname):
 			return errors.New("property 'hostname' must be a sub-domain of, or equal to, 'cookieName'")
 		}
 	}
@@ -341,7 +343,7 @@ func (c *Config) SetTokenSigningKey(logger *zerolog.Logger) (err error) {
 	}
 
 	// Calculate the key ID
-	c.internal.tokenSigningKey.Set("kid", computeKeyId(rawKey))
+	_ = c.internal.tokenSigningKey.Set("kid", computeKeyId(rawKey))
 
 	return nil
 }

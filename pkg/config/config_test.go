@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"encoding/hex"
 	"testing"
-	"time"
 
 	"github.com/rs/zerolog"
 	"github.com/stretchr/testify/assert"
@@ -20,8 +19,8 @@ func TestValidateConfig(t *testing.T) {
 	})
 
 	t.Cleanup(SetTestConfig(map[string]any{
-		"database":    "postgresql://localhost/testdb",
-		"emailSender": "console://",
+		"authProvider": "github",
+		"hostname":     "localhost",
 	}))
 
 	log := zerolog.Nop()
@@ -31,44 +30,24 @@ func TestValidateConfig(t *testing.T) {
 		require.NoError(t, err)
 	})
 
-	t.Run("fails without emailSender", func(t *testing.T) {
+	t.Run("fails without authProvider", func(t *testing.T) {
 		t.Cleanup(SetTestConfig(map[string]any{
-			"emailSender": "",
+			"authProvider": "",
 		}))
 
 		err := config.Validate(&log)
 		require.Error(t, err)
-		require.ErrorContains(t, err, "'emailSender' missing")
+		require.ErrorContains(t, err, "'authProvider' is required")
 	})
 
-	t.Run("fails with emailVerificationTimeout too small", func(t *testing.T) {
+	t.Run("fails without hostname", func(t *testing.T) {
 		t.Cleanup(SetTestConfig(map[string]any{
-			"emailVerificationTimeout": 100 * time.Millisecond,
+			"hostname": "",
 		}))
 
 		err := config.Validate(&log)
 		require.Error(t, err)
-		require.ErrorContains(t, err, "'emailVerificationTimeout' is invalid")
-	})
-
-	t.Run("fails with sessionIdleTimeout too small", func(t *testing.T) {
-		t.Cleanup(SetTestConfig(map[string]any{
-			"sessionIdleTimeout": 100 * time.Millisecond,
-		}))
-
-		err := config.Validate(&log)
-		require.Error(t, err)
-		require.ErrorContains(t, err, "'sessionIdleTimeout' is invalid")
-	})
-
-	t.Run("fails with sessionMaxLifetime too small", func(t *testing.T) {
-		t.Cleanup(SetTestConfig(map[string]any{
-			"sessionMaxLifetime": 100 * time.Millisecond,
-		}))
-
-		err := config.Validate(&log)
-		require.Error(t, err)
-		require.ErrorContains(t, err, "'sessionMaxLifetime' is invalid")
+		require.ErrorContains(t, err, "'hostname' is required")
 	})
 }
 

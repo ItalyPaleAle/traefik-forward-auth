@@ -29,8 +29,6 @@ const (
 
 	// Size for the in-memory buffer for bufconn
 	bufconnBufSize = 1 << 20 // 1MB
-
-	jsonContentType = "application/json"
 )
 
 func TestMain(m *testing.M) {
@@ -66,7 +64,7 @@ func TestServerLifecycle(t *testing.T) {
 			reqCtx, reqCancel := context.WithTimeout(context.Background(), 2*time.Second)
 			defer reqCancel()
 			req, err := http.NewRequestWithContext(reqCtx, http.MethodGet,
-				fmt.Sprintf("https://localhost:%d/healthz", testServerPort), nil)
+				fmt.Sprintf("http://localhost:%d/healthz", testServerPort), nil)
 			require.NoError(t, err)
 			res, err := appClient.Do(req)
 			require.NoError(t, err)
@@ -175,11 +173,12 @@ func clientForListener(ln net.Listener) *http.Client {
 	}
 }
 
+//nolint:unused
 func assertResponseError(t *testing.T, res *http.Response, expectStatusCode int, expectErr string) {
 	t.Helper()
 
 	require.Equal(t, expectStatusCode, res.StatusCode, "Response has an unexpected status code")
-	require.Equal(t, jsonContentType, res.Header.Get("content-type"), "Content-Type header is invalid")
+	require.Equal(t, "application/json", res.Header.Get("content-type"), "Content-Type header is invalid")
 
 	data := struct {
 		Error string `json:"error"`
@@ -208,6 +207,8 @@ func closeBody(res *http.Response) {
 
 // Internal function that returns true if the value matches the context.Context interface
 // This can be used as an argument for mock.MatchedBy
+//
+//nolint:unused
 func matchContextInterface(v any) bool {
 	_, ok := v.(context.Context)
 	return ok

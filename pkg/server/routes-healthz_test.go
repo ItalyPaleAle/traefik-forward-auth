@@ -25,7 +25,7 @@ func TestServerHealthzRoutes(t *testing.T) {
 		reqCtx, reqCancel := context.WithTimeout(context.Background(), 2*time.Second)
 		defer reqCancel()
 		req, err := http.NewRequestWithContext(reqCtx, http.MethodGet,
-			fmt.Sprintf("https://localhost:%d/healthz", testServerPort), nil)
+			fmt.Sprintf("http://localhost:%d/healthz", testServerPort), nil)
 		require.NoError(t, err)
 		res, err := appClient.Do(req)
 		require.NoError(t, err)
