@@ -10,10 +10,15 @@ import (
 	"strings"
 	"time"
 
+	"github.com/spf13/cast"
+
 	"github.com/italypaleale/traefik-forward-auth/pkg/user"
 )
 
-const ghGraphQLEndpoint = "https://api.github.com/graphql"
+const (
+	githubGraphQLEndpoint   = "https://api.github.com/graphql"
+	githubClaimGitHubUserID = "github_userid"
+)
 
 // GitHub manages authentication with GitHub.
 // It is based on the OAuth 2 provider.
@@ -70,7 +75,7 @@ func (a GitHub) OAuth2RetrieveProfile(ctx context.Context, at OAuth2AccessToken)
 	reqCtx, cancel := context.WithTimeout(ctx, a.requestTimeout)
 	defer cancel()
 	reqBody := strings.NewReader(`{"query": "query { viewer { id, login, avatarUrl, name } }"}`)
-	req, err := http.NewRequestWithContext(reqCtx, http.MethodPost, ghGraphQLEndpoint, reqBody)
+	req, err := http.NewRequestWithContext(reqCtx, http.MethodPost, githubGraphQLEndpoint, reqBody)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create HTTP request: %w", err)
 	}
@@ -115,14 +120,23 @@ func (a GitHub) OAuth2RetrieveProfile(ctx context.Context, at OAuth2AccessToken)
 		fn = userData.Login
 	}
 
-	return &user.Profile{
-		ID:      userData.ID,
+	profile := &user.Profile{
+		ID:      userData.Login,
 		Picture: userData.AvatarUrl,
 		Name: user.ProfileName{
 			Nickname: userData.Login,
 			FullName: fn,
 		},
-	}, nil
+	}
+	profile.SetAdditionalClaim(githubClaimGitHubUserID, userData.ID)
+
+	return profile, nil
+}
+
+func (a GitHub) PopulateAdditionalClaims(claims map[string]any, setClaimFn func(key, val string)) {
+	if v := cast.ToString(claims[githubClaimGitHubUserID]); v != "" {
+		setClaimFn(githubClaimGitHubUserID, v)
+	}
 }
 
 // Compile-time interface assertion
