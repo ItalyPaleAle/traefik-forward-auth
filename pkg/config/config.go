@@ -91,6 +91,7 @@ type Config struct {
 	// - github
 	// - google
 	// - microsoftentraid
+	// - tailscalewhois
 	//
 	// +required
 	AuthProvider string `env:"AUTHPROVIDER" yaml:"authProvider"`
@@ -130,6 +131,14 @@ type Config struct {
 	// Ignored if `authMethod` is not `microsoftentraid`
 	// +default 10s
 	AuthMicrosoftEntraIDRequestTimeout time.Duration `env:"AUTHMICROSOFTENTRAID_REQUESTTIMEOUT" yaml:"authMicrosoftEntraID_requestTimeout"`
+
+	// If non-empty, requires the Tailnet of the user to match this value
+	// Ignored if `authMethod` is not `tailscalewhois`
+	AuthTailscaleWhoisExpectedTailnet string `env:"AUTHTAILSCALEWHOIS_EXPECTEDTAILNET" yaml:"authTailscaleWhois_expectedTailnet"`
+	// Timeout for network requests for Tailscale Whois auth
+	// Ignored if `authMethod` is not `tailscalewhois`
+	// +default 10s
+	AuthTailscaleWhoisRequestTimeout time.Duration `env:"AUTHTAILSCALEWHOIS_REQUESTTIMEOUT" yaml:"authTailscaleWhois_requestTimeout"`
 
 	// Timeout for authenticating with the authentication provider.
 	// +default 5m
@@ -211,11 +220,16 @@ func (c *Config) Validate(log *zerolog.Logger) error {
 
 	host, port, err := net.SplitHostPort(c.Hostname)
 	if err == nil && host != "" && port != "" {
+		isIP := validators.IsIP(c.CookieDomain)
 		if c.CookieDomain == "" {
 			c.CookieDomain = host
-		} else if !validators.IsHostname(c.CookieDomain) && !validators.IsIP(c.CookieDomain) {
+			if validators.IsIP(host) {
+				// If the CookieDomain is an IP, we must make it empty
+				c.CookieDomain = ""
+			}
+		} else if !validators.IsHostname(c.CookieDomain) && !isIP {
 			return errors.New("property 'cookieDomain' is invalid: must be a valid hostname or IP")
-		} else if !utils.IsSubDomain(c.CookieDomain, host) {
+		} else if !isIP && !utils.IsSubDomain(c.CookieDomain, host) {
 			return errors.New("property 'hostname' must be a sub-domain of, or equal to, 'cookieName'")
 		}
 	} else {
@@ -223,11 +237,16 @@ func (c *Config) Validate(log *zerolog.Logger) error {
 			return errors.New("property 'hostname' is required and must be a valid hostname or IP")
 		}
 
+		isIP := validators.IsIP(c.CookieDomain)
 		if c.CookieDomain == "" {
 			c.CookieDomain = c.Hostname
-		} else if !validators.IsHostname(c.CookieDomain) && !validators.IsIP(c.CookieDomain) {
+			if validators.IsIP(c.Hostname) {
+				// If the CookieDomain is an IP, we must make it empty
+				c.CookieDomain = ""
+			}
+		} else if !validators.IsHostname(c.CookieDomain) && !isIP {
 			return errors.New("property 'cookieDomain' is invalid: must be a valid hostname or IP")
-		} else if !utils.IsSubDomain(c.CookieDomain, c.Hostname) {
+		} else if !isIP && !utils.IsSubDomain(c.CookieDomain, c.Hostname) {
 			return errors.New("property 'hostname' must be a sub-domain of, or equal to, 'cookieName'")
 		}
 	}
@@ -266,12 +285,17 @@ func (c *Config) GetAuthProvider() (auth.Provider, error) {
 			ClientSecret:   c.AuthGoogleClientSecret,
 			RequestTimeout: c.AuthGoogleRequestTimeout,
 		})
-	case "microsoftentraid":
+	case "microsoftentraid", "azuread", "aad":
 		return auth.NewMicrosoftEntraID(auth.NewMicrosoftEntraIDOptions{
 			TenantID:       c.AuthMicrosoftEntraIDTenantID,
 			ClientID:       c.AuthMicrosoftEntraIDClientID,
 			ClientSecret:   c.AuthMicrosoftEntraIDClientSecret,
 			RequestTimeout: c.AuthMicrosoftEntraIDRequestTimeout,
+		})
+	case "tailscalewhois", "tailscale":
+		return auth.NewTailscaleWhois(auth.NewTailscaleWhoisOptions{
+			ExpectedTailnet: c.AuthTailscaleWhoisExpectedTailnet,
+			RequestTimeout:  c.AuthTailscaleWhoisRequestTimeout,
 		})
 	default:
 		return nil, fmt.Errorf("invalid value for 'authProvider': %s", c.AuthProvider)

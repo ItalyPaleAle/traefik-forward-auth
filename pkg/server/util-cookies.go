@@ -22,50 +22,53 @@ import (
 
 const (
 	jwtIssuer           = "traefik-forward-auth"
-	nonceCookieName     = "tf_nonce"
+	stateCookieName     = "tf_state"
 	acceptableClockSkew = 30 * time.Second
 	nonceSize           = 12 // Nonce size in bytes
 )
 
-func getSessionCookie(c *gin.Context) (profile user.Profile, claims map[string]any, err error) {
+func (s *Server) getSessionCookie(c *gin.Context) (profile *user.Profile, err error) {
 	cfg := config.Get()
 
 	// Get the cookie
 	cookieValue, err := c.Cookie(cfg.CookieName)
 	if errors.Is(err, http.ErrNoCookie) {
-		return profile, nil, nil
+		return nil, nil
 	} else if err != nil {
-		return profile, nil, fmt.Errorf("failed to get cookie: %w", err)
+		return nil, fmt.Errorf("failed to get cookie: %w", err)
 	}
 	if cookieValue == "" {
-		return profile, nil, fmt.Errorf("cookie %s is empty", cfg.CookieName)
+		return nil, fmt.Errorf("cookie %s is empty", cfg.CookieName)
 	}
 
 	// Parse the JWT in the cookie
 	token, err := jwt.Parse([]byte(cookieValue),
 		jwt.WithAcceptableSkew(acceptableClockSkew),
-		jwt.WithIssuer(jwtIssuer),
+		jwt.WithIssuer(jwtIssuer+"/"+s.auth.GetProviderName()),
 		jwt.WithAudience(cfg.Hostname),
 		jwt.WithKey(jwa.HS256, cfg.GetTokenSigningKey()),
 	)
 	if err != nil {
-		return profile, nil, fmt.Errorf("failed to parse JWT: %w", err)
+		return nil, fmt.Errorf("failed to parse JWT: %w", err)
 	}
 
 	// Get the user profile from the claim
-	claims, err = token.AsMap(c.Request.Context())
+	claims, err := token.AsMap(c.Request.Context())
 	if err != nil {
-		return profile, nil, fmt.Errorf("failed to get claims from JWT: %w", err)
+		return nil, fmt.Errorf("failed to get claims from JWT: %w", err)
 	}
 	profile, err = user.NewProfileFromClaims(claims)
 	if err != nil {
-		return profile, nil, fmt.Errorf("failed to parse claims from JWT: %w", err)
+		return nil, fmt.Errorf("failed to parse claims from JWT: %w", err)
+	}
+	if len(claims) > 0 {
+		s.auth.PopulateAdditionalClaims(claims, profile.SetAdditionalClaim)
 	}
 
-	return profile, claims, nil
+	return profile, nil
 }
 
-func setSessionCookie(c *gin.Context, profile *user.Profile) error {
+func (s *Server) setSessionCookie(c *gin.Context, profile *user.Profile) error {
 	cfg := config.Get()
 	expiration := cfg.SessionLifetime
 
@@ -74,7 +77,7 @@ func setSessionCookie(c *gin.Context, profile *user.Profile) error {
 	builder := jwt.NewBuilder()
 	profile.AppendClaims(builder)
 	token, err := builder.
-		Issuer(jwtIssuer).
+		Issuer(jwtIssuer + "/" + s.auth.GetProviderName()).
 		Audience([]string{cfg.Hostname}).
 		IssuedAt(now).
 		// Add 1 extra second to synchronize with cookie expiry
@@ -94,21 +97,29 @@ func setSessionCookie(c *gin.Context, profile *user.Profile) error {
 	}
 
 	// Set the cookie
+	c.SetSameSite(http.SameSiteLaxMode)
 	c.SetCookie(cfg.CookieName, string(cookieValue), int(expiration.Seconds()), "/", cfg.CookieDomain, !cfg.CookieInsecure, true)
 
 	return nil
 }
 
-func deleteSessionCookie(c *gin.Context) {
+func (s *Server) deleteSessionCookie(c *gin.Context) {
 	cfg := config.Get()
+
+	if _, err := c.Cookie(cfg.CookieName); err != nil {
+		// Cookie was not set in the request, nothing to unset
+		return
+	}
+
+	c.SetSameSite(http.SameSiteLaxMode)
 	c.SetCookie(cfg.CookieName, "", -1, "/", cfg.CookieDomain, !cfg.CookieInsecure, true)
 }
 
-func getStateCookie(c *gin.Context) (nonce string, returnURL string, err error) {
+func (s *Server) getStateCookie(c *gin.Context) (nonce string, returnURL string, err error) {
 	cfg := config.Get()
 
 	// Get the cookie
-	cookieValue, err := c.Cookie(nonceCookieName)
+	cookieValue, err := c.Cookie(stateCookieName)
 	if errors.Is(err, http.ErrNoCookie) {
 		return "", "", nil
 	} else if err != nil {
@@ -121,7 +132,7 @@ func getStateCookie(c *gin.Context) (nonce string, returnURL string, err error) 
 	// Parse the JWT in the cookie
 	token, err := jwt.Parse([]byte(cookieValue),
 		jwt.WithAcceptableSkew(acceptableClockSkew),
-		jwt.WithIssuer(jwtIssuer),
+		jwt.WithIssuer(jwtIssuer+"/"+s.auth.GetProviderName()),
 		jwt.WithAudience(cfg.Hostname),
 		jwt.WithKey(jwa.HS256, cfg.GetTokenSigningKey()),
 	)
@@ -148,7 +159,7 @@ func getStateCookie(c *gin.Context) (nonce string, returnURL string, err error) 
 	}
 
 	// Validate the signature inside the token
-	expectSig := nonceCookieSig(c, nonceBytes)
+	expectSig := s.stateCookieSig(c, nonceBytes)
 	sigAny, ok := token.Get("sig")
 	if !ok {
 		return "", "", errors.New("claim 'sig' not found in JWT")
@@ -161,7 +172,7 @@ func getStateCookie(c *gin.Context) (nonce string, returnURL string, err error) 
 	return nonce, returnURL, nil
 }
 
-func setStateCookie(c *gin.Context, returnURL string) (nonce string, err error) {
+func (s *Server) setStateCookie(c *gin.Context, returnURL string) (nonce string, err error) {
 	cfg := config.Get()
 	expiration := cfg.AuthenticationTimeout
 
@@ -174,12 +185,12 @@ func setStateCookie(c *gin.Context, returnURL string) (nonce string, err error) 
 	nonce = base64.RawURLEncoding.EncodeToString(nonceBytes)
 
 	// Computes a signature that includes certain properties from the request that are sufficiently stable
-	sig := nonceCookieSig(c, nonceBytes)
+	sig := s.stateCookieSig(c, nonceBytes)
 
 	// Claims for the JWT
 	now := time.Now()
 	token, err := jwt.NewBuilder().
-		Issuer(jwtIssuer).
+		Issuer(jwtIssuer+"/"+s.auth.GetProviderName()).
 		Audience([]string{cfg.Hostname}).
 		IssuedAt(now).
 		// Add 1 extra second to synchronize with cookie expiry
@@ -206,28 +217,36 @@ func setStateCookie(c *gin.Context, returnURL string) (nonce string, err error) 
 	if host == "" {
 		host = cfg.Hostname
 	}
-	c.SetCookie(nonceCookieName, string(cookieValue), int(expiration.Seconds()), "/", host, !cfg.CookieInsecure, true)
+	c.SetSameSite(http.SameSiteLaxMode)
+	c.SetCookie(stateCookieName, string(cookieValue), int(expiration.Seconds()), "/", host, !cfg.CookieInsecure, true)
 
 	// Return the nonce
 	return nonce, nil
 }
 
-func deleteStateCookie(c *gin.Context) {
+func (s *Server) deleteStateCookie(c *gin.Context) {
 	cfg := config.Get()
+
+	if _, err := c.Cookie(stateCookieName); err != nil {
+		// Cookie was not set in the request, nothing to unset
+		return
+	}
 
 	host, _, _ := net.SplitHostPort(cfg.Hostname)
 	if host == "" {
 		host = cfg.Hostname
 	}
 
-	c.SetCookie(nonceCookieName, "", -1, "/", host, !cfg.CookieInsecure, true)
+	c.SetSameSite(http.SameSiteLaxMode)
+	c.SetCookie(stateCookieName, "", -1, "/", host, !cfg.CookieInsecure, true)
 }
 
-func nonceCookieSig(c *gin.Context, nonce []byte) string {
+func (s *Server) stateCookieSig(c *gin.Context, nonce []byte) string {
 	h := hmac.New(sha256.New224, nonce)
-	h.Write([]byte("tfa-nonce-sig"))
+	h.Write([]byte("tfa-state-sig"))
 	h.Write([]byte(c.GetHeader("User-Agent")))
 	h.Write([]byte(c.GetHeader("Accept-Language")))
 	h.Write([]byte(c.GetHeader("DNT")))
+	h.Write([]byte(s.auth.GetProviderName()))
 	return base64.RawURLEncoding.EncodeToString(h.Sum(nil))
 }

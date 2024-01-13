@@ -59,7 +59,7 @@ func NewMicrosoftEntraID(opts NewMicrosoftEntraIDOptions) (p MicrosoftEntraID, e
 	}, nil
 }
 
-func (a MicrosoftEntraID) UserIDFromProfile(profile user.Profile) string {
+func (a MicrosoftEntraID) UserIDFromProfile(profile *user.Profile) string {
 	if profile.Email != nil && profile.Email.Value != "" {
 		return profile.Email.Value
 	}
@@ -67,4 +67,4 @@ func (a MicrosoftEntraID) UserIDFromProfile(profile user.Profile) string {
 }
 
 // Compile-time interface assertion
-var _ Provider = MicrosoftEntraID{}
+var _ OAuth2Provider = MicrosoftEntraID{}

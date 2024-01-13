@@ -45,7 +45,7 @@ func Load(dst any, opts LoadOptions) error {
 		// Ignore fields with zero value
 		if opts.IgnoreZeroValuesInConfig {
 			maps.DeleteFunc(m, func(s string, a any) bool {
-				return reflect.ValueOf(a).IsZero()
+				return a == nil || reflect.ValueOf(a).IsZero()
 			})
 		}
 

@@ -23,6 +23,9 @@ type Profile struct {
 	Locale string
 	// Time zone name
 	Timezone string
+
+	// Additional claims
+	AdditionalClaims map[string]string
 }
 
 // ProfileName contains the name of a user.
@@ -48,7 +51,7 @@ type ProfileEmail struct {
 }
 
 // NewProfileFromOpenIDToken returns a new Profile with values from an openid.Token object
-func NewProfileFromOpenIDToken(token openid.Token) (Profile, error) {
+func NewProfileFromOpenIDToken(token openid.Token) (*Profile, error) {
 	profile := Profile{
 		Picture:  token.Picture(),
 		Locale:   token.Locale(),
@@ -67,7 +70,7 @@ func NewProfileFromOpenIDToken(token openid.Token) (Profile, error) {
 		}
 	}
 	if profile.ID == "" {
-		return profile, errors.New("at least one of sub or id must be present")
+		return nil, errors.New("at least one of sub or id must be present")
 	}
 
 	// Name
@@ -97,12 +100,12 @@ func NewProfileFromOpenIDToken(token openid.Token) (Profile, error) {
 		}
 	}
 
-	return profile, nil
+	return &profile, nil
 }
 
 // NewProfileFromClaims returns a new Profile with values from a claim map
-func NewProfileFromClaims(claims map[string]any) (Profile, error) {
-	profile := Profile{
+func NewProfileFromClaims(claims map[string]any) (*Profile, error) {
+	profile := &Profile{
 		Picture:  cast.ToString(claims["picture"]),
 		Locale:   cast.ToString(claims["locale"]),
 		Timezone: cast.ToString(claims["zoneinfo"]),
@@ -175,6 +178,17 @@ func (p Profile) AppendClaims(builder *jwt.Builder) {
 	if p.Timezone != "" {
 		builder.Claim("zoneinfo", p.Timezone)
 	}
+
+	for k, v := range p.AdditionalClaims {
+		builder.Claim(k, v)
+	}
+}
+
+func (p *Profile) SetAdditionalClaim(key, val string) {
+	if p.AdditionalClaims == nil {
+		p.AdditionalClaims = make(map[string]string)
+	}
+	p.AdditionalClaims[key] = val
 }
 
 // PopulateFullName builds the full name if it's not set but there are other fields

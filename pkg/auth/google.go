@@ -53,4 +53,4 @@ func NewGoogle(opts NewGoogleOptions) (p Google, err error) {
 }
 
 // Compile-time interface assertion
-var _ Provider = Google{}
+var _ OAuth2Provider = Google{}

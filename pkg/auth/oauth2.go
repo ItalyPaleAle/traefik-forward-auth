@@ -11,7 +11,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/gin-gonic/gin"
 	"github.com/lestrrat-go/jwx/v2/jwt"
 	"github.com/lestrrat-go/jwx/v2/jwt/openid"
 
@@ -99,7 +98,7 @@ func (a OAuth2) GetProviderName() string {
 	return a.providerName
 }
 
-func (a OAuth2) AuthorizeURL(state string, redirectURL string) (string, error) {
+func (a OAuth2) OAuth2AuthorizeURL(state string, redirectURL string) (string, error) {
 	if state == "" {
 		return "", errors.New("parameter state is required")
 	}
@@ -113,9 +112,9 @@ func (a OAuth2) AuthorizeURL(state string, redirectURL string) (string, error) {
 	return a.endpoints.Authorization + "?" + params.Encode(), nil
 }
 
-func (a OAuth2) ExchangeCode(ctx context.Context, code string, redirectURL string) (AccessToken, error) {
+func (a OAuth2) OAuth2ExchangeCode(ctx context.Context, code string, redirectURL string) (OAuth2AccessToken, error) {
 	if code == "" {
-		return AccessToken{}, errors.New("parameter code is required")
+		return OAuth2AccessToken{}, errors.New("parameter code is required")
 	}
 
 	data := url.Values{}
@@ -129,14 +128,14 @@ func (a OAuth2) ExchangeCode(ctx context.Context, code string, redirectURL strin
 	defer cancel()
 	req, err := http.NewRequestWithContext(reqCtx, http.MethodPost, a.endpoints.Token, strings.NewReader(data.Encode()))
 	if err != nil {
-		return AccessToken{}, fmt.Errorf("failed to create HTTP request: %w", err)
+		return OAuth2AccessToken{}, fmt.Errorf("failed to create HTTP request: %w", err)
 	}
 	req.Header.Set("Accept", "application/json")
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 
 	res, err := a.httpClient.Do(req)
 	if err != nil {
-		return AccessToken{}, fmt.Errorf("failed to perform request: %w", err)
+		return OAuth2AccessToken{}, fmt.Errorf("failed to perform request: %w", err)
 	}
 	defer func() {
 		_, _ = io.Copy(io.Discard, res.Body)
@@ -144,22 +143,22 @@ func (a OAuth2) ExchangeCode(ctx context.Context, code string, redirectURL strin
 	}()
 
 	if res.StatusCode != http.StatusOK {
-		return AccessToken{}, fmt.Errorf("invalid response status code: %d", err)
+		return OAuth2AccessToken{}, fmt.Errorf("invalid response status code: %d", err)
 	}
 
 	var tokenResponse oAuth2TokenResponse
 	err = json.NewDecoder(res.Body).Decode(&tokenResponse)
 	if err != nil {
-		return AccessToken{}, fmt.Errorf("invalid response body: %w", err)
+		return OAuth2AccessToken{}, fmt.Errorf("invalid response body: %w", err)
 	}
 
 	if tokenResponse.AccessToken == "" {
-		return AccessToken{}, errors.New("missing access_token in response")
+		return OAuth2AccessToken{}, errors.New("missing access_token in response")
 	}
 
 	expires := time.Now().Add(time.Duration(tokenResponse.ExpiresIn) * time.Second)
 
-	return AccessToken{
+	return OAuth2AccessToken{
 		Provider:     a.providerName,
 		AccessToken:  tokenResponse.AccessToken,
 		Expires:      expires,
@@ -178,9 +177,9 @@ type oAuth2TokenResponse struct {
 	IDToken      string `json:"id_token"`
 }
 
-func (a OAuth2) RetrieveProfile(ctx context.Context, at AccessToken) (profile user.Profile, err error) {
+func (a OAuth2) OAuth2RetrieveProfile(ctx context.Context, at OAuth2AccessToken) (profile *user.Profile, err error) {
 	if at.AccessToken == "" {
-		return user.Profile{}, errors.New("Missing parameter at")
+		return nil, errors.New("Missing parameter at")
 	}
 
 	// Check if we have an ID token to get the profile from
@@ -195,37 +194,37 @@ func (a OAuth2) RetrieveProfile(ctx context.Context, at AccessToken) (profile us
 			jwt.WithToken(openid.New()),
 		)
 		if err != nil {
-			return profile, fmt.Errorf("failed to parse ID token: %w", err)
+			return nil, fmt.Errorf("failed to parse ID token: %w", err)
 		}
 		oidToken, ok := token.(openid.Token)
 		if !ok {
-			return profile, errors.New("failed to parse ID token: included claims cannot be cast to openid.Token")
+			return nil, errors.New("failed to parse ID token: included claims cannot be cast to openid.Token")
 		}
 
 		profile, err = user.NewProfileFromOpenIDToken(oidToken)
 		if err != nil {
-			return profile, fmt.Errorf("invalid claims in token: %w", err)
+			return nil, fmt.Errorf("invalid claims in token: %w", err)
 		}
 		return profile, nil
 	}
 
 	// Retrieve the profile with an API call
 	if at.AccessToken == "" {
-		return profile, errors.New("missing AccessToken in parameter at")
+		return nil, errors.New("missing AccessToken in parameter at")
 	}
 
 	reqCtx, cancel := context.WithTimeout(ctx, a.requestTimeout)
 	defer cancel()
 	req, err := http.NewRequestWithContext(reqCtx, http.MethodGet, a.endpoints.UserInfo, nil)
 	if err != nil {
-		return profile, fmt.Errorf("failed to create HTTP request: %w", err)
+		return nil, fmt.Errorf("failed to create HTTP request: %w", err)
 	}
 	req.Header.Set("Accept", "application/json")
 	req.Header.Set("Authorization", "Bearer "+at.AccessToken)
 
 	res, err := a.httpClient.Do(req)
 	if err != nil {
-		return profile, fmt.Errorf("failed to perform request: %w", err)
+		return nil, fmt.Errorf("failed to perform request: %w", err)
 	}
 	defer func() {
 		_, _ = io.Copy(io.Discard, res.Body)
@@ -233,26 +232,30 @@ func (a OAuth2) RetrieveProfile(ctx context.Context, at AccessToken) (profile us
 	}()
 
 	if res.StatusCode != http.StatusOK {
-		return profile, fmt.Errorf("invalid response status code: %d", err)
+		return nil, fmt.Errorf("invalid response status code: %d", err)
 	}
 
 	claims := map[string]any{}
 	err = json.NewDecoder(res.Body).Decode(&claims)
 	if err != nil {
-		return profile, fmt.Errorf("invalid response body: %w", err)
+		return nil, fmt.Errorf("invalid response body: %w", err)
 	}
 
 	return profile, nil
 }
 
-func (a OAuth2) ValidateRequestClaims(c *gin.Context, claims map[string]any) error {
+func (a OAuth2) ValidateRequestClaims(r *http.Request, profile *user.Profile) error {
 	// This implementation doesn't need performing additional validation on the claims
 	return nil
 }
 
-func (a OAuth2) UserIDFromProfile(profile user.Profile) string {
+func (a OAuth2) UserIDFromProfile(profile *user.Profile) string {
 	return profile.ID
 }
 
+func (a OAuth2) PopulateAdditionalClaims(claims map[string]any, setClaimFn func(key, val string)) {
+	// Nop
+}
+
 // Compile-time interface assertion
-var _ Provider = OAuth2{}
+var _ OAuth2Provider = OAuth2{}

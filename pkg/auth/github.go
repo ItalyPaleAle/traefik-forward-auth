@@ -62,9 +62,9 @@ func NewGitHub(opts NewGitHubOptions) (p GitHub, err error) {
 	}, nil
 }
 
-func (a GitHub) RetrieveProfile(ctx context.Context, at AccessToken) (user.Profile, error) {
+func (a GitHub) OAuth2RetrieveProfile(ctx context.Context, at OAuth2AccessToken) (*user.Profile, error) {
 	if at.AccessToken == "" {
-		return user.Profile{}, errors.New("missing AccessToken in parameter at")
+		return nil, errors.New("missing AccessToken in parameter at")
 	}
 
 	reqCtx, cancel := context.WithTimeout(ctx, a.requestTimeout)
@@ -72,14 +72,14 @@ func (a GitHub) RetrieveProfile(ctx context.Context, at AccessToken) (user.Profi
 	reqBody := strings.NewReader(`{"query": "query { viewer { id, login, avatarUrl, name } }"}`)
 	req, err := http.NewRequestWithContext(reqCtx, http.MethodPost, ghGraphQLEndpoint, reqBody)
 	if err != nil {
-		return user.Profile{}, fmt.Errorf("failed to create HTTP request: %w", err)
+		return nil, fmt.Errorf("failed to create HTTP request: %w", err)
 	}
 	req.Header.Set("Authorization", "token "+at.AccessToken)
 	req.Header.Set("User-Agent", "photobox/1")
 
 	res, err := a.httpClient.Do(req)
 	if err != nil {
-		return user.Profile{}, fmt.Errorf("failed to perform request: %w", err)
+		return nil, fmt.Errorf("failed to perform request: %w", err)
 	}
 	defer func() {
 		_, _ = io.Copy(io.Discard, res.Body)
@@ -87,7 +87,7 @@ func (a GitHub) RetrieveProfile(ctx context.Context, at AccessToken) (user.Profi
 	}()
 
 	if res.StatusCode != http.StatusOK {
-		return user.Profile{}, fmt.Errorf("invalid response status code: %d", err)
+		return nil, fmt.Errorf("invalid response status code: %d", err)
 	}
 
 	var resBody struct {
@@ -102,12 +102,12 @@ func (a GitHub) RetrieveProfile(ctx context.Context, at AccessToken) (user.Profi
 	}
 	err = json.NewDecoder(res.Body).Decode(&resBody)
 	if err != nil {
-		return user.Profile{}, err
+		return nil, err
 	}
 
 	userData := resBody.Data.Viewer
 	if userData.ID == "" || userData.Login == "" {
-		return user.Profile{}, errors.New("missing required fields in user profile response")
+		return nil, errors.New("missing required fields in user profile response")
 	}
 
 	fn := userData.Name
@@ -115,7 +115,7 @@ func (a GitHub) RetrieveProfile(ctx context.Context, at AccessToken) (user.Profi
 		fn = userData.Login
 	}
 
-	return user.Profile{
+	return &user.Profile{
 		ID:      userData.ID,
 		Picture: userData.AvatarUrl,
 		Name: user.ProfileName{
@@ -126,4 +126,4 @@ func (a GitHub) RetrieveProfile(ctx context.Context, at AccessToken) (user.Profi
 }
 
 // Compile-time interface assertion
-var _ Provider = GitHub{}
+var _ OAuth2Provider = GitHub{}

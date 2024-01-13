@@ -50,13 +50,10 @@ func (e ResponseError) Error() string {
 	return e.Message
 }
 
-// AbortWithErrorJSON aborts a Gin context and sends a response with a JSON error message.
+// AbortWithError aborts a Gin context and sends a response with an error message.
 // Pass an ErrorResponse object to be able to customize the status code; it defaults to 500 otherwise.
 // If the status code is >= 500, the message is not sent to users directly.
-func AbortWithErrorJSON(c *gin.Context, err error) {
-	enc := json.NewEncoder(c.Writer)
-	enc.SetEscapeHTML(false)
-
+func AbortWithError(c *gin.Context, err error) {
 	// Add to the Gin error list
 	_ = c.Error(err)
 
@@ -80,7 +77,5 @@ func AbortWithErrorJSON(c *gin.Context, err error) {
 	}
 
 	// Send the response
-	c.Header("Content-Type", "application/json")
-	c.Status(errRes.Code)
-	_ = enc.Encode(errRes)
+	c.Data(errRes.Code, "text/plain; charset=utf-8", []byte("Error: "+errRes.Message))
 }

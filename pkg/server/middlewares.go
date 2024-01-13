@@ -29,45 +29,43 @@ func (s *Server) MiddlewareProxyHeaders(c *gin.Context) {
 	// Ensure required headers are present
 	for i := range proxyHeaders {
 		if c.Request.Header.Get(proxyHeaders[i]) == "" {
-			AbortWithErrorJSON(c, NewResponseErrorf(http.StatusBadRequest, "Missing header %s", proxyHeaders[i]))
+			AbortWithError(c, NewResponseErrorf(http.StatusBadRequest, "Missing header %s", proxyHeaders[i]))
 			return
 		}
 	}
 
 	// Get and validate the remote address
-	remoteAddr, err := netip.ParseAddrPort(net.JoinHostPort(
+	_, err := netip.ParseAddrPort(net.JoinHostPort(
 		c.Request.Header.Get("X-Forwarded-For"),
 		c.Request.Header.Get("X-Forwarded-Port"),
 	))
 	if err != nil {
-		AbortWithErrorJSON(c, NewResponseErrorf(http.StatusBadRequest, "Invalid remote address and port: %v", err))
+		AbortWithError(c, NewResponseErrorf(http.StatusBadRequest, "Invalid remote address and port: %v", err))
 		return
 	}
-
-	c.Set("remote-addr", remoteAddr)
 }
 
 // MiddlewareLoadAuthCookie is a middleware that checks if the request contains a valid authentication token in the cookie.
 func (s *Server) MiddlewareLoadAuthCookie(c *gin.Context) {
 	// Get the cookie and parse it
-	profile, claims, err := getSessionCookie(c)
+	profile, err := s.getSessionCookie(c)
 	if err != nil {
-		deleteSessionCookie(c)
-		AbortWithErrorJSON(c, fmt.Errorf("cookie error: %w", err))
+		s.deleteSessionCookie(c)
+		AbortWithError(c, fmt.Errorf("cookie error: %w", err))
 		return
 	}
 
 	// If we don't have a valid session, stop here
-	if profile.ID == "" && len(claims) == 0 {
+	if profile == nil || profile.ID == "" {
 		return
 	}
 
 	// Validate the session claims
-	err = s.auth.ValidateRequestClaims(c, claims)
+	err = s.auth.ValidateRequestClaims(c.Request, profile)
 	if err != nil {
 		// If the claims are invalid for this session, delete the cookie and return a hard error
-		deleteSessionCookie(c)
-		AbortWithErrorJSON(c, NewResponseErrorf(http.StatusUnauthorized, "Claims are invalid for the request: %v", err))
+		s.deleteSessionCookie(c)
+		AbortWithError(c, NewResponseErrorf(http.StatusUnauthorized, "Claims are invalid for the request: %v", err))
 		return
 	}
 
@@ -92,7 +90,7 @@ func (s *Server) MiddlewareRequestId(c *gin.Context) {
 	// If we get here, we have no request ID found in headers, so let's generate a new UUID
 	reqUuid, err := uuid.NewRandom()
 	if err != nil {
-		AbortWithErrorJSON(c, fmt.Errorf("failed to generate request ID UUID: %w", err))
+		AbortWithError(c, fmt.Errorf("failed to generate request ID UUID: %w", err))
 		return
 	}
 

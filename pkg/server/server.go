@@ -117,9 +117,16 @@ func (s *Server) initAppServer(log *zerolog.Logger) (err error) {
 	// Auth routes
 	// For the root route, we add it with and without trailing slash (in case BasePath isn't empty) to avoid Gin setting up a 301 (Permanent) redirect, which causes issues with forward auth
 	appRoutes := s.appRouter.Group(conf.BasePath, s.MiddlewareProxyHeaders)
-	appRoutes.GET("", s.MiddlewareLoadAuthCookie, s.RouteGetRoot)
-	appRoutes.GET("/", s.MiddlewareLoadAuthCookie, s.RouteGetRoot)
-	appRoutes.GET("oauth2/callback", codeFilterLogMw, s.RouteGetOAuth2Callback)
+	switch provider := s.auth.(type) {
+	case auth.OAuth2Provider:
+		appRoutes.GET("", s.MiddlewareLoadAuthCookie, s.RouteGetOAuth2Root(provider))
+		appRoutes.GET("/", s.MiddlewareLoadAuthCookie, s.RouteGetOAuth2Root(provider))
+		appRoutes.GET("oauth2/callback", codeFilterLogMw, s.RouteGetOAuth2Callback(provider))
+	case auth.SeamlessProvider:
+		appRoutes.GET("", s.MiddlewareLoadAuthCookie, s.RouteGetSeamlessAuthRoot(provider))
+		appRoutes.GET("/", s.MiddlewareLoadAuthCookie, s.RouteGetSeamlessAuthRoot(provider))
+	}
+	appRoutes.GET("profile", s.MiddlewareLoadAuthCookie, s.RouteGetProfile)
 	appRoutes.GET("logout", s.RouteGetLogout)
 
 	// Test routes, that are enabled when running tests only
