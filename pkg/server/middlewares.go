@@ -22,6 +22,21 @@ var proxyHeaders = []string{
 	"X-Forwarded-Host",
 }
 
+// MiddlewareRequireClientCertificate is a middleware that requires a valid client certificate to be present.
+// This is meant to be used to enforce mTLS on specific routes, when the server's TLS is configured with VerifyClientCertIfGiven.
+func (s *Server) MiddlewareRequireClientCertificate(c *gin.Context) {
+	if c.Request.TLS == nil || !config.Get().TLSClientAuth {
+		// Do nothing if `tlsClientAuth` is disabled or if the server is running without TLS
+		return
+	}
+
+	// Check if the client provided a valid TLS certificate
+	if len(c.Request.TLS.PeerCertificates) == 0 {
+		AbortWithError(c, NewResponseErrorf(http.StatusUnauthorized, "Client certificate not provided"))
+		return
+	}
+}
+
 // MiddlewareProxyHeaders is a middleware that gets values for source IP and port from the headers set by Traefik.
 // It stops the request if the headers aren't set.
 // This middleware should be used first in the chain.

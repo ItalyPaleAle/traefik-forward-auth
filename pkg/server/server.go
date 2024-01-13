@@ -3,10 +3,12 @@ package server
 import (
 	"context"
 	"crypto/tls"
+	"crypto/x509"
 	"errors"
 	"fmt"
 	"net"
 	"net/http"
+	"os"
 	"path/filepath"
 	"regexp"
 	"strconv"
@@ -119,12 +121,12 @@ func (s *Server) initAppServer(log *zerolog.Logger) (err error) {
 	appRoutes := s.appRouter.Group(conf.BasePath, s.MiddlewareProxyHeaders)
 	switch provider := s.auth.(type) {
 	case auth.OAuth2Provider:
-		appRoutes.GET("", s.MiddlewareLoadAuthCookie, s.RouteGetOAuth2Root(provider))
-		appRoutes.GET("/", s.MiddlewareLoadAuthCookie, s.RouteGetOAuth2Root(provider))
+		appRoutes.GET("", s.MiddlewareRequireClientCertificate, s.MiddlewareLoadAuthCookie, s.RouteGetOAuth2Root(provider))
+		appRoutes.GET("/", s.MiddlewareRequireClientCertificate, s.MiddlewareLoadAuthCookie, s.RouteGetOAuth2Root(provider))
 		appRoutes.GET("oauth2/callback", codeFilterLogMw, s.RouteGetOAuth2Callback(provider))
 	case auth.SeamlessProvider:
-		appRoutes.GET("", s.MiddlewareLoadAuthCookie, s.RouteGetSeamlessAuthRoot(provider))
-		appRoutes.GET("/", s.MiddlewareLoadAuthCookie, s.RouteGetSeamlessAuthRoot(provider))
+		appRoutes.GET("", s.MiddlewareRequireClientCertificate, s.MiddlewareLoadAuthCookie, s.RouteGetSeamlessAuthRoot(provider))
+		appRoutes.GET("/", s.MiddlewareRequireClientCertificate, s.MiddlewareLoadAuthCookie, s.RouteGetSeamlessAuthRoot(provider))
 	}
 	appRoutes.GET("profile", s.MiddlewareLoadAuthCookie, s.RouteGetProfile)
 	appRoutes.GET("logout", s.RouteGetLogout)
@@ -311,21 +313,60 @@ func (s *Server) loadTLSConfig(log *zerolog.Logger) (tlsConfig *tls.Config, watc
 		MinVersion: minTLSVersion,
 	}
 
+	// If "tlsPath" is empty, use the folder where the config file is located
+	tlsPath := cfg.TLSPath
+	if tlsPath == "" {
+		file := cfg.GetLoadedConfigPath()
+		if file != "" {
+			tlsPath = filepath.Dir(file)
+		}
+	}
+
+	// Start by setting the CA certificate and enable mTLS if required
+	if cfg.TLSClientAuth {
+		// Check if we have the actual keys
+		caCert := []byte(cfg.TLSCAPEM)
+
+		// If caCert is empty, we need to load the CA certificate from file
+		if len(caCert) > 0 {
+			log.Debug().Msg("Loaded CA certificate from PEM value")
+		} else {
+			if tlsPath == "" {
+				return nil, nil, errors.New("cannot find a CA certificate, which is required when `tlsClientAuth` is enabled: no path specified in option `tlsPath`, and no config file was loaded")
+			}
+
+			caCert, err = os.ReadFile(filepath.Join(tlsPath, tlsCAFile))
+			if err != nil {
+				// This also returns an error if the file doesn't exist
+				// We want to error here as `tlsClientAuth` is true
+				return nil, nil, fmt.Errorf("failed to load CA certificate file from path '%s' and 'tlsClientAuth' option is enabled: %w", tlsPath, err)
+			}
+
+			log.Debug().
+				Str("path", tlsPath).
+				Msg("Loaded CA certificate from disk")
+		}
+
+		caCertPool := x509.NewCertPool()
+		ok := caCertPool.AppendCertsFromPEM(caCert)
+		if !ok {
+			return nil, nil, fmt.Errorf("failed to import CA certificate from PEM found at path '%s'", tlsPath)
+		}
+
+		// Set ClientAuth to VerifyClientCertIfGiven because not all endpoints we have require mTLS
+		tlsConfig.ClientAuth = tls.VerifyClientCertIfGiven
+		tlsConfig.ClientCAs = caCertPool
+
+		log.Debug().Msg("TLS Client Authentication is enabled for sensitive endpoints")
+	}
+
+	// Let's set the server cert and key now
 	// First, check if we have actual keys
 	tlsCert := cfg.TLSCertPEM
 	tlsKey := cfg.TLSKeyPEM
 
 	// If we don't have actual keys, then we need to load from file and reload when the files change
 	if tlsCert == "" && tlsKey == "" {
-		// If "tlsPath" is empty, use the folder where the config file is located
-		tlsPath := cfg.TLSPath
-		if tlsPath == "" {
-			file := cfg.GetLoadedConfigPath()
-			if file != "" {
-				tlsPath = filepath.Dir(file)
-			}
-		}
-
 		if tlsPath == "" {
 			// No config file loaded, so don't attempt to load TLS certs
 			return nil, nil, nil

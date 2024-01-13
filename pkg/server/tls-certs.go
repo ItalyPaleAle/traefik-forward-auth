@@ -16,6 +16,7 @@ import (
 const (
 	tlsCertFile   = "tls-cert.pem"
 	tlsKeyFile    = "tls-key.pem"
+	tlsCAFile     = "tls-ca.pem"
 	minTLSVersion = tls.VersionTLS12
 )
 

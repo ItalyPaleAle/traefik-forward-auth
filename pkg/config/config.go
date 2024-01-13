@@ -144,7 +144,7 @@ type Config struct {
 	// +default 5m
 	AuthenticationTimeout time.Duration `env:"AUTHENTICATIONTIMEOUT" yaml:"authenticationTimeout"`
 
-	// Path where to load TLS certificates from. Within the folder, the files must be named `tls-cert.pem` and `tls-key.pem`.
+	// Path where to load TLS certificates from. Within the folder, the files must be named `tls-cert.pem` and `tls-key.pem` (and optionally `tls-ca.pem`).
 	// Vault watches for changes in this folder and automatically reloads the TLS certificates when they're updated.
 	// If empty, certificates are loaded from the same folder where the loaded `config.yaml` is located.
 	// +default Folder where the `config.yaml` file is located
@@ -157,6 +157,16 @@ type Config struct {
 	// Full, PEM-encoded TLS key.
 	// Using `tlsCertPEM` and `tlsKeyPEM` is an alternative method of passing TLS certificates than using `tlsPath`.
 	TLSKeyPEM string `env:"TLSKEYPEM" yaml:"tlsKeyPEM"`
+
+	// Full, PEM-encoded TLS CA certificate, used for TLS client authentication (mTLS).
+	// This is an alternative method of passing the CA certificate than using `tlsPath`.
+	// Note that this is ignored unless `tlsClientAuth` is set to `true`.
+	TLSCAPEM string `env:"TLSCAPEM" yaml:"tlsCAPEM"`
+
+	// If true, enables mTLS for client authentication.
+	// Requests to the root endpoint (normally used by Traefik) must have a valid client certificate signed by the CA.
+	// +default false
+	TLSClientAuth bool `env:"TLSCLIENTAUTH" yaml:"tlsClientAuth"`
 
 	// String with the name of a header to trust as ID of each request. The ID is included in logs and in responses as `X-Request-ID` header.
 	// Common values include:

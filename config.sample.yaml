@@ -43,6 +43,13 @@ hostname:
 ## Default: "0.0.0.0"
 #bind: 
 
+## basePath (string)
+## Description:
+##   Base path for all routes.
+##   Set this if Traefik is forwarding requests to traefik-forward-auth for specific paths only.
+##   Note: this applies to all routes except /healthz
+#basePath: 
+
 ## logLevel (string)
 ## Description:
 ##   Controls log level and verbosity. Supported values: `debug`, `info` (default), `warn`, `error`.
@@ -88,6 +95,7 @@ hostname:
 ##   - github
 ##   - google
 ##   - microsoftentraid
+##   - tailscalewhois
 ## Required
 authProvider:
 
@@ -154,6 +162,19 @@ authProvider:
 ## Default: 10s
 #authMicrosoftEntraID_requestTimeout: 
 
+## authTailscaleWhois_expectedTailnet (string)
+## Description:
+##   If non-empty, requires the Tailnet of the user to match this value
+##   Ignored if `authMethod` is not `tailscalewhois`
+#authTailscaleWhois_expectedTailnet: 
+
+## authTailscaleWhois_requestTimeout (duration)
+## Description:
+##   Timeout for network requests for Tailscale Whois auth
+##   Ignored if `authMethod` is not `tailscalewhois`
+## Default: 10s
+#authTailscaleWhois_requestTimeout: 
+
 ## authenticationTimeout (duration)
 ## Description:
 ##   Timeout for authenticating with the authentication provider.
@@ -162,7 +183,7 @@ authProvider:
 
 ## tlsPath (string)
 ## Description:
-##   Path where to load TLS certificates from. Within the folder, the files must be named `tls-cert.pem` and `tls-key.pem`.
+##   Path where to load TLS certificates from. Within the folder, the files must be named `tls-cert.pem` and `tls-key.pem` (and optionally `tls-ca.pem`).
 ##   Vault watches for changes in this folder and automatically reloads the TLS certificates when they're updated.
 ##   If empty, certificates are loaded from the same folder where the loaded `config.yaml` is located.
 ## Default: Folder where the `config.yaml` file is located
@@ -179,6 +200,19 @@ authProvider:
 ##   Full, PEM-encoded TLS key.
 ##   Using `tlsCertPEM` and `tlsKeyPEM` is an alternative method of passing TLS certificates than using `tlsPath`.
 #tlsKeyPEM: 
+
+## tlsCAPEM (string)
+## Description:
+##   Full, PEM-encoded TLS CA certificate, used for TLS client authentication (mTLS).
+##   This is an alternative method of passing the CA certificate than using `tlsPath`.
+##   Note that this is ignored unless `tlsClientAuth` is set to `true`.
+#tlsCAPEM: 
+
+## tlsClientAuth (boolean)
+## Description:
+##   If true, enables mTLS for client authentication.
+##   Requests to the root endpoint (normally used by Traefik) must have a valid client certificate signed by the CA.
+#tlsClientAuth: 
 
 ## trustedRequestIdHeader (string)
 ## Description:
