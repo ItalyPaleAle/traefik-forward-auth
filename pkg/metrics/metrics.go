@@ -28,7 +28,13 @@ func (m *TFAMetrics) Init() {
 func (m *TFAMetrics) HTTPHandler() http.Handler {
 	return promhttp.InstrumentMetricHandler(
 		m.registry,
-		promhttp.HandlerFor(m.registry, promhttp.HandlerOpts{}),
+		promhttp.HandlerFor(
+			prometheus.Gatherers{
+				m.registry,
+				prometheus.DefaultGatherer,
+			},
+			promhttp.HandlerOpts{},
+		),
 	)
 }
 
