@@ -1,4 +1,4 @@
-//nolint:forbidigo
+//nolint:forbidigo,errcheck
 package main
 
 import (
@@ -36,8 +36,8 @@ func generateFromStruct(filePath string) error {
 	outBufMD := &bytes.Buffer{}
 	outMD := io.MultiWriter(outBufMD, outFileMD)
 
-	fmt.Fprint(outMD, "| YAML option | Environmental variable | Type | Description | |\n")
-	fmt.Fprint(outMD, "| --- | --- | --- | --- | --- |\n")
+	fmt.Fprint(outMD, "| Name | Type | Description | |\n")
+	fmt.Fprint(outMD, "| --- | --- | --- | --- |\n")
 
 	ast.Inspect(node, func(n ast.Node) bool {
 		typeSpec, ok := n.(*ast.TypeSpec)
@@ -84,7 +84,7 @@ func generateFromStruct(filePath string) error {
 				envTagMD = "`TFA_" + envTag + "`"
 			}
 			fmt.Fprintf(outYAML, "## %s (%s)\n", yamlTag, typ)
-			fmt.Fprintf(outMD, "| <a id=\"config-opt-%s\"></a>`%s` | %s | %s | ", strings.ToLower(yamlTag), yamlTag, envTagMD, typ)
+			fmt.Fprintf(outMD, "| <a id=\"config-opt-%s\"></a>YAML: `%s`<br>Env: %s | %s | ", strings.ToLower(yamlTag), yamlTag, envTagMD, typ)
 			doc := field.Doc.Text()
 			var mdFooter string
 			if doc != "" {
