@@ -64,6 +64,7 @@ services:
       - "traefik.http.services.traefik-forward-auth.loadbalancer.server.port=4181"
       - "traefik.http.routers.traefik-forward-auth.rule=Host(`auth.example.com`)"
       - "traefik.http.routers.traefik-forward-auth.entrypoints=websecure"
+      - "traefik.http.routers.traefik-forward-auth.tls=true"
 
   whoami:
     image: containous/whoami
@@ -71,7 +72,9 @@ services:
       - "traefik.enable=true"
       - "traefik.http.routers.whoami.rule=Host(`whoami.example.com`)"
       - "traefik.http.routers.whoami.middlewares=traefik-forward-auth"
+      - "traefik.http.services.whoami.loadbalancer.server.port=4545"
       - "traefik.http.routers.whoami.entrypoints=websecure"
+      - "traefik.http.routers.whoami.tls=true"
 ```
 
 ## Configuration

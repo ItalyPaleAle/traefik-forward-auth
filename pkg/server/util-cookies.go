@@ -8,7 +8,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"net"
 	"net/http"
 	"time"
 
@@ -222,12 +221,8 @@ func (s *Server) setStateCookie(c *gin.Context, returnURL string) (nonce string,
 	}
 
 	// Set the cookie
-	host, _, _ := net.SplitHostPort(cfg.Hostname)
-	if host == "" {
-		host = cfg.Hostname
-	}
 	c.SetSameSite(http.SameSiteLaxMode)
-	c.SetCookie(stateCookieName, string(cookieValue), int(expiration.Seconds()), "/", host, !cfg.CookieInsecure, true)
+	c.SetCookie(stateCookieName, string(cookieValue), int(expiration.Seconds()), "/", cfg.CookieDomain, !cfg.CookieInsecure, true)
 
 	// Return the nonce
 	return nonce, nil
@@ -241,13 +236,8 @@ func (s *Server) deleteStateCookie(c *gin.Context) {
 		return
 	}
 
-	host, _, _ := net.SplitHostPort(cfg.Hostname)
-	if host == "" {
-		host = cfg.Hostname
-	}
-
 	c.SetSameSite(http.SameSiteLaxMode)
-	c.SetCookie(stateCookieName, "", -1, "/", host, !cfg.CookieInsecure, true)
+	c.SetCookie(stateCookieName, "", -1, "/", cfg.CookieDomain, !cfg.CookieInsecure, true)
 }
 
 func (s *Server) stateCookieSig(c *gin.Context, nonce []byte) string {
