@@ -262,7 +262,7 @@ In this example:
 
 To configure Traefik and Traefik Forward Auth in this scenario:
 
-1. If using a provider based on OAuth2 (including Google, Microsoft Entra ID, GitHub, and OpenID Connect providers), configure your authentication callback to: `https://example.com/auth/oauth2/callback`
+1. If using a provider based on OAuth2 (including GitHub, Google, Microsoft Entra ID, and OpenID Connect providers), configure your authentication callback to: `https://example.com/auth/oauth2/callback`
 2. Configure Traefik Forward Auth with:
 
    - [`hostname`](#config-opt-hostname) (env: `TFA_HOSTNAME`): `example.com`
@@ -326,6 +326,78 @@ services:
       - "traefik.http.routers.whoami.tls=true"
 ```
 
+### Authentication providers
+
+#### GitHub
+
+To use GitHub for user authentication, create an OAuth2 application and configure the callback to `https://<endpoint>/oauth2/callback` (see [examples](#exposing-traefik-forward-auth) depending on how Traefik Forward Auth is exposed).
+
+Set the following options for Traefik Forward Auth:
+
+- [`authProvider`](#config-opt-authprovider) (env: `TFA_AUTHPROVIDER`): `github`
+- [`authGithub_clientID`](#config-opt-authgithub_clientid) (env: `TFA_AUTHGITHUB_CLIENTID`): OAuth2 client ID of your application
+- [`authGithub_clientSecret`](#config-opt-authgithub_clientsecret) (env: `TFA_AUTHGITHUB_CLIENTSECRET`): OAuth2 client secret of your application
+
+#### Google
+
+To use Google for user authentication, create an OAuth2 application and configure the callback to `https://<endpoint>/oauth2/callback` (see [examples](#exposing-traefik-forward-auth) depending on how Traefik Forward Auth is exposed).
+
+Set the following options for Traefik Forward Auth:
+
+- [`authProvider`](#config-opt-authprovider) (env: `TFA_AUTHPROVIDER`): `google`
+- [`authGoogle_clientID`](#config-opt-authgoogle_clientid) (env: `TFA_AUTHGOOGLE_CLIENTID`): OAuth2 client ID of your application
+- [`authGoogle_clientSecret`](#config-opt-authgoogle_clientsecret) (env: `TFA_AUTHGOOGLE_CLIENTSECRET`): OAuth2 client secret of your application
+
+#### Microsoft Entra ID
+
+To use Microsoft Entra ID (formerly Azure AD) for user authentication, create an OAuth2 application and configure the callback to `https://<endpoint>/oauth2/callback` (see [examples](#exposing-traefik-forward-auth) depending on how Traefik Forward Auth is exposed).
+
+Set the following options for Traefik Forward Auth:
+
+- [`authProvider`](#config-opt-authprovider) (env: `TFA_AUTHPROVIDER`): `microsoftentraid`
+- [`authMicrosoftEntraID_tenantID`](#config-opt-authmicrosoftentraid_tenantid) (env: `TFA_AUTHMICROSOFTENTRAID_TENANTID`): ID of the tenant where your application resides
+- [`authMicrosoftEntraID_clientID`](#config-opt-authmicrosoftentraid_clientid) (env: `TFA_AUTHMICROSOFTENTRAID_CLIENTID`): Client ID of your application
+- [`authMicrosoftEntraID_clientSecret`](#config-opt-authmicrosoftentraid_clientsecret) (env: `TFA_AUTHMICROSOFTENTRAID_CLIENTSECRET`): Client secret of your application
+
+#### Other OpenID Connect providers
+
+Traefik Forward Auth support generic OpenID Connect providers. This includes Auth0, Okta, etc.
+
+To use an OpenID Connect provider for user authentication, create an application and configure the callback to `https://<endpoint>/oauth2/callback` (see [examples](#exposing-traefik-forward-auth) depending on how Traefik Forward Auth is exposed).
+
+Set the following options for Traefik Forward Auth:
+
+- [`authProvider`](#config-opt-authprovider) (env: `TFA_AUTHPROVIDER`): `openidconnect`
+- [`authOpenIDConnect_tokenIssuer`](#config-opt-authopenidconnect_tokenissuer) (env: `TFA_AUTHOPENIDCONNECT_TOKENISSUER`): Token issuer  
+   This is generally a URL like `https://tenant.identityprovider.com/`.  
+   Traefik Forward Auth will try to fetch the OpenID Configuration document at `<tokenIssuer>/.well-known/openid-configuration`; in this example, `https://tenant.identityprovider.com/.well-known/openid-configuration`.
+- [`authOpenIDConnect_clientID`](#config-opt-authopenidconnect_clientid) (env: `TFA_AUTHOPENIDCONNECT_CLIENTID`): Client ID of your application
+- [`authOpenIDConnect_clientSecret`](#config-opt-authopenidconnect_clientsecret) (env: `TFA_AUTHOPENIDCONNECT_CLIENTSECRET`): Client secret of your application
+
+#### Tailscale Whois
+
+You can configure Single Sign-On (SSO) for clients that access your Traefik server through [Tailscale](https://tailscale.com/). Users will be automatically authenticated when the request comes through the Tailscale network.
+
+This offers a similar behavior to the Tailscale [nginx-auth](https://github.com/tailscale/tailscale/tree/main/cmd/nginx-auth) component.
+
+1. Your container host must be joined to a Tailnet, and you must have the Tailscale service running on the host.
+2. Make sure that the socket `/var/run/tailscale/` is mounted into the `traefik-forward-auth` container.  
+3. Configure Traefik Forward Auth with:
+
+   - [`authProvider`](#config-opt-authprovider) (env: `TFA_AUTHPROVIDER`): `tailscalewhois`
+
+Example using Docker Compose (unrelated configuration options and labels omitted):
+
+```yaml
+services:
+  traefik-forward-auth:
+    image: ghcr.io/italypaleale/traefik-forward-auth:3
+    volumes:
+      - /var/run/tailscale/:/var/run/tailscale
+    environment:
+      - TFA_AUTHPROVIDER=tailscalewhois
+```
+
 ### All configuration options
 
 <!-- BEGIN CONFIG TABLE -->
@@ -343,7 +415,7 @@ services:
 | <a id="config-opt-enablemetrics"></a>`enableMetrics` | `TFA_ENABLEMETRICS` | boolean | Enable the metrics server, which exposes a Prometheus-compatible endpoint `/metrics`.| Default: _false_ |
 | <a id="config-opt-metricsport"></a>`metricsPort` | `TFA_METRICSPORT` | number | Port for the metrics server to bind to.| Default: _2112_ |
 | <a id="config-opt-metricsbind"></a>`metricsBind` | `TFA_METRICSBIND` | string | Address/interface for the metrics server to bind to.| Default: _"0.0.0.0"_ |
-| <a id="config-opt-omithealthchecklogs"></a>`omitHealthCheckLogs` | `TFA_OMITHEALTHCHECKLOGS` | boolean | If true, calls to the healthcheck endpoint (`/healthz`) are not included in the logs.| Default: _false_ |
+| <a id="config-opt-omithealthchecklogs"></a>`omitHealthCheckLogs` | `TFA_OMITHEALTHCHECKLOGS` | boolean | If true, calls to the healthcheck endpoint (`/healthz`) are not included in the logs.| Default: _true_ |
 | <a id="config-opt-tokensigningkey"></a>`tokenSigningKey` | `TFA_TOKENSIGNINGKEY` | string | String used as key to sign state tokens.<br>Can be generated for example with `openssl rand -base64 32`<br>If left empty, it will be randomly generated every time the app starts (recommended, unless you need user sessions to persist after the application is restarted).|  |
 | <a id="config-opt-authprovider"></a>`authProvider` | `TFA_AUTHPROVIDER` | string | Authentication provider to use<br>Currently supported providers:<br><br>- `github`<br>- `google`<br>- `microsoftentraid`<br>- `openidconnect`<br>- `tailscalewhois`| **Required** |
 | <a id="config-opt-authgoogle_clientid"></a>`authGoogle_clientID` | `TFA_AUTHGOOGLE_CLIENTID` | string | Client ID for the Google auth application<br>Ignored if `authMethod` is not `google`|  |
@@ -371,3 +443,41 @@ services:
 | <a id="config-opt-trustedrequestidheader"></a>`trustedRequestIdHeader` | `TFA_TRUSTEDREQUESTIDHEADER` | string | String with the name of a header to trust as ID of each request. The ID is included in logs and in responses as `X-Request-ID` header.<br>Common values include:<br><br>- `X-Request-ID`: a [de-facto standard](https://http.dev/x-request-id) that's vendor agnostic<br>- `CF-Ray`: when the application is served by a [Cloudflare CDN](https://developers.cloudflare.com/fundamentals/get-started/reference/cloudflare-ray-id/)<br><br>If this option is empty, or if it contains the name of a header that is not found in an incoming request, a random UUID is generated as request ID.|  |
 
 <!-- END CONFIG TABLE -->
+
+## Advanced
+
+### Configure health checks
+
+Traefik Forward Auth supports health checks on the `/healthz` endpoint, which can be used to configure health checks in your platform. This endpoint returns a response with a `200` status code to indicate the application is healthy.
+
+Calls to the `/healthz` endpoint do not appear in access logs unless the configuration option [`omitHealthCheckLogs`](#config-opt-omithealthchecklogs) is set to `false` (default is `true`).
+
+> The `/healthz` endpoint is unchanged regardless of the value of the [`basePath`](#config-opt-basepath) configuration.
+
+### Metrics
+
+Traefik Forward Auth can expose metrics in a Prometheus-compatible format on a separate endpoint.
+
+The metrics server is disabled by default. To enable it, set [`enableMetrics`](#config-opt-enablemetrics) (env: `TFA_ENABLEMETRICS`) to `true`.
+
+The metrics server listens on port `2112` by default, which can be configured with [`metricsPort`](#config-opt-metricsport) (env: `TFA_METRICSPORT`). Metrics are exposed on the `/metrics` path. For example: `http://<endpoint>:2112/metrics`.
+
+### Token signing keys
+
+Traefik Forward Auth issues JWT tokens which are signed with HMAC-SHA256 (HS256), an operation which requires a "signing key".
+
+The signing key is randomly generated when Traefik Forward Auth starts. For most users, relaying on the default behavior is sufficient—and recommended.
+
+However, when a JWT is signed with a randomly-generated token, they are invalidated when the Traefik Forward Auth process that issued them is restarted, or if the request hits a separate replica.
+
+In certain situations, for example when:
+
+- You have multiple replicas of Traefik Forward Auth, and/or
+- You auto-scale Traefik Forward Auth, and/or
+- You want tokens to remain valid even after a restart of Traefik Forward Auth
+
+You can set an explicit value for the [`tokenSigningKey`](#config-opt-tokensigningkey) (env: `TFA_TOKENSIGNINGKEY`) option. For example, you can generate a random string with `openssl rand -base64 32`.
+
+> Note that Traefik Forward Auth does not use the value provided in `tokenSigningKey` as-is to sign JWTs. Instead, the actual token signing key is derived using a key derivation function on the value provided in the configuration option.
+
+
