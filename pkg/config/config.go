@@ -78,7 +78,7 @@ type Config struct {
 	MetricsBind string `env:"METRICSBIND" yaml:"metricsBind"`
 
 	// If true, calls to the healthcheck endpoint (`/healthz`) are not included in the logs.
-	// +default false
+	// +default true
 	OmitHealthCheckLogs bool `env:"OMITHEALTHCHECKLOGS" yaml:"omitHealthCheckLogs"`
 
 	// String used as key to sign state tokens.

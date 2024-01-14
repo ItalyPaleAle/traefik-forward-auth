@@ -29,5 +29,6 @@ func GetDefaultConfig() *Config {
 		MetricsPort:           2112,
 		MetricsBind:           "0.0.0.0",
 		AuthenticationTimeout: 5 * time.Minute,
+		OmitHealthCheckLogs:   true,
 	}
 }
