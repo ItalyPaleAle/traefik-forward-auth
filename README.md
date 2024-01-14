@@ -37,9 +37,12 @@ version: '3'
 services:
   traefik:
     image: traefik:v2.10
-    command: --providers.docker
+    command:
+      - "--providers.docker=true"
+      - "--providers.docker.exposedbydefault=false"
+      - "--entrypoints.websecure.address=:443"
     ports:
-      - "8787:80"
+      - "443:443"
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
 
@@ -52,21 +55,23 @@ services:
       - TFA_COOKIEDOMAIN=example.com
       # Configure authentication with Google
       - TFA_AUTHPROVIDER=google
-      - AUTHGOOGLE_CLIENTID=...
-      - AUTHGOOGLE_CLIENTSECRET=...
-      - SECRET=... # Example: generate with `openssl rand -base64 32`
-      - INSECURE_COOKIE=true # Example assumes no HTTPS, do not use in production
+      - TFA_AUTHGOOGLE_CLIENTID=...
+      - TFA_AUTHGOOGLE_CLIENTSECRET=...
     labels:
+      - "traefik.enable=true"
       - "traefik.http.middlewares.traefik-forward-auth.forwardauth.address=http://traefik-forward-auth:4181"
       - "traefik.http.middlewares.traefik-forward-auth.forwardauth.authResponseHeaders=X-Forwarded-User"
       - "traefik.http.services.traefik-forward-auth.loadbalancer.server.port=4181"
       - "traefik.http.routers.traefik-forward-auth.rule=Host(`auth.example.com`)"
+      - "traefik.http.routers.traefik-forward-auth.entrypoints=websecure"
 
   whoami:
     image: containous/whoami
     labels:
+      - "traefik.enable=true"
       - "traefik.http.routers.whoami.rule=Host(`whoami.example.com`)"
       - "traefik.http.routers.whoami.middlewares=traefik-forward-auth"
+      - "traefik.http.routers.whoami.entrypoints=websecure"
 ```
 
 ## Configuration
@@ -77,7 +82,7 @@ services:
 | YAML option | Environmental variable | Type | Description | |
 | --- | --- | --- | --- | --- |
 | <a id="config-opt-hostname"></a>`hostname` | `TFA_HOSTNAME` | string | The hostname the application is reached at.<br>This is used for setting the "redirect_uri" field for OAuth2 callbacks.| **Required** |
-| <a id="config-opt-cookiedomain"></a>`cookieDomain` | `TFA_COOKIEDOMAIN` | string | Domain name for setting cookies.<br>If empty, this is set to the value of the `hostname` property.<br>This value must either be the same as the `hostname` property, or the hostname must be a sub-domain of the cookie domain name.|  |
+| <a id="config-opt-cookiedomain"></a>`cookieDomain` | `TFA_COOKIEDOMAIN` | string | Domain name for setting cookies.<br>If empty, this is set to the value of the `hostname` property.<br>This value must either be the same as the `hostname` property, or the hostname must be a sub-domain of the cookie domain name.| Recommended |
 | <a id="config-opt-cookiename"></a>`cookieName` | `TFA_COOKIENAME` | string | Name of the cookie used to store the session.| Default: _"tf_sess"_ |
 | <a id="config-opt-cookieinsecure"></a>`cookieInsecure` | `TFA_COOKIEINSECURE` | boolean | If true, sets cookies as "insecure", which are served on HTTP endpoints too.<br>By default, this is false and cookies are sent on HTTPS endpoints only.| Default: _false_ |
 | <a id="config-opt-sessionlifetime"></a>`sessionLifetime` | `TFA_SESSIONLIFETIME` | duration | Lifetime for sessions after a successful authentication.| Default: _2h_ |

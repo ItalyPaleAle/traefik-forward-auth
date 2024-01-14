@@ -60,8 +60,8 @@ func generateFromStruct(filePath string) error {
 			}
 
 			var (
-				typ, defaultText    string
-				required, lastEmpty bool
+				typ, defaultText                 string
+				required, recommended, lastEmpty bool
 			)
 
 			// Field type
@@ -100,6 +100,8 @@ func generateFromStruct(filePath string) error {
 						defaultText = strings.TrimPrefix(line, "+default ")
 					case strings.TrimSpace(line) == "+required":
 						required = true
+					case strings.TrimSpace(line) == "+recommended":
+						recommended = true
 					default:
 						if lastEmpty {
 							fmt.Fprint(outYAML, "##\n")
@@ -126,6 +128,13 @@ func generateFromStruct(filePath string) error {
 				// We can't have a default value if it's required
 				mdFooter = "**Required**"
 			} else {
+				if recommended {
+					if mdFooter != "" {
+						mdFooter = "Recommended<br>" + mdFooter
+					} else {
+						mdFooter = "Recommended"
+					}
+				}
 				fmt.Fprintf(outYAML, "#%s: \n\n", yamlTag)
 			}
 			fmt.Fprintf(outMD, "| %s |\n", mdFooter)

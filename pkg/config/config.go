@@ -32,6 +32,7 @@ type Config struct {
 	// Domain name for setting cookies.
 	// If empty, this is set to the value of the `hostname` property.
 	// This value must either be the same as the `hostname` property, or the hostname must be a sub-domain of the cookie domain name.
+	// +recommended
 	CookieDomain string `env:"COOKIEDOMAIN" yaml:"cookieDomain"`
 
 	// Name of the cookie used to store the session.

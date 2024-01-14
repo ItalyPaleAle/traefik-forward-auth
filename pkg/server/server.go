@@ -123,11 +123,15 @@ func (s *Server) initAppServer(log *zerolog.Logger) (err error) {
 	switch provider := s.auth.(type) {
 	case auth.OAuth2Provider:
 		appRoutes.GET("", s.MiddlewareRequireClientCertificate, s.MiddlewareLoadAuthCookie, s.RouteGetOAuth2Root(provider))
-		appRoutes.GET("/", s.MiddlewareRequireClientCertificate, s.MiddlewareLoadAuthCookie, s.RouteGetOAuth2Root(provider))
+		if conf.BasePath != "" {
+			appRoutes.GET("/", s.MiddlewareRequireClientCertificate, s.MiddlewareLoadAuthCookie, s.RouteGetOAuth2Root(provider))
+		}
 		appRoutes.GET("/oauth2/callback", codeFilterLogMw, s.RouteGetOAuth2Callback(provider))
 	case auth.SeamlessProvider:
 		appRoutes.GET("", s.MiddlewareRequireClientCertificate, s.MiddlewareLoadAuthCookie, s.RouteGetSeamlessAuthRoot(provider))
-		appRoutes.GET("/", s.MiddlewareRequireClientCertificate, s.MiddlewareLoadAuthCookie, s.RouteGetSeamlessAuthRoot(provider))
+		if conf.BasePath != "" {
+			appRoutes.GET("/", s.MiddlewareRequireClientCertificate, s.MiddlewareLoadAuthCookie, s.RouteGetSeamlessAuthRoot(provider))
+		}
 	}
 	appRoutes.GET("profile", s.MiddlewareLoadAuthCookie, s.RouteGetProfile)
 	appRoutes.GET("logout", s.RouteGetLogout)
