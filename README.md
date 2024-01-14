@@ -28,7 +28,9 @@ ghcr.io/italypaleale/traefik-forward-auth:3.x.x
 
 ## Quickstart
 
-This example uses Docker Compose to add Google authentication to an application.
+### Authenticate with Google
+
+This example uses Docker Compose to add Google authentication to an application exposed via Traefik.
 
 ```yaml
 # docker-compose.yaml
@@ -39,7 +41,6 @@ services:
     image: traefik:v2.10
     command:
       - "--providers.docker=true"
-      - "--providers.docker.exposedbydefault=false"
       - "--entrypoints.websecure.address=:443"
     ports:
       - "443:443"
@@ -58,7 +59,6 @@ services:
       - TFA_AUTHGOOGLE_CLIENTID=...
       - TFA_AUTHGOOGLE_CLIENTSECRET=...
     labels:
-      - "traefik.enable=true"
       - "traefik.http.middlewares.traefik-forward-auth.forwardauth.address=http://traefik-forward-auth:4181"
       - "traefik.http.middlewares.traefik-forward-auth.forwardauth.authResponseHeaders=X-Forwarded-User"
       - "traefik.http.services.traefik-forward-auth.loadbalancer.server.port=4181"
@@ -67,9 +67,61 @@ services:
       - "traefik.http.routers.traefik-forward-auth.tls=true"
 
   whoami:
-    image: containous/whoami
+    image: ghcr.io/traefik/whoami:latest
+    environment:
+      - WHOAMI_PORT_NUMBER=4545
     labels:
-      - "traefik.enable=true"
+      - "traefik.http.routers.whoami.rule=Host(`whoami.example.com`)"
+      - "traefik.http.routers.whoami.middlewares=traefik-forward-auth"
+      - "traefik.http.services.whoami.loadbalancer.server.port=4545"
+      - "traefik.http.routers.whoami.entrypoints=websecure"
+      - "traefik.http.routers.whoami.tls=true"
+```
+
+### Authenticate with Tailscale
+
+This example uses Docker Compose to expose an application via Traefik. Users who access the Traefik endpoint through Tailscale are automatically authenticated. This example assumes Tailscale is running on the container host, not inside a container.
+
+```yaml
+# docker-compose.yaml
+version: '3'
+
+services:
+  traefik:
+    image: traefik:v2.10
+    command:
+      - "--providers.docker=true"
+      - "--entrypoints.websecure.address=:443"
+    ports:
+      - "443:443"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+
+  traefik-forward-auth:
+    image: ghcr.io/italypaleale/traefik-forward-auth:3
+    volumes:
+      # Note the Tailscale socket must be mounted in the container
+      - /var/run/tailscale/:/var/run/tailscale
+    environment:
+      # Hostname where the application can be reached at externally
+      - TFA_HOSTNAME=auth.example.com
+      # Domain for setting cookies
+      - TFA_COOKIEDOMAIN=example.com
+      # Configure authentication with Tailscale
+      - TFA_AUTHPROVIDER=tailscalewhois
+    labels:
+      - "traefik.http.middlewares.traefik-forward-auth.forwardauth.address=http://traefik-forward-auth:4181"
+      - "traefik.http.middlewares.traefik-forward-auth.forwardauth.authResponseHeaders=X-Forwarded-User"
+      - "traefik.http.services.traefik-forward-auth.loadbalancer.server.port=4181"
+      - "traefik.http.routers.traefik-forward-auth.rule=Host(`auth.example.com`)"
+      - "traefik.http.routers.traefik-forward-auth.entrypoints=websecure"
+      - "traefik.http.routers.traefik-forward-auth.tls=true"
+
+  whoami:
+    image: ghcr.io/traefik/whoami:latest
+    environment:
+      - WHOAMI_PORT_NUMBER=4545
+    labels:
       - "traefik.http.routers.whoami.rule=Host(`whoami.example.com`)"
       - "traefik.http.routers.whoami.middlewares=traefik-forward-auth"
       - "traefik.http.services.whoami.loadbalancer.server.port=4545"
@@ -124,5 +176,3 @@ services:
 | <a id="config-opt-trustedrequestidheader"></a>`trustedRequestIdHeader` | `TFA_TRUSTEDREQUESTIDHEADER` | string | String with the name of a header to trust as ID of each request. The ID is included in logs and in responses as `X-Request-ID` header.<br>Common values include:<br><br>- `X-Request-ID`: a [de-facto standard](https://http.dev/x-request-id) that's vendor agnostic<br>- `CF-Ray`: when the application is served by a [Cloudflare CDN](https://developers.cloudflare.com/fundamentals/get-started/reference/cloudflare-ray-id/)<br><br>If this option is empty, or if it contains the name of a header that is not found in an incoming request, a random UUID is generated as request ID.|  |
 
 <!-- END CONFIG TABLE -->
-
-aaaa
