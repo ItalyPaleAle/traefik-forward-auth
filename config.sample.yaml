@@ -92,11 +92,11 @@ hostname:
 ##   Authentication provider to use
 ##   Currently supported providers:
 ##
-##   - github
-##   - google
-##   - microsoftentraid
-##   - openidconnect
-##   - tailscalewhois
+##   - `github`
+##   - `google`
+##   - `microsoftentraid`
+##   - `openidconnect`
+##   - `tailscalewhois`
 ## Required
 authProvider:
 

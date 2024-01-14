@@ -2,10 +2,12 @@
 package main
 
 import (
+	"bytes"
 	"fmt"
 	"go/ast"
 	"go/parser"
 	"go/token"
+	"io"
 	"os"
 	"reflect"
 	"strconv"
@@ -19,19 +21,23 @@ func generateFromStruct(filePath string) error {
 		return err
 	}
 
-	outFileYAML, err := os.Create("config.sample.yaml")
+	outYAML, err := os.Create("config.sample.yaml")
 	if err != nil {
 		return err
 	}
-	defer outFileYAML.Close()
+	defer outYAML.Close()
 
 	outFileMD, err := os.Create("config.md")
 	if err != nil {
 		return err
 	}
 	defer outFileMD.Close()
-	fmt.Fprint(outFileMD, "| YAML option | Environmental variable | Type | Description | Default value | Required |\n")
-	fmt.Fprint(outFileMD, "| --- | --- | --- | --- | --- | --- |\n")
+
+	outBufMD := &bytes.Buffer{}
+	outMD := io.MultiWriter(outBufMD, outFileMD)
+
+	fmt.Fprint(outMD, "| YAML option | Environmental variable | Type | Description | |\n")
+	fmt.Fprint(outMD, "| --- | --- | --- | --- | --- |\n")
 
 	ast.Inspect(node, func(n ast.Node) bool {
 		typeSpec, ok := n.(*ast.TypeSpec)
@@ -77,12 +83,13 @@ func generateFromStruct(filePath string) error {
 			if envTag != "" && envTag != "-" {
 				envTagMD = "`TFA_" + envTag + "`"
 			}
-			fmt.Fprintf(outFileYAML, "## %s (%s)\n", yamlTag, typ)
-			fmt.Fprintf(outFileMD, "| `%s` | %s | %s | ", yamlTag, envTagMD, typ)
+			fmt.Fprintf(outYAML, "## %s (%s)\n", yamlTag, typ)
+			fmt.Fprintf(outMD, "| <a id=\"config-opt-%s\"></a>`%s` | %s | %s | ", strings.ToLower(yamlTag), yamlTag, envTagMD, typ)
 			doc := field.Doc.Text()
+			var mdFooter string
 			if doc != "" {
-				fmt.Fprint(outFileYAML, "## Description:\n")
-				for _, line := range strings.Split(doc, "\n") {
+				fmt.Fprint(outYAML, "## Description:\n")
+				for i, line := range strings.Split(doc, "\n") {
 					if line == "" {
 						lastEmpty = true
 						continue
@@ -95,34 +102,61 @@ func generateFromStruct(filePath string) error {
 						required = true
 					default:
 						if lastEmpty {
-							fmt.Fprint(outFileYAML, "##\n")
-							fmt.Fprint(outFileMD, "<br>")
+							fmt.Fprint(outYAML, "##\n")
+							fmt.Fprint(outMD, "<br>")
 						}
-						fmt.Fprintf(outFileYAML, "##   %s\n", line)
-						fmt.Fprintf(outFileMD, "%s<br>", strings.ReplaceAll(line, "\n", "<br>"))
+						fmt.Fprintf(outYAML, "##   %s\n", line)
+						if i > 0 {
+							fmt.Fprint(outMD, "<br>"+line)
+						} else {
+							fmt.Fprint(outMD, line)
+						}
 						lastEmpty = false
 					}
 				}
 
 				if defaultText != "" {
-					fmt.Fprintf(outFileYAML, "## Default: %s\n", defaultText)
-					fmt.Fprintf(outFileMD, " | %s | ", defaultText)
-				} else {
-					fmt.Fprint(outFileMD, " | | ")
+					fmt.Fprintf(outYAML, "## Default: %s\n", defaultText)
+					mdFooter = "Default: _" + defaultText + "_"
 				}
 			}
 
 			if required {
-				fmt.Fprintf(outFileYAML, "## Required\n%s:\n\n", yamlTag)
-				fmt.Fprint(outFileMD, "**Required** |\n")
+				fmt.Fprintf(outYAML, "## Required\n%s:\n\n", yamlTag)
+				// We can't have a default value if it's required
+				mdFooter = "**Required**"
 			} else {
-				fmt.Fprintf(outFileYAML, "#%s: \n\n", yamlTag)
-				fmt.Fprint(outFileMD, "|\n")
+				fmt.Fprintf(outYAML, "#%s: \n\n", yamlTag)
 			}
+			fmt.Fprintf(outMD, "| %s |\n", mdFooter)
 		}
 
 		return false
 	})
+
+	// Replace the configuration table in the README.md file
+	readme, err := os.ReadFile("README.md")
+	if err != nil {
+		return err
+	}
+
+	const (
+		beginMarker = "<!-- BEGIN CONFIG TABLE -->"
+		endMarker   = "<!-- END CONFIG TABLE -->"
+	)
+	begin := bytes.Index(readme, []byte(beginMarker)) + len(beginMarker)
+	end := bytes.Index(readme, []byte(endMarker))
+
+	readmeFile, err := os.Create("README.md")
+	if err != nil {
+		return err
+	}
+	defer readmeFile.Close()
+	readmeFile.Write(readme[:begin])
+	readmeFile.Write([]byte{'\n'})
+	io.Copy(readmeFile, outBufMD)
+	readmeFile.Write([]byte{'\n'})
+	readmeFile.Write(readme[end:])
 
 	return nil
 }

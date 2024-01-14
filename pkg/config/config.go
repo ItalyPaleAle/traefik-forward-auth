@@ -88,11 +88,11 @@ type Config struct {
 	// Authentication provider to use
 	// Currently supported providers:
 	//
-	// - github
-	// - google
-	// - microsoftentraid
-	// - openidconnect
-	// - tailscalewhois
+	// - `github`
+	// - `google`
+	// - `microsoftentraid`
+	// - `openidconnect`
+	// - `tailscalewhois`
 	//
 	// +required
 	AuthProvider string `env:"AUTHPROVIDER" yaml:"authProvider"`
