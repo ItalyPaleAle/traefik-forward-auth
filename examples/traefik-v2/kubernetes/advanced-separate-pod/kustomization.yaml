@@ -1,3 +1,0 @@
-bases:
-- traefik-forward-auth
-- whoami
