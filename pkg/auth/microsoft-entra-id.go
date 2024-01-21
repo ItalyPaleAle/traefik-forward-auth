@@ -21,6 +21,10 @@ type NewMicrosoftEntraIDOptions struct {
 	ClientID string
 	// Client secret
 	ClientSecret string
+	// If non-empty, allows these user accounts only (matching the internal user ID)
+	AllowedUsers []string
+	// If non-empty, allows users with these email addresses only
+	AllowedEmails []string
 	// Request timeout; defaults to 10s
 	RequestTimeout time.Duration
 }
@@ -30,6 +34,8 @@ func (o NewMicrosoftEntraIDOptions) ToNewOpenIDConnectOptions() NewOpenIDConnect
 		ClientID:       o.ClientID,
 		ClientSecret:   o.ClientSecret,
 		RequestTimeout: o.RequestTimeout,
+		AllowedEmails:  o.AllowedEmails,
+		AllowedUsers:   o.AllowedUsers,
 		TokenIssuer:    "https://login.microsoftonline.com/" + o.TenantID + "/v2.0",
 	}
 }

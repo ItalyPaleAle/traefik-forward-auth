@@ -83,6 +83,14 @@ func (s *Server) RouteGetOAuth2Callback(provider auth.OAuth2Provider) func(c *gi
 			return
 		}
 
+		// Check if the user is allowed per rules
+		err = provider.UserAllowed(profile)
+		if err != nil {
+			_ = c.Error(fmt.Errorf("access denied per allowlist rules: %w", err))
+			AbortWithError(c, NewResponseError(http.StatusUnauthorized, "Access denied per allowlist rules"))
+			return
+		}
+
 		// Set the profile in the cookie
 		err = s.setSessionCookie(c, profile)
 		if err != nil {
@@ -112,6 +120,14 @@ func (s *Server) RouteGetSeamlessAuthRoot(provider auth.SeamlessProvider) func(c
 				s.metrics.RecordAuthentication(false)
 				s.deleteSessionCookie(c)
 				AbortWithError(c, NewResponseError(http.StatusUnauthorized, "Not authenticated"))
+				return
+			}
+
+			// Check if the user is allowed per rules
+			err = provider.UserAllowed(profile)
+			if err != nil {
+				_ = c.Error(fmt.Errorf("access denied per allowlist rules: %w", err))
+				AbortWithError(c, NewResponseError(http.StatusUnauthorized, "Access denied per allowlist rules"))
 				return
 			}
 

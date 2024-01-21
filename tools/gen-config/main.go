@@ -7,6 +7,7 @@ import (
 	"go/ast"
 	"go/parser"
 	"go/token"
+	"go/types"
 	"io"
 	"os"
 	"reflect"
@@ -65,17 +66,20 @@ func generateFromStruct(filePath string) error {
 			)
 
 			// Field type
-			switch fmt.Sprintf("%s", field.Type) {
+			ft := types.ExprString(field.Type)
+			switch ft {
 			case "string":
 				typ = "string"
 			case "int":
 				typ = "number"
 			case "bool":
 				typ = "boolean"
-			case "&{time Duration}":
+			case "time.Duration":
 				typ = "duration"
+			case "[]string":
+				typ = "list of strings"
 			default:
-				fmt.Printf("WARN: unknown type for field '%s': %s\n", yamlTag, field.Type)
+				fmt.Printf("WARN: unknown type for field '%s': %s\n", yamlTag, ft)
 			}
 
 			// Parse field documentation

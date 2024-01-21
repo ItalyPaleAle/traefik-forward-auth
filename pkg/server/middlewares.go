@@ -84,6 +84,16 @@ func (s *Server) MiddlewareLoadAuthCookie(c *gin.Context) {
 		return
 	}
 
+	// Check if the user is allowed per rules (again)
+	err = s.auth.UserAllowed(profile)
+	if err != nil {
+		// If the user is not allowed, delete the cookie and return a hard error
+		s.deleteSessionCookie(c)
+		_ = c.Error(fmt.Errorf("access denied per allowlist rules: %w", err))
+		AbortWithError(c, NewResponseError(http.StatusUnauthorized, "Access denied per allowlist rules"))
+		return
+	}
+
 	// Set the claims in the context
 	c.Set("session-auth", true)
 	c.Set("session-profile", profile)

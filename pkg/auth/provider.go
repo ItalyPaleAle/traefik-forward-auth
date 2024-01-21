@@ -18,6 +18,8 @@ type Provider interface {
 	ValidateRequestClaims(r *http.Request, profile *user.Profile) error
 	// PopulateAdditionalClaims allows a provider to populate the AdditionalClaims property of a Profile object.
 	PopulateAdditionalClaims(claims map[string]any, setClaimFn func(key, val string))
+	// UserAllowed checks if the user can authenticate based on allowlists and other rules.
+	UserAllowed(profile *user.Profile) error
 }
 
 // SeamlessProvider is the interface that represents an auth provider that performs authentication based on flows that do not require user action, such as network.

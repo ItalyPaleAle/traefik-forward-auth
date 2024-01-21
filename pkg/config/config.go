@@ -104,6 +104,18 @@ type Config struct {
 	// Client secret for the Google auth application
 	// Ignored if `authMethod` is not `google`
 	AuthGoogleClientSecret string `env:"AUTHGOOGLE_CLIENTSECRET" yaml:"authGoogle_clientSecret"`
+	// List of allowed users for Google auth
+	// This is a list of user IDs
+	// Ignored if `authMethod` is not `google`
+	AuthGoogleAllowedUsers []string `env:"AUTHGOOGLE_ALLOWEDUSERS" yaml:"authGoogle_allowedUsers"`
+	// List of allowed email addresses of users for Google auth
+	// This is a list of email addresses
+	// Ignored if `authMethod` is not `google`
+	AuthGoogleAllowedEmails []string `env:"AUTHGOOGLE_ALLOWEDEMAILS" yaml:"authGoogle_allowedEmails"`
+	// List of allowed domains for Google auth
+	// This is a list of domains for email addresses
+	// Ignored if `authMethod` is not `google`
+	AuthGoogleAllowedDomains []string `env:"AUTHGOOGLE_ALLOWEDDOMAINS" yaml:"authGoogle_allowedDomains"`
 	// Timeout for network requests for Google auth
 	// Ignored if `authMethod` is not `google`
 	// +default 10s
@@ -115,6 +127,10 @@ type Config struct {
 	// Client secret for the GitHub auth application
 	// Ignored if `authMethod` is not `github`
 	AuthGitHubClientSecret string `env:"AUTHGITHUB_CLIENTSECRET" yaml:"authGitHub_clientSecret"`
+	// List of allowed users for GitHub auth
+	// This is a list of usernames
+	// Ignored if `authMethod` is not `github`
+	AuthGitHubAllowedUsers []string `env:"AUTHGITHUB_ALLOWEDUSERS" yaml:"authGitHub_allowedUsers"`
 	// Timeout for network requests for GitHub auth
 	// Ignored if `authMethod` is not `github`
 	// +default 10s
@@ -129,6 +145,14 @@ type Config struct {
 	// Client secret for the Microsoft Entra ID auth application
 	// Ignored if `authMethod` is not `microsoftentraid`
 	AuthMicrosoftEntraIDClientSecret string `env:"AUTHMICROSOFTENTRAID_CLIENTSECRET" yaml:"authMicrosoftEntraID_clientSecret"`
+	// List of allowed users for Microsoft Entra ID auth
+	// This is a list of user IDs
+	// Ignored if `authMethod` is not `microsoftentraid`
+	AuthMicrosoftEntraIDAllowedUsers []string `env:"AUTHMICROSOFTENTRAID_ALLOWEDUSERS" yaml:"authMicrosoftEntraID_allowedUsers"`
+	// List of allowed email addresses of users for Microsoft Entra ID auth
+	// This is a list of email addresses
+	// Ignored if `authMethod` is not `microsoftentraid`
+	AuthMicrosoftEntraIDAllowedEmails []string `env:"AUTHMICROSOFTENTRAID_ALLOWEDEMAILS" yaml:"authMicrosoftEntraID_allowedEmails"`
 	// Timeout for network requests for Microsoft Entra ID auth
 	// Ignored if `authMethod` is not `microsoftentraid`
 	// +default 10s
@@ -144,6 +168,14 @@ type Config struct {
 	// The OpenID Connect configuration document will be fetched at `<token-issuer>/.well-known/openid-configuration`
 	// Ignored if `authMethod` is not `openidconnect`
 	AuthOpenIDConnectTokenIssuer string `env:"AUTHOPENIDCONNECT_TOKENISSUER" yaml:"authOpenIDConnect_tokenIssuer"`
+	// List of allowed users for OpenID Connect auth
+	// This is a list of user IDs, as returned by the ID provider in the "sub" claim
+	// Ignored if `authMethod` is not `openidconnect`
+	AuthOpenIDConnectAllowedUsers []string `env:"AUTHOPENIDCONNECT_ALLOWEDUSERS" yaml:"authOpenIDConnect_allowedUsers"`
+	// List of allowed email addresses for users for OpenID Connect auth
+	// This is a list of email addresses, as returned by the ID provider in the "email" claim
+	// Ignored if `authMethod` is not `openidconnect`
+	AuthOpenIDConnectAllowedEmails []string `env:"AUTHOPENIDCONNECT_ALLOWEDEMAILS" yaml:"authOpenIDConnect_allowedEmails"`
 	// Timeout for network requests for OpenID Connect auth
 	// Ignored if `authMethod` is not `openidconnect`
 	// +default 10s
@@ -151,7 +183,11 @@ type Config struct {
 
 	// If non-empty, requires the Tailnet of the user to match this value
 	// Ignored if `authMethod` is not `tailscalewhois`
-	AuthTailscaleWhoisExpectedTailnet string `env:"AUTHTAILSCALEWHOIS_EXPECTEDTAILNET" yaml:"authTailscaleWhois_expectedTailnet"`
+	AuthTailscaleWhoisAllowedTailnet string `env:"AUTHTAILSCALEWHOIS_ALLOWEDTAILNET" yaml:"authTailscaleWhois_allowedTailnet"`
+	// List of allowed users for Tailscale Whois auth
+	// This is a list of user IDs as returned by the ID provider
+	// Ignored if `authMethod` is not `tailscalewhois`
+	AuthTailscaleConnectAllowedUsers []string `env:"AUTHTAILSCALECONNECT_ALLOWEDUSERS" yaml:"authTailscaleConnect_allowedUsers"`
 	// Timeout for network requests for Tailscale Whois auth
 	// Ignored if `authMethod` is not `tailscalewhois`
 	// +default 10s
@@ -306,12 +342,16 @@ func (c *Config) GetAuthProvider() (auth.Provider, error) {
 		return auth.NewGitHub(auth.NewGitHubOptions{
 			ClientID:       c.AuthGitHubClientID,
 			ClientSecret:   c.AuthGitHubClientSecret,
+			AllowedUsers:   c.AuthGitHubAllowedUsers,
 			RequestTimeout: c.AuthGitHubRequestTimeout,
 		})
 	case "google":
 		return auth.NewGoogle(auth.NewGoogleOptions{
 			ClientID:       c.AuthGoogleClientID,
 			ClientSecret:   c.AuthGoogleClientSecret,
+			AllowedUsers:   c.AuthGoogleAllowedUsers,
+			AllowedEmails:  c.AuthGoogleAllowedEmails,
+			AllowedDomains: c.AuthGoogleAllowedDomains,
 			RequestTimeout: c.AuthGoogleRequestTimeout,
 		})
 	case "microsoftentraid", "azuread", "aad", "entraid":
@@ -319,6 +359,7 @@ func (c *Config) GetAuthProvider() (auth.Provider, error) {
 			TenantID:       c.AuthMicrosoftEntraIDTenantID,
 			ClientID:       c.AuthMicrosoftEntraIDClientID,
 			ClientSecret:   c.AuthMicrosoftEntraIDClientSecret,
+			AllowedUsers:   c.AuthMicrosoftEntraIDAllowedUsers,
 			RequestTimeout: c.AuthMicrosoftEntraIDRequestTimeout,
 		})
 	case "openidconnect", "oidc":
@@ -326,12 +367,15 @@ func (c *Config) GetAuthProvider() (auth.Provider, error) {
 			ClientID:       c.AuthOpenIDConnectClientID,
 			ClientSecret:   c.AuthOpenIDConnectClientSecret,
 			TokenIssuer:    c.AuthOpenIDConnectTokenIssuer,
+			AllowedUsers:   c.AuthOpenIDConnectAllowedUsers,
+			AllowedEmails:  c.AuthOpenIDConnectAllowedEmails,
 			RequestTimeout: c.AuthOpenIDConnectRequestTimeout,
 		})
 	case "tailscalewhois", "tailscale":
 		return auth.NewTailscaleWhois(auth.NewTailscaleWhoisOptions{
-			ExpectedTailnet: c.AuthTailscaleWhoisExpectedTailnet,
-			RequestTimeout:  c.AuthTailscaleWhoisRequestTimeout,
+			AllowedTailnet: c.AuthTailscaleWhoisAllowedTailnet,
+			AllowedUsers:   c.AuthTailscaleConnectAllowedUsers,
+			RequestTimeout: c.AuthTailscaleWhoisRequestTimeout,
 		})
 	default:
 		return nil, fmt.Errorf("invalid value for 'authProvider': %s", c.AuthProvider)

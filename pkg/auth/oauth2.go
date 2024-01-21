@@ -190,7 +190,12 @@ func (a oAuth2) UserIDFromProfile(profile *user.Profile) string {
 }
 
 func (a oAuth2) PopulateAdditionalClaims(claims map[string]any, setClaimFn func(key, val string)) {
-	// Nop
+	// Nop in this implementation
+}
+
+func (a oAuth2) UserAllowed(profile *user.Profile) error {
+	// Nop in this implementation
+	return nil
 }
 
 // Valid returns true if all fields are set
