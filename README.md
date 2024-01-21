@@ -338,6 +338,10 @@ Set the following options for Traefik Forward Auth:
 - [`authGithub_clientID`](#config-opt-authgithub_clientid) (env: `TFA_AUTHGITHUB_CLIENTID`): OAuth2 client ID of your application
 - [`authGithub_clientSecret`](#config-opt-authgithub_clientsecret) (env: `TFA_AUTHGITHUB_CLIENTSECRET`): OAuth2 client secret of your application
 
+You can restrict the users that can authenticate with your service using this option:
+
+- [`authGitHub_allowedUsers`](#config-opt-authgithub_allowedusers) (env: `TFA_AUTHGITHUB_ALLOWEDUSERS`): List of allowed users, matching the GitHub user handle.
+
 #### Google
 
 To use Google for user authentication, create an OAuth2 application and configure the callback to `https://<endpoint>/oauth2/callback` (see [examples](#exposing-traefik-forward-auth) depending on how Traefik Forward Auth is exposed).
@@ -347,6 +351,12 @@ Set the following options for Traefik Forward Auth:
 - [`authProvider`](#config-opt-authprovider) (env: `TFA_AUTHPROVIDER`): `google`
 - [`authGoogle_clientID`](#config-opt-authgoogle_clientid) (env: `TFA_AUTHGOOGLE_CLIENTID`): OAuth2 client ID of your application
 - [`authGoogle_clientSecret`](#config-opt-authgoogle_clientsecret) (env: `TFA_AUTHGOOGLE_CLIENTSECRET`): OAuth2 client secret of your application
+
+You can restrict the users that can authenticate with your service using one (or more) of these options:
+
+- [`authGoogle_allowedEmails`](#config-opt-authgoogle_allowedemails) (env: `TFA_AUTHGOOGLE_ALLOWEDEMAILS`): List of allowed users, matching their email address (e.g. `example@gmail.com`)
+- [`authGoogle_allowedDomains`](#config-opt-authgoogle_alloweddomains) (env: `TFA_AUTHGOOGLE_ALLOWEDDOMAINS`): List of allowed domain names of users' email addresses (e.g. `mydomain.com`)
+- [`authGoogle_allowedUsers`](#config-opt-authgoogle_allowedusers) (env: `TFA_AUTHGOOGLE_ALLOWEDUSERS`): List of allowed users, matching the internal user ID.
 
 #### Microsoft Entra ID
 
@@ -358,6 +368,11 @@ Set the following options for Traefik Forward Auth:
 - [`authMicrosoftEntraID_tenantID`](#config-opt-authmicrosoftentraid_tenantid) (env: `TFA_AUTHMICROSOFTENTRAID_TENANTID`): ID of the tenant where your application resides
 - [`authMicrosoftEntraID_clientID`](#config-opt-authmicrosoftentraid_clientid) (env: `TFA_AUTHMICROSOFTENTRAID_CLIENTID`): Client ID of your application
 - [`authMicrosoftEntraID_clientSecret`](#config-opt-authmicrosoftentraid_clientsecret) (env: `TFA_AUTHMICROSOFTENTRAID_CLIENTSECRET`): Client secret of your application
+
+You can restrict the users that can authenticate with your service using one (or more) of these options:
+
+- [`authMicrosoftEntraID_allowedEmails`](#config-opt-authmicrosoftentraid_allowedemails) (env: `TFA_AUTHMICROSOFTENTRAID_ALLOWEDEMAILS`): List of allowed users, matching their email address (e.g. `example@gmail.com`)
+- [`authMicrosoftEntraID_allowedUsers`](#config-opt-authmicrosoftentraid_allowedusers) (env: `TFA_AUTHMICROSOFTENTRAID_ALLOWEDUSERS`): List of allowed users, matching the internal user ID.
 
 #### Other OpenID Connect providers
 
@@ -373,6 +388,11 @@ Set the following options for Traefik Forward Auth:
    Traefik Forward Auth will try to fetch the OpenID Configuration document at `<tokenIssuer>/.well-known/openid-configuration`; in this example, `https://tenant.identityprovider.com/.well-known/openid-configuration`.
 - [`authOpenIDConnect_clientID`](#config-opt-authopenidconnect_clientid) (env: `TFA_AUTHOPENIDCONNECT_CLIENTID`): Client ID of your application
 - [`authOpenIDConnect_clientSecret`](#config-opt-authopenidconnect_clientsecret) (env: `TFA_AUTHOPENIDCONNECT_CLIENTSECRET`): Client secret of your application
+
+You can restrict the users that can authenticate with your service using one (or more) of these options:
+
+- [`authOpenIDConnect_allowedUsers`](#config-opt-authopenidconnect_allowedusers) (env: `TFA_OPENIDCONNECT_ALLOWEDUSERS`): List of allowed users, matching the value of the "sub" claim.
+- [`authOpenIDConnect_allowedEmails`](#config-opt-authopenidconnect_allowedemails) (env: `TFA_OPENIDCONNECT_ALLOWEDEMAILS`): List of allowed users, matching the value of the "email" claim.
 
 #### Tailscale Whois
 
@@ -397,6 +417,11 @@ services:
     environment:
       - TFA_AUTHPROVIDER=tailscalewhois
 ```
+
+You can restrict the users or tailnets that can authenticate with your service using one (or more) of these options:
+
+- [`authTailscaleWhois_allowedTailnet`](#config-opt-authtailscalewhois_allowedtailnet) (env: `TFA_AUTHTAILSCALEWHOIS_ALLOWEDTAILNET`): If set, restricts users who are part of this specific Tailnet. Note that due to how Tailscale works, Tailnet names are only returned for nodes that are part of the current Tailnet, and not nodes that are being added as "guests".
+- [`authTailscaleConnect_allowedUsers`](#config-opt-authtailscaleconnect_allowedusers) (env: `TFA_AUTHTAILSCALECONNECT_ALLOWEDUSERS`): List of allowed users, matching the user ID.
 
 ### All configuration options
 
