@@ -10,9 +10,15 @@ import (
 	"go/types"
 	"io"
 	"os"
+	"path/filepath"
 	"reflect"
 	"strconv"
 	"strings"
+)
+
+const (
+	docsFileDest = "README.md"
+	envPrefix    = "TFA_"
 )
 
 func generateFromStruct(filePath string) error {
@@ -85,7 +91,7 @@ func generateFromStruct(filePath string) error {
 			// Parse field documentation
 			envTagMD := "-"
 			if envTag != "" && envTag != "-" {
-				envTagMD = "`TFA_" + envTag + "`"
+				envTagMD = "`" + envPrefix + envTag + "`"
 			}
 			fmt.Fprintf(outYAML, "## %s (%s)\n", yamlTag, typ)
 			fmt.Fprintf(outMD, "| <a id=\"config-opt-%s\"></a>YAML: `%s`<br>Env: %s | %s | ", strings.ToLower(yamlTag), yamlTag, envTagMD, typ)
@@ -147,8 +153,8 @@ func generateFromStruct(filePath string) error {
 		return false
 	})
 
-	// Replace the configuration table in the README.md file
-	readme, err := os.ReadFile("README.md")
+	// Replace the configuration table in the docs file file
+	readme, err := os.ReadFile(filepath.Join(docsFileDest))
 	if err != nil {
 		return err
 	}
@@ -160,7 +166,7 @@ func generateFromStruct(filePath string) error {
 	begin := bytes.Index(readme, []byte(beginMarker)) + len(beginMarker)
 	end := bytes.Index(readme, []byte(endMarker))
 
-	readmeFile, err := os.Create("README.md")
+	readmeFile, err := os.Create(filepath.Join(docsFileDest))
 	if err != nil {
 		return err
 	}
@@ -175,7 +181,7 @@ func generateFromStruct(filePath string) error {
 }
 
 func main() {
-	err := generateFromStruct("pkg/config/config.go")
+	err := generateFromStruct(filepath.Join("pkg", "config", "config.go"))
 	if err != nil {
 		panic(err)
 	}
