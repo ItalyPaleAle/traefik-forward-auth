@@ -6,7 +6,7 @@ require (
 	github.com/caarlos0/env/v10 v10.0.0
 	github.com/fsnotify/fsnotify v1.7.0
 	github.com/gin-gonic/gin v1.9.1
-	github.com/google/uuid v1.5.0
+	github.com/google/uuid v1.6.0
 	github.com/jinzhu/copier v0.4.0
 	github.com/lestrrat-go/jwx/v2 v2.0.19
 	github.com/mitchellh/go-homedir v1.1.0
@@ -17,11 +17,11 @@ require (
 	github.com/stretchr/testify v1.8.4
 	golang.org/x/net v0.20.0
 	gopkg.in/yaml.v3 v3.0.1
-	tailscale.com v1.56.1
+	tailscale.com v1.58.2
 )
 
 require (
-	filippo.io/edwards25519 v1.0.0 // indirect
+	filippo.io/edwards25519 v1.1.0 // indirect
 	github.com/akutz/memconn v0.1.0 // indirect
 	github.com/alexbrainman/sspi v0.0.0-20231016080023-1a75b4708caa // indirect
 	github.com/beorn7/perks v1.0.1 // indirect
@@ -77,20 +77,4 @@ require (
 	golang.org/x/text v0.14.0 // indirect
 	golang.zx2c4.com/wireguard/windows v0.5.3 // indirect
 	google.golang.org/protobuf v1.31.0 // indirect
-)
-
-// From traefik v2.10.7
-replace (
-	github.com/abbot/go-http-auth => github.com/containous/go-http-auth v0.4.1-0.20200324110947-a37a7636d23e
-	github.com/go-check/check => github.com/containous/check v0.0.0-20170915194414-ca0bf163426a
-	github.com/gorilla/mux => github.com/containous/mux v0.0.0-20220627093034-b2dd784e613f
-	github.com/jaguilar/vt100 => github.com/tonistiigi/vt100 v0.0.0-20190402012908-ad4c4a574305
-	github.com/mailgun/minheap => github.com/containous/minheap v0.0.0-20190809180810-6e71eb837595
-)
-
-exclude (
-	// Needed to fix build failures
-	cloud.google.com/go/compute/metadata v0.2.0
-	// From traefik v2.10.7
-	github.com/tencentcloud/tencentcloud-sdk-go v3.0.83+incompatible
 )
