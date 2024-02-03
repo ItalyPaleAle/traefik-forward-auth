@@ -1,7 +1,9 @@
-name: Docker Image Build
+name: Docker Image Build and Publish
 
 on:
   push:
+    branches:
+      - "main"
     tags:
       - "v*"
 
@@ -27,24 +29,48 @@ jobs:
       # Install the cosign tool
       # https://github.com/sigstore/cosign-installer
       - name: Install cosign
-        uses: sigstore/cosign-installer@6e04d228eb30da1757ee4e1dd75a0ec73a653e06 #v3.1.1
+        uses: sigstore/cosign-installer@v3.4.0
+        if: startsWith(github.ref, 'refs/tags/v')
         with:
-          cosign-release: 'v2.1.1'
+          cosign-release: 'v2.2.3'
 
       - name: Generate Docker tags and labels
-        if: startsWith(github.ref, 'refs/tags/v')
         id: meta
         uses: docker/metadata-action@v5
         with:
           images: ghcr.io/${{ github.actor }}/traefik-forward-auth
           # generate semver tags and 'latest' tag
           tags: |
+            type=edge,branch=main
             type=semver,pattern={{version}}
             type=semver,pattern={{major}}.{{minor}}
             type=semver,pattern={{major}}
 
+      - name: Set variables
+        run: |
+          BUILD_ID=${{ fromJSON(steps.meta.outputs.json).labels['org.opencontainers.image.version'] }}
+          BUILD_VERSION=${{ fromJSON(steps.meta.outputs.json).labels['org.opencontainers.image.version'] }}
+          BUILD_DATE=${{ fromJSON(steps.meta.outputs.json).labels['org.opencontainers.image.created'] }}
+          COMMIT_HASH=$(echo "${{ fromJSON(steps.meta.outputs.json).labels['org.opencontainers.image.revision'] }}" | head -c 7)
+
+          echo "BUILD_ID=$BUILD_ID" >> $GITHUB_ENV
+          echo "BUILD_VERSION=$BUILD_VERSION" >> $GITHUB_ENV
+          echo "BUILD_DATE=$BUILD_DATE" >> $GITHUB_ENV
+          echo "COMMIT_HASH=$COMMIT_HASH" >> $GITHUB_ENV
+
+          echo "BUILD_ID: '$BUILD_ID'"
+          echo "BUILD_VERSION: '$BUILD_VERSION'"
+          echo "BUILD_DATE: '$BUILD_DATE'"
+          echo "COMMIT_HASH: '$COMMIT_HASH'"
+
+          BUILDINFO_PKG="github.com/italypaleale/traefik-forward-auth/pkg/buildinfo"
+          BUILD_LDFLAGS="-X ${BUILDINFO_PKG}.Production=1 -X ${BUILDINFO_PKG}.AppVersion=${BUILD_VERSION} -X ${BUILDINFO_PKG}.BuildId=${BUILD_ID} -X ${BUILDINFO_PKG}.BuildDate=${BUILD_DATE} -X ${BUILDINFO_PKG}.CommitHash=${COMMIT_HASH} -buildid=${BUILD_ID}"
+
+          echo "BUILD_LDFLAGS=$BUILD_LDFLAGS" >> $GITHUB_ENV
+
+          echo "BUILD_LDFLAGS: '$BUILD_LDFLAGS'"
+
       - name: Login to container registry
-        if: startsWith(github.ref, 'refs/tags/v')
         uses: docker/login-action@v3
         with:
           registry: ghcr.io
@@ -58,12 +84,15 @@ jobs:
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
           platforms: linux/amd64,linux/arm64/v8,linux/arm/v7
-          push: ${{ startsWith(github.ref, 'refs/tags/v') }}
+          push: true
+          build-args: |
+            BUILD_LDFLAGS=${{ env.BUILD_LDFLAGS }}
 
-      # Sign the resulting Docker images digests.
+      # Sign the resulting Docker images digests (for releases only).
       # This will only write to the public Rekor transparency log when the Docker repository is public to avoid leaking data. 
       # https://github.com/sigstore/cosign
       - name: Sign the published Docker images
+        if: startsWith(github.ref, 'refs/tags/v')
         env:
           # https://docs.github.com/en/actions/security-guides/security-hardening-for-github-actions#using-an-intermediate-environment-variable
           DIGEST: ${{ steps.docker-build-push.outputs.digest }}

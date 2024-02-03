@@ -29,6 +29,21 @@ jobs:
       uses: actions/setup-go@v5
       with:
         go-version-file: 'go.mod'
+        # Use cache from golangci-lint
+        cache: false
+
+    - name: Install golangci-lint
+      uses: golangci/golangci-lint-action@v3
+      with:
+        version: ${{ env.GOLANGCI_LINT_VERSION }}
+
+    - name: Check diff
+      run: |
+        make check-config-diff || echo "Please run 'make gen-config'"
+
+    - name: Lint
+      run: |
+        make lint
 
     - name: Test
       run: |

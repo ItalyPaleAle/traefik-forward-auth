@@ -154,7 +154,7 @@ func generateFromStruct(filePath string) error {
 	})
 
 	// Replace the configuration table in the docs file file
-	readme, err := os.ReadFile(filepath.Join(docsFileDest))
+	readme, err := os.ReadFile(filepath.Join(".", docsFileDest))
 	if err != nil {
 		return err
 	}
@@ -166,7 +166,7 @@ func generateFromStruct(filePath string) error {
 	begin := bytes.Index(readme, []byte(beginMarker)) + len(beginMarker)
 	end := bytes.Index(readme, []byte(endMarker))
 
-	readmeFile, err := os.Create(filepath.Join(docsFileDest))
+	readmeFile, err := os.Create(filepath.Join(".", docsFileDest))
 	if err != nil {
 		return err
 	}

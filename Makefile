@@ -9,3 +9,12 @@ test-race:
 .PHONY: lint
 lint:
 	golangci-lint run -c .golangci.yaml
+
+.PHONY: gen-config
+gen-config:
+	go run ./tools/gen-config
+
+# Ensure gen-config ran
+.PHONY: check-config-diff
+check-config-diff: gen-config
+	git diff --exit-code config.sample.yaml README.md
