@@ -629,3 +629,8 @@ If the certificates are updated on disk, Traefik Forward Auth automatically relo
 > Note: you can enable TLS in Traefik Forward Auth without configuring mTLS for authenticating Traefik. In this case, set `tlsClientAuth` to `false`, but nonetheless mount the server certificates in the Traefik Forward Auth containers. When configuring Traefik, do not include client certificates.
 
 
+
+### TODO
+
+Document the profile route
+Document APIs
