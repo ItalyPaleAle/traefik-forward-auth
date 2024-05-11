@@ -99,97 +99,97 @@ type Config struct {
 	AuthProvider string `env:"AUTHPROVIDER" yaml:"authProvider"`
 
 	// Client ID for the Google auth application
-	// Ignored if `authMethod` is not `google`
+	// Ignored if `authProvider` is not `google`
 	AuthGoogleClientID string `env:"AUTHGOOGLE_CLIENTID" yaml:"authGoogle_clientID"`
 	// Client secret for the Google auth application
-	// Ignored if `authMethod` is not `google`
+	// Ignored if `authProvider` is not `google`
 	AuthGoogleClientSecret string `env:"AUTHGOOGLE_CLIENTSECRET" yaml:"authGoogle_clientSecret"`
 	// List of allowed users for Google auth
 	// This is a list of user IDs
-	// Ignored if `authMethod` is not `google`
+	// Ignored if `authProvider` is not `google`
 	AuthGoogleAllowedUsers []string `env:"AUTHGOOGLE_ALLOWEDUSERS" yaml:"authGoogle_allowedUsers"`
 	// List of allowed email addresses of users for Google auth
 	// This is a list of email addresses
-	// Ignored if `authMethod` is not `google`
+	// Ignored if `authProvider` is not `google`
 	AuthGoogleAllowedEmails []string `env:"AUTHGOOGLE_ALLOWEDEMAILS" yaml:"authGoogle_allowedEmails"`
 	// List of allowed domains for Google auth
 	// This is a list of domains for email addresses
-	// Ignored if `authMethod` is not `google`
+	// Ignored if `authProvider` is not `google`
 	AuthGoogleAllowedDomains []string `env:"AUTHGOOGLE_ALLOWEDDOMAINS" yaml:"authGoogle_allowedDomains"`
 	// Timeout for network requests for Google auth
-	// Ignored if `authMethod` is not `google`
+	// Ignored if `authProvider` is not `google`
 	// +default 10s
 	AuthGoogleRequestTimeout time.Duration `env:"AUTHGOOGLE_REQUESTTIMEOUT" yaml:"authGoogle_requestTimeout"`
 
 	// Client ID for the GitHub auth application
-	// Ignored if `authMethod` is not `github`
+	// Ignored if `authProvider` is not `github`
 	AuthGitHubClientID string `env:"AUTHGITHUB_CLIENTID" yaml:"authGitHub_clientID"`
 	// Client secret for the GitHub auth application
-	// Ignored if `authMethod` is not `github`
+	// Ignored if `authProvider` is not `github`
 	AuthGitHubClientSecret string `env:"AUTHGITHUB_CLIENTSECRET" yaml:"authGitHub_clientSecret"`
 	// List of allowed users for GitHub auth
 	// This is a list of usernames
-	// Ignored if `authMethod` is not `github`
+	// Ignored if `authProvider` is not `github`
 	AuthGitHubAllowedUsers []string `env:"AUTHGITHUB_ALLOWEDUSERS" yaml:"authGitHub_allowedUsers"`
 	// Timeout for network requests for GitHub auth
-	// Ignored if `authMethod` is not `github`
+	// Ignored if `authProvider` is not `github`
 	// +default 10s
 	AuthGitHubRequestTimeout time.Duration `env:"AUTHGITHUB_REQUESTTIMEOUT" yaml:"authGitHub_requestTimeout"`
 
 	// Tenant ID for the Microsoft Entra ID auth application
-	// Ignored if `authMethod` is not `microsoftentraid`
+	// Ignored if `authProvider` is not `microsoftentraid`
 	AuthMicrosoftEntraIDTenantID string `env:"AUTHMICROSOFTENTRAID_TENANTID" yaml:"authMicrosoftEntraID_tenantID"`
 	// Client ID for the Microsoft Entra ID auth application
-	// Ignored if `authMethod` is not `microsoftentraid`
+	// Ignored if `authProvider` is not `microsoftentraid`
 	AuthMicrosoftEntraIDClientID string `env:"AUTHMICROSOFTENTRAID_CLIENTID" yaml:"authMicrosoftEntraID_clientID"`
 	// Client secret for the Microsoft Entra ID auth application
-	// Ignored if `authMethod` is not `microsoftentraid`
+	// Ignored if `authProvider` is not `microsoftentraid`
 	AuthMicrosoftEntraIDClientSecret string `env:"AUTHMICROSOFTENTRAID_CLIENTSECRET" yaml:"authMicrosoftEntraID_clientSecret"`
 	// List of allowed users for Microsoft Entra ID auth
 	// This is a list of user IDs
-	// Ignored if `authMethod` is not `microsoftentraid`
+	// Ignored if `authProvider` is not `microsoftentraid`
 	AuthMicrosoftEntraIDAllowedUsers []string `env:"AUTHMICROSOFTENTRAID_ALLOWEDUSERS" yaml:"authMicrosoftEntraID_allowedUsers"`
 	// List of allowed email addresses of users for Microsoft Entra ID auth
 	// This is a list of email addresses
-	// Ignored if `authMethod` is not `microsoftentraid`
+	// Ignored if `authProvider` is not `microsoftentraid`
 	AuthMicrosoftEntraIDAllowedEmails []string `env:"AUTHMICROSOFTENTRAID_ALLOWEDEMAILS" yaml:"authMicrosoftEntraID_allowedEmails"`
 	// Timeout for network requests for Microsoft Entra ID auth
-	// Ignored if `authMethod` is not `microsoftentraid`
+	// Ignored if `authProvider` is not `microsoftentraid`
 	// +default 10s
 	AuthMicrosoftEntraIDRequestTimeout time.Duration `env:"AUTHMICROSOFTENTRAID_REQUESTTIMEOUT" yaml:"authMicrosoftEntraID_requestTimeout"`
 
 	// Client ID for the OpenID Connect auth application
-	// Ignored if `authMethod` is not `openidconnect`
+	// Ignored if `authProvider` is not `openidconnect`
 	AuthOpenIDConnectClientID string `env:"AUTHOPENIDCONNECT_CLIENTID" yaml:"authOpenIDConnect_clientID"`
 	// Client secret for the OpenID Connect auth application
-	// Ignored if `authMethod` is not `openidconnect`
+	// Ignored if `authProvider` is not `openidconnect`
 	AuthOpenIDConnectClientSecret string `env:"AUTHOPENIDCONNECT_CLIENTSECRET" yaml:"authOpenIDConnect_clientSecret"`
 	// OpenID Connect token issuer
 	// The OpenID Connect configuration document will be fetched at `<token-issuer>/.well-known/openid-configuration`
-	// Ignored if `authMethod` is not `openidconnect`
+	// Ignored if `authProvider` is not `openidconnect`
 	AuthOpenIDConnectTokenIssuer string `env:"AUTHOPENIDCONNECT_TOKENISSUER" yaml:"authOpenIDConnect_tokenIssuer"`
 	// List of allowed users for OpenID Connect auth
 	// This is a list of user IDs, as returned by the ID provider in the "sub" claim
-	// Ignored if `authMethod` is not `openidconnect`
+	// Ignored if `authProvider` is not `openidconnect`
 	AuthOpenIDConnectAllowedUsers []string `env:"AUTHOPENIDCONNECT_ALLOWEDUSERS" yaml:"authOpenIDConnect_allowedUsers"`
 	// List of allowed email addresses for users for OpenID Connect auth
 	// This is a list of email addresses, as returned by the ID provider in the "email" claim
-	// Ignored if `authMethod` is not `openidconnect`
+	// Ignored if `authProvider` is not `openidconnect`
 	AuthOpenIDConnectAllowedEmails []string `env:"AUTHOPENIDCONNECT_ALLOWEDEMAILS" yaml:"authOpenIDConnect_allowedEmails"`
 	// Timeout for network requests for OpenID Connect auth
-	// Ignored if `authMethod` is not `openidconnect`
+	// Ignored if `authProvider` is not `openidconnect`
 	// +default 10s
 	AuthOpenIDConnectRequestTimeout time.Duration `env:"AUTHOPENIDCONNECT_REQUESTTIMEOUT" yaml:"authOpenIDConnect_requestTimeout"`
 
 	// If non-empty, requires the Tailnet of the user to match this value
-	// Ignored if `authMethod` is not `tailscalewhois`
+	// Ignored if `authProvider` is not `tailscalewhois`
 	AuthTailscaleWhoisAllowedTailnet string `env:"AUTHTAILSCALEWHOIS_ALLOWEDTAILNET" yaml:"authTailscaleWhois_allowedTailnet"`
 	// List of allowed users for Tailscale Whois auth
 	// This is a list of user IDs as returned by the ID provider
-	// Ignored if `authMethod` is not `tailscalewhois`
+	// Ignored if `authProvider` is not `tailscalewhois`
 	AuthTailscaleConnectAllowedUsers []string `env:"AUTHTAILSCALECONNECT_ALLOWEDUSERS" yaml:"authTailscaleConnect_allowedUsers"`
 	// Timeout for network requests for Tailscale Whois auth
-	// Ignored if `authMethod` is not `tailscalewhois`
+	// Ignored if `authProvider` is not `tailscalewhois`
 	// +default 10s
 	AuthTailscaleWhoisRequestTimeout time.Duration `env:"AUTHTAILSCALEWHOIS_REQUESTTIMEOUT" yaml:"authTailscaleWhois_requestTimeout"`
 

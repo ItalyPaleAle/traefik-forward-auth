@@ -103,165 +103,165 @@ authProvider:
 ## authGoogle_clientID (string)
 ## Description:
 ##   Client ID for the Google auth application
-##   Ignored if `authMethod` is not `google`
+##   Ignored if `authProvider` is not `google`
 #authGoogle_clientID: 
 
 ## authGoogle_clientSecret (string)
 ## Description:
 ##   Client secret for the Google auth application
-##   Ignored if `authMethod` is not `google`
+##   Ignored if `authProvider` is not `google`
 #authGoogle_clientSecret: 
 
 ## authGoogle_allowedUsers (list of strings)
 ## Description:
 ##   List of allowed users for Google auth
 ##   This is a list of user IDs
-##   Ignored if `authMethod` is not `google`
+##   Ignored if `authProvider` is not `google`
 #authGoogle_allowedUsers: 
 
 ## authGoogle_allowedEmails (list of strings)
 ## Description:
 ##   List of allowed email addresses of users for Google auth
 ##   This is a list of email addresses
-##   Ignored if `authMethod` is not `google`
+##   Ignored if `authProvider` is not `google`
 #authGoogle_allowedEmails: 
 
 ## authGoogle_allowedDomains (list of strings)
 ## Description:
 ##   List of allowed domains for Google auth
 ##   This is a list of domains for email addresses
-##   Ignored if `authMethod` is not `google`
+##   Ignored if `authProvider` is not `google`
 #authGoogle_allowedDomains: 
 
 ## authGoogle_requestTimeout (duration)
 ## Description:
 ##   Timeout for network requests for Google auth
-##   Ignored if `authMethod` is not `google`
+##   Ignored if `authProvider` is not `google`
 ## Default: 10s
 #authGoogle_requestTimeout: 
 
 ## authGitHub_clientID (string)
 ## Description:
 ##   Client ID for the GitHub auth application
-##   Ignored if `authMethod` is not `github`
+##   Ignored if `authProvider` is not `github`
 #authGitHub_clientID: 
 
 ## authGitHub_clientSecret (string)
 ## Description:
 ##   Client secret for the GitHub auth application
-##   Ignored if `authMethod` is not `github`
+##   Ignored if `authProvider` is not `github`
 #authGitHub_clientSecret: 
 
 ## authGitHub_allowedUsers (list of strings)
 ## Description:
 ##   List of allowed users for GitHub auth
 ##   This is a list of usernames
-##   Ignored if `authMethod` is not `github`
+##   Ignored if `authProvider` is not `github`
 #authGitHub_allowedUsers: 
 
 ## authGitHub_requestTimeout (duration)
 ## Description:
 ##   Timeout for network requests for GitHub auth
-##   Ignored if `authMethod` is not `github`
+##   Ignored if `authProvider` is not `github`
 ## Default: 10s
 #authGitHub_requestTimeout: 
 
 ## authMicrosoftEntraID_tenantID (string)
 ## Description:
 ##   Tenant ID for the Microsoft Entra ID auth application
-##   Ignored if `authMethod` is not `microsoftentraid`
+##   Ignored if `authProvider` is not `microsoftentraid`
 #authMicrosoftEntraID_tenantID: 
 
 ## authMicrosoftEntraID_clientID (string)
 ## Description:
 ##   Client ID for the Microsoft Entra ID auth application
-##   Ignored if `authMethod` is not `microsoftentraid`
+##   Ignored if `authProvider` is not `microsoftentraid`
 #authMicrosoftEntraID_clientID: 
 
 ## authMicrosoftEntraID_clientSecret (string)
 ## Description:
 ##   Client secret for the Microsoft Entra ID auth application
-##   Ignored if `authMethod` is not `microsoftentraid`
+##   Ignored if `authProvider` is not `microsoftentraid`
 #authMicrosoftEntraID_clientSecret: 
 
 ## authMicrosoftEntraID_allowedUsers (list of strings)
 ## Description:
 ##   List of allowed users for Microsoft Entra ID auth
 ##   This is a list of user IDs
-##   Ignored if `authMethod` is not `microsoftentraid`
+##   Ignored if `authProvider` is not `microsoftentraid`
 #authMicrosoftEntraID_allowedUsers: 
 
 ## authMicrosoftEntraID_allowedEmails (list of strings)
 ## Description:
 ##   List of allowed email addresses of users for Microsoft Entra ID auth
 ##   This is a list of email addresses
-##   Ignored if `authMethod` is not `microsoftentraid`
+##   Ignored if `authProvider` is not `microsoftentraid`
 #authMicrosoftEntraID_allowedEmails: 
 
 ## authMicrosoftEntraID_requestTimeout (duration)
 ## Description:
 ##   Timeout for network requests for Microsoft Entra ID auth
-##   Ignored if `authMethod` is not `microsoftentraid`
+##   Ignored if `authProvider` is not `microsoftentraid`
 ## Default: 10s
 #authMicrosoftEntraID_requestTimeout: 
 
 ## authOpenIDConnect_clientID (string)
 ## Description:
 ##   Client ID for the OpenID Connect auth application
-##   Ignored if `authMethod` is not `openidconnect`
+##   Ignored if `authProvider` is not `openidconnect`
 #authOpenIDConnect_clientID: 
 
 ## authOpenIDConnect_clientSecret (string)
 ## Description:
 ##   Client secret for the OpenID Connect auth application
-##   Ignored if `authMethod` is not `openidconnect`
+##   Ignored if `authProvider` is not `openidconnect`
 #authOpenIDConnect_clientSecret: 
 
 ## authOpenIDConnect_tokenIssuer (string)
 ## Description:
 ##   OpenID Connect token issuer
 ##   The OpenID Connect configuration document will be fetched at `<token-issuer>/.well-known/openid-configuration`
-##   Ignored if `authMethod` is not `openidconnect`
+##   Ignored if `authProvider` is not `openidconnect`
 #authOpenIDConnect_tokenIssuer: 
 
 ## authOpenIDConnect_allowedUsers (list of strings)
 ## Description:
 ##   List of allowed users for OpenID Connect auth
 ##   This is a list of user IDs, as returned by the ID provider in the "sub" claim
-##   Ignored if `authMethod` is not `openidconnect`
+##   Ignored if `authProvider` is not `openidconnect`
 #authOpenIDConnect_allowedUsers: 
 
 ## authOpenIDConnect_allowedEmails (list of strings)
 ## Description:
 ##   List of allowed email addresses for users for OpenID Connect auth
 ##   This is a list of email addresses, as returned by the ID provider in the "email" claim
-##   Ignored if `authMethod` is not `openidconnect`
+##   Ignored if `authProvider` is not `openidconnect`
 #authOpenIDConnect_allowedEmails: 
 
 ## authOpenIDConnect_requestTimeout (duration)
 ## Description:
 ##   Timeout for network requests for OpenID Connect auth
-##   Ignored if `authMethod` is not `openidconnect`
+##   Ignored if `authProvider` is not `openidconnect`
 ## Default: 10s
 #authOpenIDConnect_requestTimeout: 
 
 ## authTailscaleWhois_allowedTailnet (string)
 ## Description:
 ##   If non-empty, requires the Tailnet of the user to match this value
-##   Ignored if `authMethod` is not `tailscalewhois`
+##   Ignored if `authProvider` is not `tailscalewhois`
 #authTailscaleWhois_allowedTailnet: 
 
 ## authTailscaleConnect_allowedUsers (list of strings)
 ## Description:
 ##   List of allowed users for Tailscale Whois auth
 ##   This is a list of user IDs as returned by the ID provider
-##   Ignored if `authMethod` is not `tailscalewhois`
+##   Ignored if `authProvider` is not `tailscalewhois`
 #authTailscaleConnect_allowedUsers: 
 
 ## authTailscaleWhois_requestTimeout (duration)
 ## Description:
 ##   Timeout for network requests for Tailscale Whois auth
-##   Ignored if `authMethod` is not `tailscalewhois`
+##   Ignored if `authProvider` is not `tailscalewhois`
 ## Default: 10s
 #authTailscaleWhois_requestTimeout: 
 
