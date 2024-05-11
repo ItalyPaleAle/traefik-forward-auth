@@ -26,15 +26,6 @@ run:
   build-tags:
     - unit
 
-  # Which dirs to skip: issues from them won't be reported.
-  # Can use regexp here: `generated.*`, regexp is applied on full path,
-  # including the path prefix if one is set.
-  # Default value is empty list,
-  # but default dirs are skipped independently of this option's value (see skip-dirs-use-default).
-  # "/" will be replaced by current OS file path separator to properly work on Windows.
-  skip-dirs:
-    - client
-
   # Enables skipping of directories:
   # - vendor$, third_party$, testdata$, examples$, Godeps$, builtin$
   # Default: true
@@ -83,7 +74,8 @@ output:
   # Example: "checkstyle:report.xml,json:stdout,colored-line-number"
   #
   # Default: colored-line-number
-  format: colored-line-number
+  formats:
+    - format: colored-line-number
 
   # Print lines of code with issue.
   # Default: true
@@ -104,6 +96,10 @@ output:
   # Sort results by: filepath, line and column.
   #sort-results: false
 
+issues:
+  exclude-dirs:
+    - "client"
+
 linters:
   # Enable all available linters.
   # Default: false
@@ -122,6 +118,7 @@ linters:
     - dupl
     - dupword
     - durationcheck
+    - err113
     - errchkjson
     - execinquery
     - exhaustive
@@ -139,7 +136,6 @@ linters:
     - gocyclo
     - godot
     - godox
-    - goerr113
     - goheader
     - golint
     - gomnd
@@ -158,6 +154,7 @@ linters:
     - makezero
     - maligned
     - misspell
+    - mnd
     - musttag
     - nakedret
     - nestif

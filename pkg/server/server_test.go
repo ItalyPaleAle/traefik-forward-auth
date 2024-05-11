@@ -178,7 +178,7 @@ func assertResponseError(t *testing.T, res *http.Response, expectStatusCode int,
 	t.Helper()
 
 	require.Equal(t, expectStatusCode, res.StatusCode, "Response has an unexpected status code")
-	require.Equal(t, "application/json", res.Header.Get("content-type"), "Content-Type header is invalid")
+	require.Equal(t, "application/json", res.Header.Get("Content-Type"), "Content-Type header is invalid")
 
 	data := struct {
 		Error string `json:"error"`

@@ -26,7 +26,7 @@ func Base64URL(val string, expectLen int) bool {
 		return false
 	}
 
-	for i := 0; i < expectLen; i++ {
+	for i := range expectLen {
 		valid := (val[i] >= 'a' && val[i] <= 'z') ||
 			(val[i] >= 'A' && val[i] <= 'Z') ||
 			(val[i] >= '0' && val[i] <= '9') ||
@@ -71,7 +71,7 @@ func IsHostname(s string) bool {
 	last := byte('.')
 	nonNumeric := false // true once we've seen a letter or hyphen
 	partlen := 0
-	for i := 0; i < len(s); i++ {
+	for i := range len(s) {
 		c := s[i]
 		switch {
 		default:

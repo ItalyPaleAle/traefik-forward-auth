@@ -54,7 +54,7 @@ func (r *ServiceRunner) Run(ctx context.Context) error {
 
 	// Wait for all services to return
 	errs := make([]error, 0)
-	for i := 0; i < len(r.services); i++ {
+	for range len(r.services) {
 		err := <-errCh
 		if err != nil {
 			errs = append(errs, err)
