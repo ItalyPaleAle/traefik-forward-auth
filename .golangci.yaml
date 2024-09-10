@@ -63,17 +63,18 @@ run:
   # Default: use Go version from the go.mod file, fallback on the env var `GOVERSION`, fallback on 1.18
   #go: '1.19'
 
+issues:
+  # Which dirs to skip: issues from them won't be reported.
+  # Can use regexp here: `generated.*`, regexp is applied on full path,
+  # including the path prefix if one is set.
+  # Default value is empty list,
+  # but default dirs are skipped independently of this option's value (see skip-dirs-use-default).
+  # "/" will be replaced by current OS file path separator to properly work on Windows.
+  exclude-dirs:
+    - client
 
 # output configuration options
 output:
-  # Format: colored-line-number|line-number|json|colored-tab|tab|checkstyle|code-climate|junit-xml|github-actions|teamcity
-  #
-  # Multiple can be specified by separating them by comma, output can be provided
-  # for each of them by separating format name and path by colon symbol.
-  # Output path can be either `stdout`, `stderr` or path to the file to write to.
-  # Example: "checkstyle:report.xml,json:stdout,colored-line-number"
-  #
-  # Default: colored-line-number
   formats:
     - format: colored-line-number
 
@@ -96,10 +97,6 @@ output:
   # Sort results by: filepath, line and column.
   #sort-results: false
 
-issues:
-  exclude-dirs:
-    - "client"
-
 linters:
   # Enable all available linters.
   # Default: false
@@ -107,11 +104,11 @@ linters:
   # Disable specific linter
   # https://golangci-lint.run/usage/linters/#disabled-by-default
   disable:
+    - asasalint
     - asciicheck
     - bidichk
     - contextcheck
     - cyclop
-    - deadcode
     - decorder
     - depguard
     - dogsled
@@ -122,9 +119,9 @@ linters:
     - errchkjson
     - execinquery
     - exhaustive
-    - exhaustivestruct
     - exhaustruct
     - exportloopref
+    - forbidigo
     - funlen
     - gci
     - ginkgolinter
@@ -136,23 +133,20 @@ linters:
     - gocyclo
     - godot
     - godox
+    - gofmt
     - goheader
-    - golint
     - gomnd
     - gomoddirectives
     - gomodguard
     - goprintffuncname
     - grouper
-    - ifshort
     - importas
     - interfacebloat
-    - interfacer
     - ireturn
     - lll
     - loggercheck
     - maintidx
     - makezero
-    - maligned
     - misspell
     - mnd
     - musttag
@@ -163,15 +157,12 @@ linters:
     - noctx
     - nolintlint
     - nonamedreturns
-    - nosnakecase
     - nosprintfhostport
     - paralleltest
     - predeclared
     - promlinter
     - reassign
     - rowserrcheck
-    - scopelint
-    - structcheck
     - stylecheck
     - tagalign
     - tagliatelle
@@ -182,7 +173,6 @@ linters:
     - unconvert
     - unparam
     - usestdlibvars
-    - varcheck
     - varnamelen
     - whitespace
     - wrapcheck
