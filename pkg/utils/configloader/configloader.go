@@ -6,7 +6,7 @@ import (
 	"os"
 	"reflect"
 
-	env "github.com/caarlos0/env/v10"
+	env "github.com/caarlos0/env/v11"
 	"github.com/mitchellh/mapstructure"
 	yaml "gopkg.in/yaml.v3"
 
