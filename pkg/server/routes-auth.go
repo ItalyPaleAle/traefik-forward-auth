@@ -101,7 +101,9 @@ func (s *Server) RouteGetOAuth2Callback(provider auth.OAuth2Provider) func(c *gi
 		// Use a custom redirect code to write a response in the body
 		// We use a 307 redirect here so the client can re-send the request with the original method
 		c.Header("Location", returnURL)
-		c.Data(http.StatusTemporaryRedirect, "text/html; charset=utf-8", []byte(`Redirecting to application: <a href="`+returnURL+`">`+returnURL+`</a>`))
+		c.Header("Content-Type", "text/plain; charset=utf-8")
+		c.Writer.WriteHeader(http.StatusTemporaryRedirect)
+		_, _ = c.Writer.WriteString(`Redirecting to application: <a href="` + returnURL + `">` + returnURL + `</a>`)
 	}
 }
 
@@ -142,7 +144,9 @@ func (s *Server) RouteGetSeamlessAuthRoot(provider auth.SeamlessProvider) func(c
 			// Also see: https://github.com/traefik/traefik/issues/3660
 			returnURL := getReturnURL(c)
 			c.Header("Location", returnURL)
-			c.Data(http.StatusSeeOther, "text/html; charset=utf-8", []byte(`Redirecting to application: <a href="`+returnURL+`">`+returnURL+`</a>`))
+			c.Header("Content-Type", "text/plain; charset=utf-8")
+			c.Writer.WriteHeader(http.StatusSeeOther)
+			_, _ = c.Writer.WriteString(`Redirecting to application: <a href="` + returnURL + `">` + returnURL + `</a>`)
 		}
 
 		// If we are here, we have a valid session, so respond with a 200 status code
@@ -150,7 +154,8 @@ func (s *Server) RouteGetSeamlessAuthRoot(provider auth.SeamlessProvider) func(c
 		s.metrics.RecordAuthentication(true)
 		user := s.auth.UserIDFromProfile(profile)
 		c.Header("X-Forwarded-User", user)
-		c.Data(http.StatusOK, "text/plain; charset=utf-8", []byte(`You're authenticated as '`+user+`'`))
+		c.Header("Content-Type", "text/plain; charset=utf-8")
+		_, _ = c.Writer.WriteString("You're authenticated as '" + user + "'")
 	}
 }
 
@@ -162,7 +167,8 @@ func (s *Server) RouteGetLogout(c *gin.Context) {
 	s.deleteStateCookie(c)
 
 	// Respond with a success message
-	c.Data(http.StatusOK, "text/plain; charset=utf-8", []byte("You've logged out"))
+	c.Header("Content-Type", "text/plain; charset=utf-8")
+	_, _ = c.Writer.WriteString("You've logged out")
 }
 
 func (s *Server) oAuth2RedirectToAuth(c *gin.Context, provider auth.OAuth2Provider) {
@@ -184,7 +190,10 @@ func (s *Server) oAuth2RedirectToAuth(c *gin.Context, provider auth.OAuth2Provid
 
 	// Use a custom redirect code to write a response in the body
 	c.Header("Location", authURL)
-	c.Data(http.StatusSeeOther, "text/html; charset=utf-8", []byte(`Redirecting to authentication server: <a href="`+authURL+`">`+authURL+`</a>`))
+	c.Header("Content-Type", "text/plain; charset=utf-8")
+	c.Writer.WriteHeader(http.StatusSeeOther)
+	_, _ = c.Writer.WriteString(`Redirecting to 
+	authentication server: <a href="` + authURL + `">` + authURL + `</a>`)
 }
 
 func (s *Server) getProfileFromContext(c *gin.Context) *user.Profile {
@@ -218,5 +227,6 @@ func getReturnURL(c *gin.Context) string {
 
 // Get the redirect URI, which is sent to the OAuth2 authentication server and indicates where to return users after a successful auth with the IdP
 func getOAuth2RedirectURI(c *gin.Context) string {
-	return c.GetHeader("X-Forwarded-Proto") + "://" + config.Get().Hostname + config.Get().BasePath + "/oauth2/callback"
+	cfg := config.Get()
+	return c.GetHeader("X-Forwarded-Proto") + "://" + cfg.Hostname + cfg.BasePath + "/oauth2/callback"
 }
