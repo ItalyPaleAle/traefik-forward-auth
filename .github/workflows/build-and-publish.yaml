@@ -91,8 +91,8 @@ jobs:
 
       - name: Build app for all architectures
         run: |
-          echo -e "\n###\nFetch Go dependencies\n"
-          go get -v
+          echo -e "\n###\nDownload Go dependencies\n"
+          go mod download
 
           echo -e "\n###\nBuilding for amd64\n"
           mkdir -p .bin/linux-amd64
@@ -146,6 +146,24 @@ jobs:
           platforms: linux/amd64,linux/arm64/v8,linux/arm/v7
           context: .
           push: true
+
+      - name: Upload linux-amd64 Actions Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: linux-amd64
+          path: .bin/linux-amd64
+
+      - name: Upload linux-arm64 Actions Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: linux-arm64
+          path: .bin/linux-arm64
+
+      - name: Upload linux-arm Actions Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: linux-arm
+          path: .bin/linux-arm
 
       - name: Binaries attestation
         uses: actions/attest-build-provenance@v1
