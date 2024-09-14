@@ -26,9 +26,6 @@ jobs:
         with:
           go-version-file: 'go.mod'
 
-      - name: Set up QEMU
-        uses: docker/setup-qemu-action@v3
-
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
@@ -100,7 +97,6 @@ jobs:
           GOOS=linux \
           GOARCH=amd64 \
             go build \
-              -v \
               -o .bin/linux-amd64/traefik-forward-auth \
               -trimpath \
               -ldflags "${{ env.BUILD_LDFLAGS }}" \
@@ -112,7 +108,6 @@ jobs:
           GOOS=linux \
           GOARCH=arm64 \
             go build \
-              -v \
               -o .bin/linux-arm64/traefik-forward-auth \
               -trimpath \
               -ldflags "${{ env.BUILD_LDFLAGS }}" \
@@ -125,7 +120,6 @@ jobs:
           GOARCH=arm
           GOARM=7 \
             go build \
-              -v \
               -o .bin/linux-arm/traefik-forward-auth \
               -trimpath \
               -ldflags "${{ env.BUILD_LDFLAGS }}" \
@@ -165,10 +159,23 @@ jobs:
           name: linux-arm
           path: .bin/linux-arm
 
-      - name: Binaries attestation
+      - name: Binary attestation linux-amd64
         uses: actions/attest-build-provenance@v1
         with:
-          subject-path: '.bin/*/traefik-forward-auth'
+          subject-name: linux-amd64/traefik-forward-auth
+          subject-path: '.bin/linux-amd64/traefik-forward-auth'
+
+      - name: Binary attestation linux-arm64
+        uses: actions/attest-build-provenance@v1
+        with:
+          subject-name: linux-arm64/traefik-forward-auth
+          subject-path: '.bin/linux-arm64/traefik-forward-auth'
+
+      - name: Binary attestation linux-arm
+        uses: actions/attest-build-provenance@v1
+        with:
+          subject-name: linux-arm/traefik-forward-auth
+          subject-path: '.bin/linux-arm/traefik-forward-auth'
 
       - name: Container image attestation
         uses: actions/attest-build-provenance@v1
