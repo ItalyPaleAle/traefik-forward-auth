@@ -1,4 +1,4 @@
-name: Docker Image Build and Publish
+name: Build and publish
 
 on:
   push:
@@ -7,18 +7,24 @@ on:
     tags:
       - "v*"
 
-jobs:
-  docker:
-    runs-on: ubuntu-latest
-    permissions:
-      contents: write
-      packages: write
-      # This is used to complete the identity challenge with sigstore/fulcio when running outside of PRs.
-      id-token: write
 
+permissions:
+  contents: read
+  packages: write
+  attestations: write
+  id-token: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: 'go.mod'
 
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v3
@@ -34,7 +40,7 @@ jobs:
         with:
           cosign-release: 'v2.4.0'
 
-      - name: Generate Docker tags and labels
+      - name: Generate container tags and labels
         id: meta
         uses: docker/metadata-action@v5
         with:
@@ -77,7 +83,49 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Build (and push)
+      - name: Build app for all architectures
+        run: |
+          echo -e "\n###\nBuilding for amd64\n"
+          mkdir -p .bin/linux-amd64
+          CGO_ENABLED=0 \
+          GOOS=linux \
+          GOARCH=amd64 \
+            go build \
+              -o .bin/linux-amd64/traefik-forward-auth \
+              -trimpath \
+              -ldflags "${{ env.BUILD_LDFLAGS }}" \
+              ./cmd/traefik-forward-auth
+
+          echo -e "\n###\nBuilding for arm64\n"
+          mkdir -p .bin/linux-arm64
+          CGO_ENABLED=0 \
+          GOOS=linux \
+          GOARCH=arm64 \
+            go build \
+              -o .bin/linux-arm64/traefik-forward-auth \
+              -trimpath \
+              -ldflags "${{ env.BUILD_LDFLAGS }}" \
+              ./cmd/traefik-forward-auth
+
+          echo -e "\n###\nBuilding for armhf\n"
+          mkdir -p .bin/linux-arm
+          CGO_ENABLED=0 \
+          GOOS=linux \
+          GOARCH=arm
+          GOARM=7 \
+            go build \
+              -o .bin/linux-arm/traefik-forward-auth \
+              -trimpath \
+              -ldflags "${{ env.BUILD_LDFLAGS }}" \
+              ./cmd/traefik-forward-auth
+
+          echo -e "\n###\nEnsure all binaries are executable\n"
+          chmod +x .bin/*/traefik-forward-auth
+
+          echo -e "\n###\nCompilation done\n"
+          ls -al .bin .bin/*
+
+      - name: Build and push Docker images
         uses: docker/build-push-action@v6
         id: docker-build-push
         with:
@@ -85,18 +133,15 @@ jobs:
           labels: ${{ steps.meta.outputs.labels }}
           platforms: linux/amd64,linux/arm64/v8,linux/arm/v7
           push: true
-          build-args: |
-            BUILD_LDFLAGS=${{ env.BUILD_LDFLAGS }}
 
-      # Sign the resulting Docker images digests (for releases only).
-      # This will only write to the public Rekor transparency log when the Docker repository is public to avoid leaking data. 
-      # https://github.com/sigstore/cosign
-      - name: Sign the published Docker images
-        if: startsWith(github.ref, 'refs/tags/v')
-        env:
-          # https://docs.github.com/en/actions/security-guides/security-hardening-for-github-actions#using-an-intermediate-environment-variable
-          DIGEST: ${{ steps.docker-build-push.outputs.digest }}
-        # This step uses the identity token to provision an ephemeral certificate against the sigstore community Fulcio instance.
-        run: |
-          echo "${{ steps.meta.outputs.tags }}" | xargs -I {} cosign sign --yes {}@${DIGEST}
+      - name: Binaries attestation
+        uses: actions/attest-build-provenance@v1
+        with:
+          subject-path: '.bin/*/traefik-forward-auth'
 
+      - name: Container image attestation
+        uses: actions/attest-build-provenance@v1
+        with:
+          subject-name: ${{ steps.meta.outputs.tags }}
+          subject-digest: ${{ steps.docker-build-push.outputs.digest }}
+          push-to-registry: true
