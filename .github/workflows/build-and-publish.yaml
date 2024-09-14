@@ -40,11 +40,17 @@ jobs:
         with:
           cosign-release: 'v2.4.0'
 
+      # Lowercase REPO_OWNER which is required for containers
+      - name: Set lowercase REPO_OWNER
+        run: |
+          REPO_OWNER=${{ github.repository_owner }}
+          echo "REPO_OWNER=${REPO_OWNER,,}" >>${GITHUB_ENV}
+
       - name: Generate container tags and labels
         id: meta
         uses: docker/metadata-action@v5
         with:
-          images: ghcr.io/${{ github.actor }}/traefik-forward-auth
+          images: ghcr.io/${{ env.REPO_OWNER }}/traefik-forward-auth
           # generate semver tags and 'latest' tag
           tags: |
             type=edge,branch=main
@@ -142,6 +148,6 @@ jobs:
       - name: Container image attestation
         uses: actions/attest-build-provenance@v1
         with:
-          subject-name: ${{ steps.meta.outputs.tags }}
+          subject-name: 'ghcr.io/${{ env.REPO_OWNER }}/traefik-forward-auth'
           subject-digest: ${{ steps.docker-build-push.outputs.digest }}
           push-to-registry: true
