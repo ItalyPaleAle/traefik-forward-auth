@@ -8,7 +8,7 @@ ARG TARGETARCH
 COPY .bin/linux-${TARGETARCH}/traefik-forward-auth /traefik-forward-auth
 
 # Environmental variables
-ENV TFA_PORT=8080 TFA_BIND=0.0.0.0 TFA_METRICSPORT=2112
+ENV TFA_PORT=4181 TFA_BIND=0.0.0.0 TFA_METRICSPORT=2112
 
 # Expose ports
 EXPOSE 4181 2112
