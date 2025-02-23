@@ -249,13 +249,13 @@ type internal struct {
 }
 
 // String implements fmt.Stringer and prints out the config for debugging
-func (c Config) String() string {
+func (c *Config) String() string {
 	enc, _ := json.Marshal(c)
 	return string(enc)
 }
 
 // GetLoadedConfigPath returns the path to the config file that was loaded
-func (c Config) GetLoadedConfigPath() string {
+func (c *Config) GetLoadedConfigPath() string {
 	return c.internal.configFileLoaded
 }
 
@@ -265,7 +265,7 @@ func (c *Config) SetLoadedConfigPath(filePath string) {
 }
 
 // GetTokenSigningKey returns the (parsed) token signing key
-func (c Config) GetTokenSigningKey() jwk.Key {
+func (c *Config) GetTokenSigningKey() jwk.Key {
 	return c.internal.tokenSigningKey
 }
 

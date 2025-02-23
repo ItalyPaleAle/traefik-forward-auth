@@ -146,7 +146,7 @@ func NewProfileFromClaims(claims map[string]any) (*Profile, error) {
 }
 
 // GetEmail returns the email address of the user if present, with nil-checks
-func (p Profile) GetEmail() string {
+func (p *Profile) GetEmail() string {
 	if p.Email == nil {
 		return ""
 	}
@@ -154,7 +154,7 @@ func (p Profile) GetEmail() string {
 }
 
 // AppendClaims appends the claims for this user profile to a JWT builder
-func (p Profile) AppendClaims(builder *jwt.Builder) {
+func (p *Profile) AppendClaims(builder *jwt.Builder) {
 	builder.Subject(p.ID)
 	if p.Name.FullName != "" {
 		builder.Claim("name", p.Name.FullName)

@@ -19,7 +19,7 @@ jobs:
     runs-on: ubuntu-latest
     env:
       CGO_ENABLED: "0"
-      GOLANGCI_LINT_VERSION: "v1.60.3"
+      GOLANGCI_LINT_VERSION: "v1.64.5"
     steps:
 
     - name: Check out code

@@ -73,6 +73,10 @@ issues:
   exclude-dirs:
     - client
 
+  # Make issues output unique by line.
+  # Default: true
+  uniq-by-line: false
+
 # output configuration options
 output:
   formats:
@@ -85,10 +89,6 @@ output:
   # Print linter name in the end of issue text.
   # Default: true
   print-linter-name: true
-
-  # Make issues output unique by line.
-  # Default: true
-  uniq-by-line: false
 
   # Add a prefix to the output file references.
   # Default is no prefix.
@@ -117,10 +117,8 @@ linters:
     - durationcheck
     - err113
     - errchkjson
-    - execinquery
     - exhaustive
     - exhaustruct
-    - exportloopref
     - forbidigo
     - funlen
     - gci
@@ -135,7 +133,6 @@ linters:
     - godox
     - gofmt
     - goheader
-    - gomnd
     - gomoddirectives
     - gomodguard
     - goprintffuncname

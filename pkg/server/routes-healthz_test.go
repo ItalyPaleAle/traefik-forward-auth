@@ -22,7 +22,7 @@ func TestServerHealthzRoutes(t *testing.T) {
 	// Test the healthz endpoints
 	t.Run("healthz", func(t *testing.T) {
 		// Make a request to the /healthz endpoint
-		reqCtx, reqCancel := context.WithTimeout(context.Background(), 2*time.Second)
+		reqCtx, reqCancel := context.WithTimeout(t.Context(), 2*time.Second)
 		defer reqCancel()
 		req, err := http.NewRequestWithContext(reqCtx, http.MethodGet,
 			fmt.Sprintf("http://localhost:%d/healthz", testServerPort), nil)

@@ -43,6 +43,7 @@ type Listener struct {
 }
 
 // Implementation of net.Error providing timeout
+// nolint: errname
 type netErrorTimeout struct {
 	error
 }

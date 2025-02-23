@@ -61,7 +61,7 @@ func TestServerLifecycle(t *testing.T) {
 
 			// Make a request to the /healthz endpoint in the app server
 			appClient := clientForListener(srv.appListener)
-			reqCtx, reqCancel := context.WithTimeout(context.Background(), 2*time.Second)
+			reqCtx, reqCancel := context.WithTimeout(t.Context(), 2*time.Second)
 			defer reqCancel()
 			req, err := http.NewRequestWithContext(reqCtx, http.MethodGet,
 				fmt.Sprintf("http://localhost:%d/healthz", testServerPort), nil)
@@ -78,7 +78,7 @@ func TestServerLifecycle(t *testing.T) {
 			// Make a request to the /healthz endpoint in the metrics server
 			if metricsEnabled {
 				metricsClient := clientForListener(srv.metricsListener)
-				reqCtx, reqCancel = context.WithTimeout(context.Background(), 2*time.Second)
+				reqCtx, reqCancel = context.WithTimeout(t.Context(), 2*time.Second)
 				defer reqCancel()
 				req, err = http.NewRequestWithContext(reqCtx, http.MethodGet,
 					fmt.Sprintf("http://localhost:%d/healthz", testMetricsPort), nil)
@@ -127,7 +127,7 @@ func startTestServer(t *testing.T, srv *Server) func(t *testing.T) {
 	t.Helper()
 
 	// Start the server in a background goroutine
-	srvCtx, srvCancel := context.WithCancel(context.Background())
+	srvCtx, srvCancel := context.WithCancel(t.Context())
 	startErrCh := make(chan error, 1)
 	go func() {
 		startErrCh <- srv.Run(srvCtx)
