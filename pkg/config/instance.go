@@ -25,9 +25,9 @@ func GetDefaultConfig() *Config {
 		LogLevel:              "info",
 		Port:                  4181,
 		Bind:                  "0.0.0.0",
-		EnableMetrics:         false,
-		MetricsPort:           2112,
-		MetricsBind:           "0.0.0.0",
+		MetricsServerEnabled:  false,
+		MetricsServerPort:     2112,
+		MetricsServerBind:     "0.0.0.0",
 		AuthenticationTimeout: 5 * time.Minute,
 		OmitHealthCheckLogs:   true,
 	}

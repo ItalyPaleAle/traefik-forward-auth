@@ -65,21 +65,42 @@ type Config struct {
 	// +default info
 	LogLevel string `env:"LOGLEVEL" yaml:"logLevel"`
 
-	// Enable the metrics server, which exposes a Prometheus-compatible endpoint `/metrics`.
-	// +default false
-	EnableMetrics bool `env:"ENABLEMETRICS" yaml:"enableMetrics"`
-
-	// Port for the metrics server to bind to.
-	// +default 2112
-	MetricsPort int `env:"METRICSPORT" yaml:"metricsPort"`
-
-	// Address/interface for the metrics server to bind to.
-	// +default "0.0.0.0"
-	MetricsBind string `env:"METRICSBIND" yaml:"metricsBind"`
-
 	// If true, calls to the healthcheck endpoint (`/healthz`) are not included in the logs.
 	// +default true
 	OmitHealthCheckLogs bool `env:"OMITHEALTHCHECKLOGS" yaml:"omitHealthCheckLogs"`
+
+	// If true, emits logs formatted as JSON, otherwise uses a text-based structured log format.
+	// +default false if a TTY is attached (e.g. in development); true otherwise.
+	LogAsJSON bool `env:"LOGASJSON" yaml:"logAsJson"`
+
+	// OpenTelemetry Collector endpoint for sending logs, for example: `<http(s)>://<otel-collector-address>:<otel-collector-port>/v1/logs`.
+	// If configured,logs are sent to the collector at the given address.
+	// This value can also be set using the environmental variables `OTEL_EXPORTER_OTLP_LOGS_ENDPOINT` or `OTEL_EXPORTER_OTLP_ENDPOINT` ("/v1/logs" is appended for HTTP), and optionally `OTEL_EXPORTER_OTLP_PROTOCOL` ("http/protobuf", the default, or "grpc").
+	LogsOtelCollectorEndpoint string `env:"LOGSOTELCOLLECTORENDPOINT" yaml:"logsOtelCollectorEndpoint"`
+
+	// Enable the metrics server, which exposes a Prometheus-compatible endpoint `/metrics`.
+	// Metrics must be enabled for this to be effective
+	// +default false
+	MetricsServerEnabled bool `env:"METRICSSERVERENABLED" yaml:"metricsServerEnabled"`
+
+	// Port for the metrics server to bind to.
+	// +default 2112
+	MetricsServerPort int `env:"METRICSSERVERPORT" yaml:"metricsServerPort"`
+
+	// Deprecated name for MetricsServerPort.
+	MetricsPort int `env:"METRICSPORT" yaml:"metricsPort" deprecated:"true"`
+
+	// Address/interface for the metrics server to bind to.
+	// +default "0.0.0.0"
+	MetricsServerBind string `env:"METRICSSERVERBIND" yaml:"metricsServerBind"`
+
+	// Deprecated name for MetricsServerBind.
+	MetricsBind string `env:"METRICSBIND" yaml:"metricsBind" deprecated:"true"`
+
+	// OpenTelemetry Collector endpoint for sending metrics, for example: `<http(s)-or-grpc(s)>://<otel-collector-address>:<otel-collector-port>/v1/metrics`
+	// If metrics are enabled and `metricsOtelCollectorEndpoint` is set, metrics are sent to the collector
+	// This value can also be set using the environmental variables `OTEL_EXPORTER_OTLP_METRICS_ENDPOINT` or `OTEL_EXPORTER_OTLP_ENDPOINT` ("/v1/metrics" is appended for HTTP), and optionally `OTEL_EXPORTER_OTLP_PROTOCOL` ("http/protobuf", the default, or "grpc")
+	MetricsOtelCollectorEndpoint string `env:"METRICSOTELCOLLECTORENDPOINT" yaml:"metricsOtelCollectorEndpoint"`
 
 	// String used as key to sign state tokens.
 	// Can be generated for example with `openssl rand -base64 32`
@@ -229,6 +250,16 @@ type Config struct {
 	//
 	// If this option is empty, or if it contains the name of a header that is not found in an incoming request, a random UUID is generated as request ID.
 	TrustedRequestIdHeader string `env:"TRUSTEDREQUESTIDHEADER" yaml:"trustedRequestIdHeader"`
+
+	// Sampling rate for traces, as a float.
+	// The default value is 1, sampling all requests.
+	// +default 1
+	TracingSampling float64 `env:"TRACINGSAMPLING" yaml:"tracingSampling"`
+
+	// OpenTelemetry Collector endpoint for sending traces, for example: `<http(s)-or-grpc(s)>://<otel-collector-address>:<otel-collector-port>/v1/traces`.
+	// If `tracingOtelCollectorEndpoint` is set, tracing is enabled and sent to the collector.
+	// This value can also be set using the environmental variables `OTEL_EXPORTER_OTLP_TRACES_ENDPOINT` or `OTEL_EXPORTER_OTLP_ENDPOINT` ("/v1/traces" is appended for HTTP), and optionally `OTEL_EXPORTER_OTLP_PROTOCOL` ("http/protobuf", the default, or "grpc").
+	TracingOtelCollectorEndpoint string `env:"TRACINGOTELCOLLECTORENDPOINT" yaml:"tracingOtelCollectorEndpoint"`
 
 	// Dev is meant for development only; it's undocumented
 	Dev Dev `yaml:"-"`

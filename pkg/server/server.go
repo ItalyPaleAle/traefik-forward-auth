@@ -181,7 +181,7 @@ func (s *Server) Run(ctx context.Context) error {
 	}()
 
 	// Metrics server
-	if cfg.EnableMetrics {
+	if cfg.MetricsServerEnabled {
 		s.wg.Add(1)
 		err = s.startMetricsServer(ctx)
 		if err != nil {
@@ -282,7 +282,7 @@ func (s *Server) startMetricsServer(ctx context.Context) error {
 
 	// Create the HTTP server
 	s.metricsSrv = &http.Server{
-		Addr:              net.JoinHostPort(cfg.MetricsBind, strconv.Itoa(cfg.MetricsPort)),
+		Addr:              net.JoinHostPort(cfg.MetricsServerBind, strconv.Itoa(cfg.MetricsServerPort)),
 		Handler:           mux,
 		MaxHeaderBytes:    1 << 20,
 		ReadHeaderTimeout: 10 * time.Second,
@@ -299,8 +299,8 @@ func (s *Server) startMetricsServer(ctx context.Context) error {
 
 	// Start the HTTPS server in a background goroutine
 	log.Info().
-		Str("bind", cfg.MetricsBind).
-		Int("port", cfg.MetricsPort).
+		Str("bind", cfg.MetricsServerBind).
+		Int("port", cfg.MetricsServerPort).
 		Msg("Metrics server started")
 	go func() {
 		defer s.metricsListener.Close()
