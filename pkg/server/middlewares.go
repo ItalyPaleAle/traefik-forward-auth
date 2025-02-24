@@ -55,8 +55,8 @@ func (s *Server) MiddlewareProxyHeaders(c *gin.Context) {
 	xForwardedPort := c.Request.Header.Get("X-Forwarded-Port")
 
 	// Split the X-Forwarded-For header to get the originating client IP
-	ips := strings.Split(xForwardedFor, ",")
-	clientIP := strings.TrimSpace(ips[0])
+	clientIP, _, _ := strings.Cut(xForwardedFor, ",")
+	clientIP = strings.TrimSpace(clientIP)
 
 	// Get and validate the remote address
 	_, err := netip.ParseAddrPort(net.JoinHostPort(clientIP, xForwardedPort))
