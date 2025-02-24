@@ -78,7 +78,6 @@ hostname:
 ## metricsServerEnabled (boolean)
 ## Description:
 ##   Enable the metrics server, which exposes a Prometheus-compatible endpoint `/metrics`.
-##   Metrics must be enabled for this to be effective
 ## Default: false
 #metricsServerEnabled: 
 

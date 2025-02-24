@@ -104,6 +104,7 @@ func (p *tlsCertProvider) Watch(ctx context.Context) error {
 			case <-watcher:
 				// Reload
 				log.InfoContext(ctx, "Found changes in folder containing TLS certificates; will reload certificates")
+				reloadErr = p.Reload()
 				if reloadErr != nil {
 					// Log errors only
 					log.ErrorContext(ctx, "Failed to load updated TLS certificates from disk", slog.Any("error", reloadErr))

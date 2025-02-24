@@ -79,7 +79,6 @@ type Config struct {
 	LogsOtelCollectorEndpoint string `env:"LOGSOTELCOLLECTORENDPOINT" yaml:"logsOtelCollectorEndpoint"`
 
 	// Enable the metrics server, which exposes a Prometheus-compatible endpoint `/metrics`.
-	// Metrics must be enabled for this to be effective
 	// +default false
 	MetricsServerEnabled bool `env:"METRICSSERVERENABLED" yaml:"metricsServerEnabled"`
 
@@ -308,12 +307,21 @@ func (c *Config) GetInstanceID() string {
 
 // Validates the configuration and performs some sanitization
 func (c *Config) Validate(logger *slog.Logger) error {
+	// Sanitize AuthProvider
 	c.AuthProvider = strings.ReplaceAll(strings.ToLower(c.AuthProvider), "-", "")
 	if c.AuthProvider == "" {
 		return errors.New("property 'authProvider' is required")
 	}
 
-	// Invalid values
+	// Observability, including support for legacy config names
+	if c.MetricsBind != "" {
+		logger.Warn("Configuration property 'metricsBind' is deprecated; please use 'metricsServerBind' instead")
+		c.MetricsServerBind = c.MetricsBind
+	}
+	if c.MetricsPort != 0 {
+		logger.Warn("Configuration property 'metricsPort' is deprecated; please use 'metricsServerPort' instead")
+		c.MetricsServerPort = c.MetricsPort
+	}
 	if c.TracingSampling < 0 || c.TracingSampling > 1 {
 		return errors.New("config key 'tracingSampling' is invalid: must be between 0 and 1 (inclusive)")
 	}

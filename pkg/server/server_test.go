@@ -33,11 +33,11 @@ const (
 
 func TestMain(m *testing.M) {
 	_ = config.SetTestConfig(map[string]any{
-		"port":          testServerPort,
-		"bind":          "127.0.0.1",
-		"enableMetrics": false,
-		"metricsBind":   "127.0.0.1",
-		"metricsPort":   testMetricsPort,
+		"port":                 testServerPort,
+		"bind":                 "127.0.0.1",
+		"metricsServerEnabled": false,
+		"metricsBind":          "127.0.0.1",
+		"metricsPort":          testMetricsPort,
 	})
 
 	gin.SetMode(gin.ReleaseMode)
@@ -49,7 +49,7 @@ func TestServerLifecycle(t *testing.T) {
 	testFn := func(metricsEnabled bool) func(t *testing.T) {
 		return func(t *testing.T) {
 			t.Cleanup(config.SetTestConfig(map[string]any{
-				"enableMetrics": metricsEnabled,
+				"metricsServerEnabled": metricsEnabled,
 			}))
 
 			// Create the server
