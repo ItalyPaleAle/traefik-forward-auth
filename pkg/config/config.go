@@ -219,7 +219,7 @@ type Config struct {
 	AuthenticationTimeout time.Duration `env:"AUTHENTICATIONTIMEOUT" yaml:"authenticationTimeout"`
 
 	// Path where to load TLS certificates from. Within the folder, the files must be named `tls-cert.pem` and `tls-key.pem` (and optionally `tls-ca.pem`).
-	// Vault watches for changes in this folder and automatically reloads the TLS certificates when they're updated.
+	// The server watches for changes in this folder and automatically reloads the TLS certificates when they're updated.
 	// If empty, certificates are loaded from the same folder where the loaded `config.yaml` is located.
 	// +default Folder where the `config.yaml` file is located
 	TLSPath string `env:"TLSPATH" yaml:"tlsPath"`
@@ -311,6 +311,11 @@ func (c *Config) Validate(logger *slog.Logger) error {
 	c.AuthProvider = strings.ReplaceAll(strings.ToLower(c.AuthProvider), "-", "")
 	if c.AuthProvider == "" {
 		return errors.New("property 'authProvider' is required")
+	}
+
+	// Invalid values
+	if c.TracingSampling < 0 || c.TracingSampling > 1 {
+		return errors.New("config key 'tracingSampling' is invalid: must be between 0 and 1 (inclusive)")
 	}
 
 	// Hostname can have an optional port

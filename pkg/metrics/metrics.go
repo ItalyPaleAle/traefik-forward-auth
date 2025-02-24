@@ -39,7 +39,7 @@ func NewTFAMetrics(ctx context.Context, log *slog.Logger) (m *TFAMetrics, shutdo
 	if exporter != nil {
 		providerOpts = append(providerOpts,
 			metricSdk.WithReader(metricSdk.NewPeriodicReader(exporter)),
-			metricSdk.WithResource(cfg.GetOtelResource("vault")),
+			metricSdk.WithResource(cfg.GetOtelResource("tfa")),
 		)
 	}
 

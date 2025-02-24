@@ -2,15 +2,17 @@ package fsnotify
 
 import (
 	"context"
+	"log/slog"
 	"time"
 
 	"github.com/fsnotify/fsnotify"
-	"github.com/rs/zerolog"
+
+	"github.com/italypaleale/traefik-forward-auth/pkg/utils"
 )
 
 // WatchFolder returns a channel that receives a notification when a file is changed in a folder.
 func WatchFolder(ctx context.Context, folder string) (<-chan struct{}, error) {
-	log := zerolog.Ctx(ctx)
+	log := utils.LogFromContext(ctx)
 
 	watcher, err := fsnotify.NewWatcher()
 	if err != nil {
@@ -58,10 +60,10 @@ func WatchFolder(ctx context.Context, folder string) (<-chan struct{}, error) {
 
 			case watchErr := <-watcher.Errors:
 				// Log errors only
-				log.Warn().
-					Err(watchErr).
-					Str("folder", folder).
-					Msg("Error while watching for changes to files on disk")
+				log.WarnContext(ctx, "Error while watching for changes to files on disk",
+					slog.Any("error", watchErr),
+					slog.String("folder", folder),
+				)
 			}
 		}
 	}()

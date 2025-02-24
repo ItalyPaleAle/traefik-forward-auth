@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"log/slog"
 	"net"
 	"net/http"
 	"os"
@@ -14,7 +15,6 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
-	"github.com/rs/zerolog"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
@@ -106,13 +106,14 @@ func newTestServer(t *testing.T) (srv *Server, logBuf *bytes.Buffer) {
 	logBuf = &bytes.Buffer{}
 	logDest := io.MultiWriter(os.Stdout, logBuf)
 
-	log := zerolog.New(zerolog.SyncWriter(logDest)).
-		With().
-		Str("app", "test").
-		Logger()
+	log := slog.
+		New(slog.NewTextHandler(logDest, &slog.HandlerOptions{
+			Level: slog.LevelDebug,
+		})).
+		With(slog.String("app", "test"))
 
 	srv, err := NewServer(NewServerOpts{
-		Log:           &log,
+		Log:           log,
 		addTestRoutes: nil,
 	})
 	require.NoError(t, err)
