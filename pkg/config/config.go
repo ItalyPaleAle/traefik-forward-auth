@@ -10,12 +10,12 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"log/slog"
 	"net"
 	"strings"
 	"time"
 
 	"github.com/lestrrat-go/jwx/v2/jwk"
-	"github.com/rs/zerolog"
 
 	"github.com/italypaleale/traefik-forward-auth/pkg/auth"
 	"github.com/italypaleale/traefik-forward-auth/pkg/utils"
@@ -275,6 +275,7 @@ type Dev struct {
 
 // Internal properties
 type internal struct {
+	instanceID       string
 	configFileLoaded string // Path to the config file that was loaded
 	tokenSigningKey  jwk.Key
 }
@@ -300,8 +301,13 @@ func (c *Config) GetTokenSigningKey() jwk.Key {
 	return c.internal.tokenSigningKey
 }
 
+// GetInstanceID returns the instance ID.
+func (c *Config) GetInstanceID() string {
+	return c.internal.instanceID
+}
+
 // Validates the configuration and performs some sanitization
-func (c *Config) Validate(log *zerolog.Logger) error {
+func (c *Config) Validate(logger *slog.Logger) error {
 	c.AuthProvider = strings.ReplaceAll(strings.ToLower(c.AuthProvider), "-", "")
 	if c.AuthProvider == "" {
 		return errors.New("property 'authProvider' is required")
@@ -415,12 +421,12 @@ func (c *Config) GetAuthProvider() (auth.Provider, error) {
 
 // SetTokenSigningKey parses the token signing key.
 // If it's empty, will generate a new one.
-func (c *Config) SetTokenSigningKey(logger *zerolog.Logger) (err error) {
+func (c *Config) SetTokenSigningKey(logger *slog.Logger) (err error) {
 	var rawKey []byte
 	b := []byte(c.TokenSigningKey)
 	if len(b) == 0 {
 		if logger != nil {
-			logger.Debug().Msg("No 'tokenSigningKey' found in the configuration: a random one will be generated")
+			logger.Debug("No 'tokenSigningKey' found in the configuration: a random one will be generated")
 		}
 
 		rawKey = make([]byte, 32)
