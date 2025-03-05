@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"net/netip"
 	"regexp"
+	"strings"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -43,18 +44,23 @@ func (s *Server) MiddlewareRequireClientCertificate(c *gin.Context) {
 // This middleware should be used first in the chain.
 func (s *Server) MiddlewareProxyHeaders(c *gin.Context) {
 	// Ensure required headers are present
-	for i := range proxyHeaders {
-		if c.Request.Header.Get(proxyHeaders[i]) == "" {
-			AbortWithError(c, NewResponseErrorf(http.StatusBadRequest, "Missing header %s", proxyHeaders[i]))
+	for _, header := range proxyHeaders {
+		if c.Request.Header.Get(header) == "" {
+			AbortWithError(c, NewResponseErrorf(http.StatusBadRequest, "Missing header %s", header))
 			return
 		}
 	}
 
+	// Get the X-Forwarded-For header
+	xForwardedFor := c.Request.Header.Get("X-Forwarded-For")
+	xForwardedPort := c.Request.Header.Get("X-Forwarded-Port")
+
+	// Split the X-Forwarded-For header to get the originating client IP
+	clientIP, _, _ := strings.Cut(xForwardedFor, ",")
+	clientIP = strings.TrimSpace(clientIP)
+
 	// Get and validate the remote address
-	_, err := netip.ParseAddrPort(net.JoinHostPort(
-		c.Request.Header.Get("X-Forwarded-For"),
-		c.Request.Header.Get("X-Forwarded-Port"),
-	))
+	_, err := netip.ParseAddrPort(net.JoinHostPort(clientIP, xForwardedPort))
 	if err != nil {
 		AbortWithError(c, NewResponseErrorf(http.StatusBadRequest, "Invalid remote address and port: %v", err))
 		return
