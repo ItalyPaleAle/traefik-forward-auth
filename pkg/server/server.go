@@ -26,6 +26,7 @@ import (
 	"golang.org/x/net/http2/h2c"
 
 	"github.com/italypaleale/traefik-forward-auth/pkg/auth"
+	"github.com/italypaleale/traefik-forward-auth/pkg/buildinfo"
 	"github.com/italypaleale/traefik-forward-auth/pkg/config"
 	"github.com/italypaleale/traefik-forward-auth/pkg/metrics"
 	"github.com/italypaleale/traefik-forward-auth/pkg/utils"
@@ -131,7 +132,7 @@ func (s *Server) initTracer(exporter sdkTrace.SpanExporter) error {
 	}
 
 	s.tracer = sdkTrace.NewTracerProvider(
-		sdkTrace.WithResource(cfg.GetOtelResource("tfa.appserver")),
+		sdkTrace.WithResource(cfg.GetOtelResource(buildinfo.AppName)),
 		sdkTrace.WithSampler(sampler),
 		sdkTrace.WithBatcher(exporter),
 	)

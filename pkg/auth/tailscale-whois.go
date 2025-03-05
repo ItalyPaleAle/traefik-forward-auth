@@ -10,9 +10,11 @@ import (
 	"strings"
 	"time"
 
-	"github.com/italypaleale/traefik-forward-auth/pkg/user"
 	"github.com/spf13/cast"
+	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
 	"tailscale.com/client/tailscale"
+
+	"github.com/italypaleale/traefik-forward-auth/pkg/user"
 )
 
 const (
@@ -40,14 +42,18 @@ type NewTailscaleWhoisOptions struct {
 }
 
 // NewTailscaleWhois returns a new TailscaleWhois provider
-func NewTailscaleWhois(opts NewTailscaleWhoisOptions) (p TailscaleWhois, err error) {
+func NewTailscaleWhois(opts NewTailscaleWhoisOptions) (p *TailscaleWhois, err error) {
 	reqTimeout := opts.RequestTimeout
 	if reqTimeout < time.Second {
 		reqTimeout = 10 * time.Second
 	}
 
-	p = TailscaleWhois{
-		httpClient:     &http.Client{},
+	// Update the transport for the HTTP client to include tracing information
+	httpClient := &http.Client{}
+	httpClient.Transport = otelhttp.NewTransport(httpClient.Transport)
+
+	p = &TailscaleWhois{
+		httpClient:     httpClient,
 		requestTimeout: reqTimeout,
 		allowedTailnet: opts.AllowedTailnet,
 		allowedUsers:   opts.AllowedUsers,
@@ -55,11 +61,11 @@ func NewTailscaleWhois(opts NewTailscaleWhoisOptions) (p TailscaleWhois, err err
 	return p, nil
 }
 
-func (a TailscaleWhois) GetProviderName() string {
+func (a *TailscaleWhois) GetProviderName() string {
 	return "tailscalewhois"
 }
 
-func (a TailscaleWhois) SeamlessAuth(r *http.Request) (*user.Profile, error) {
+func (a *TailscaleWhois) SeamlessAuth(r *http.Request) (*user.Profile, error) {
 	// This code is adapted from the Tailscale source code
 	// Source: https://github.com/tailscale/tailscale/blob/169778e23bb8e315b1cdfcb54d9d59daace4a57d/cmd/nginx-auth/nginx-auth.go
 	// Copyright: Tailscale Inc & AUTHORS
@@ -122,7 +128,7 @@ func (a TailscaleWhois) SeamlessAuth(r *http.Request) (*user.Profile, error) {
 	return &profile, nil
 }
 
-func (a TailscaleWhois) UserAllowed(profile *user.Profile) error {
+func (a *TailscaleWhois) UserAllowed(profile *user.Profile) error {
 	// Check tailnet
 	tailnet := profile.AdditionalClaims[tailscaleWhoisClaimTailnet]
 	if a.allowedTailnet != "" && tailnet != a.allowedTailnet {
@@ -140,7 +146,7 @@ func (a TailscaleWhois) UserAllowed(profile *user.Profile) error {
 	return nil
 }
 
-func (a TailscaleWhois) ValidateRequestClaims(r *http.Request, profile *user.Profile) error {
+func (a *TailscaleWhois) ValidateRequestClaims(r *http.Request, profile *user.Profile) error {
 	// We need to make sure that the IP of the request matches the value in the "ip" claim in the profile
 	sourceIP := net.ParseIP(r.Header.Get("X-Forwarded-For"))
 	if sourceIP == nil {
@@ -158,11 +164,11 @@ func (a TailscaleWhois) ValidateRequestClaims(r *http.Request, profile *user.Pro
 	return nil
 }
 
-func (a TailscaleWhois) UserIDFromProfile(profile *user.Profile) string {
+func (a *TailscaleWhois) UserIDFromProfile(profile *user.Profile) string {
 	return profile.ID
 }
 
-func (a TailscaleWhois) PopulateAdditionalClaims(claims map[string]any, setClaimFn func(key, val string)) {
+func (a *TailscaleWhois) PopulateAdditionalClaims(claims map[string]any, setClaimFn func(key, val string)) {
 	if v := cast.ToString(claims[tailscaleWhoisClaimIP]); v != "" {
 		setClaimFn(tailscaleWhoisClaimIP, v)
 	}
@@ -172,4 +178,4 @@ func (a TailscaleWhois) PopulateAdditionalClaims(claims map[string]any, setClaim
 }
 
 // Compile-time interface assertion
-var _ SeamlessProvider = TailscaleWhois{}
+var _ SeamlessProvider = &TailscaleWhois{}

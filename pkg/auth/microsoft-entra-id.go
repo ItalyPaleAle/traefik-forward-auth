@@ -10,7 +10,7 @@ import (
 // MicrosoftEntraID manages authentication with Microsoft Entra ID.
 // It is based on the OpenIDConnect provider.
 type MicrosoftEntraID struct {
-	OpenIDConnect
+	*OpenIDConnect
 }
 
 // NewMicrosoftEntraIDOptions is the options for NewMicrosoftEntraID
@@ -41,7 +41,7 @@ func (o NewMicrosoftEntraIDOptions) ToNewOpenIDConnectOptions() NewOpenIDConnect
 }
 
 // NewMicrosoftEntraID returns a new MicrosoftEntraID provider
-func NewMicrosoftEntraID(opts NewMicrosoftEntraIDOptions) (p MicrosoftEntraID, err error) {
+func NewMicrosoftEntraID(opts NewMicrosoftEntraIDOptions) (p *MicrosoftEntraID, err error) {
 	if opts.TenantID == "" {
 		return p, errors.New("value for clientId is required in config for auth with provider 'microsoft-entra-id'")
 	}
@@ -55,12 +55,12 @@ func NewMicrosoftEntraID(opts NewMicrosoftEntraIDOptions) (p MicrosoftEntraID, e
 		return p, err
 	}
 
-	return MicrosoftEntraID{
+	return &MicrosoftEntraID{
 		OpenIDConnect: oidc,
 	}, nil
 }
 
-func (a MicrosoftEntraID) UserIDFromProfile(profile *user.Profile) string {
+func (a *MicrosoftEntraID) UserIDFromProfile(profile *user.Profile) string {
 	if profile.Email != nil && profile.Email.Value != "" {
 		return profile.Email.Value
 	}
@@ -68,4 +68,4 @@ func (a MicrosoftEntraID) UserIDFromProfile(profile *user.Profile) string {
 }
 
 // Compile-time interface assertion
-var _ OAuth2Provider = MicrosoftEntraID{}
+var _ OAuth2Provider = &MicrosoftEntraID{}

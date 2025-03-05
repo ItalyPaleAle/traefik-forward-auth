@@ -41,7 +41,7 @@ type NewGitHubOptions struct {
 }
 
 // NewGitHub returns a new GitHub provider
-func NewGitHub(opts NewGitHubOptions) (p GitHub, err error) {
+func NewGitHub(opts NewGitHubOptions) (p *GitHub, err error) {
 	if opts.ClientID == "" {
 		return p, errors.New("value for clientId is required in config for auth with provider 'github'")
 	}
@@ -66,13 +66,13 @@ func NewGitHub(opts NewGitHubOptions) (p GitHub, err error) {
 		return p, err
 	}
 
-	return GitHub{
+	return &GitHub{
 		oAuth2:       oauth2,
 		allowedUsers: opts.AllowedUsers,
 	}, nil
 }
 
-func (a GitHub) OAuth2RetrieveProfile(ctx context.Context, at OAuth2AccessToken) (*user.Profile, error) {
+func (a *GitHub) OAuth2RetrieveProfile(ctx context.Context, at OAuth2AccessToken) (*user.Profile, error) {
 	if at.AccessToken == "" {
 		return nil, errors.New("missing AccessToken in parameter at")
 	}
@@ -139,13 +139,13 @@ func (a GitHub) OAuth2RetrieveProfile(ctx context.Context, at OAuth2AccessToken)
 	return profile, nil
 }
 
-func (a GitHub) PopulateAdditionalClaims(claims map[string]any, setClaimFn func(key, val string)) {
+func (a *GitHub) PopulateAdditionalClaims(claims map[string]any, setClaimFn func(key, val string)) {
 	if v := cast.ToString(claims[githubClaimGitHubUserID]); v != "" {
 		setClaimFn(githubClaimGitHubUserID, v)
 	}
 }
 
-func (a GitHub) UserAllowed(profile *user.Profile) error {
+func (a *GitHub) UserAllowed(profile *user.Profile) error {
 	// Check allowed users
 	if len(a.allowedUsers) > 0 && !slices.Contains(a.allowedUsers, profile.ID) {
 		return errors.New("user login name is not in the allowlist")
@@ -155,4 +155,4 @@ func (a GitHub) UserAllowed(profile *user.Profile) error {
 }
 
 // Compile-time interface assertion
-var _ OAuth2Provider = GitHub{}
+var _ OAuth2Provider = &GitHub{}

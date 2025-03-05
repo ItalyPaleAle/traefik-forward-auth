@@ -12,7 +12,7 @@ import (
 // Google manages authentication with Google Identity.
 // It is based on the OpenIDConnect provider.
 type Google struct {
-	OpenIDConnect
+	*OpenIDConnect
 	allowedDomains []string
 }
 
@@ -44,7 +44,7 @@ func (o NewGoogleOptions) ToNewOpenIDConnectOptions() NewOpenIDConnectOptions {
 }
 
 // NewGoogle returns a new Google provider
-func NewGoogle(opts NewGoogleOptions) (p Google, err error) {
+func NewGoogle(opts NewGoogleOptions) (p *Google, err error) {
 	oidc, err := newOpenIDConnectInternal("google", opts.ToNewOpenIDConnectOptions(), OAuth2Endpoints{
 		Authorization: "https://accounts.google.com/o/oauth2/v2/auth",
 		Token:         "https://oauth2.googleapis.com/token",
@@ -54,13 +54,13 @@ func NewGoogle(opts NewGoogleOptions) (p Google, err error) {
 		return p, err
 	}
 
-	return Google{
+	return &Google{
 		OpenIDConnect:  oidc,
 		allowedDomains: opts.AllowedDomains,
 	}, nil
 }
 
-func (a Google) UserAllowed(profile *user.Profile) error {
+func (a *Google) UserAllowed(profile *user.Profile) error {
 	// Call the implementation in the OpenIDConnect struct that checks for allowed user IDs and emails
 	err := a.OpenIDConnect.UserAllowed(profile)
 	if err != nil {
@@ -86,4 +86,4 @@ func (a Google) UserAllowed(profile *user.Profile) error {
 }
 
 // Compile-time interface assertion
-var _ OAuth2Provider = Google{}
+var _ OAuth2Provider = &Google{}

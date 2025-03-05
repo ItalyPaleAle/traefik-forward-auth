@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/italypaleale/traefik-forward-auth/pkg/buildinfo"
 	"github.com/italypaleale/traefik-forward-auth/pkg/config"
 	prom "github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
@@ -39,7 +40,7 @@ func NewTFAMetrics(ctx context.Context, log *slog.Logger) (m *TFAMetrics, shutdo
 	if exporter != nil {
 		providerOpts = append(providerOpts,
 			metricSdk.WithReader(metricSdk.NewPeriodicReader(exporter)),
-			metricSdk.WithResource(cfg.GetOtelResource("tfa")),
+			metricSdk.WithResource(cfg.GetOtelResource(buildinfo.AppName)),
 		)
 	}
 
