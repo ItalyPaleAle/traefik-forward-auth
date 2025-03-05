@@ -121,6 +121,7 @@ func newTestServer(t *testing.T) (srv *Server, logBuf *bytes.Buffer) {
 	}
 	if metricsShutdownFn != nil {
 		t.Cleanup(func() {
+			//nolint:errcheck
 			metricsShutdownFn(t.Context())
 		})
 	}

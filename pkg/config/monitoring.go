@@ -23,7 +23,7 @@ import (
 )
 
 // GetOtelResource returns the OpenTelemetry Resource object
-func (c Config) GetOtelResource(name string) *resource.Resource {
+func (c *Config) GetOtelResource(name string) *resource.Resource {
 	return resource.NewWithAttributes(
 		semconv.SchemaURL,
 		semconv.ServiceNameKey.String(name),
@@ -34,7 +34,7 @@ func (c Config) GetOtelResource(name string) *resource.Resource {
 
 // GetLogsExporter returns the OpenTelemetry log Exporter if configured
 // Note that since the logger isn't configured when this method is invoked, we don't log anything, but return a function that can emit the log
-func (c Config) GetLogsExporter(ctx context.Context) (exp logSdk.Exporter, logFn func(log *slog.Logger), err error) {
+func (c *Config) GetLogsExporter(ctx context.Context) (exp logSdk.Exporter, logFn func(log *slog.Logger), err error) {
 	switch {
 	case strings.HasPrefix(c.LogsOtelCollectorEndpoint, "http://") || strings.HasPrefix(c.LogsOtelCollectorEndpoint, "https://"):
 		// Configure OTel exporter using HTTP and the endpoint from the configuration
@@ -83,7 +83,7 @@ func (c Config) GetLogsExporter(ctx context.Context) (exp logSdk.Exporter, logFn
 }
 
 // GetMetricsExporter returns the metrics exporter for the OpenTelemetry collector
-func (c Config) GetMetricsExporter(ctx context.Context, log *slog.Logger) (exp metricSdk.Exporter, err error) {
+func (c *Config) GetMetricsExporter(ctx context.Context, log *slog.Logger) (exp metricSdk.Exporter, err error) {
 	switch {
 	case strings.HasPrefix(c.MetricsOtelCollectorEndpoint, "http://") || strings.HasPrefix(c.MetricsOtelCollectorEndpoint, "https://"):
 		// Configure OTel exporter using HTTP and the endpoint from the configuration
@@ -132,7 +132,7 @@ func (c Config) GetMetricsExporter(ctx context.Context, log *slog.Logger) (exp m
 }
 
 // GetTraceExporter returns the trace exporter, either for the OpenTelemetry Collector or Zipkin
-func (c Config) GetTraceExporter(ctx context.Context, log *slog.Logger) (exp traceSdk.SpanExporter, err error) {
+func (c *Config) GetTraceExporter(ctx context.Context, log *slog.Logger) (exp traceSdk.SpanExporter, err error) {
 	switch {
 	case strings.HasPrefix(c.TracingOtelCollectorEndpoint, "http://") || strings.HasPrefix(c.TracingOtelCollectorEndpoint, "https://"):
 		// Configure OTel exporter using HTTP and the endpoint from the configuration
@@ -180,7 +180,7 @@ func (c Config) GetTraceExporter(ctx context.Context, log *slog.Logger) (exp tra
 	}
 }
 
-func (c Config) getOtelTraceExporterFromEnv(ctx context.Context, endpoint string, otelProtocol string, log *slog.Logger) (exp traceSdk.SpanExporter, err error) {
+func (c *Config) getOtelTraceExporterFromEnv(ctx context.Context, endpoint string, otelProtocol string, log *slog.Logger) (exp traceSdk.SpanExporter, err error) {
 	// otelProtocol can be "http/protobuf", the default, or "grpc"
 	switch otelProtocol {
 	case "grpc":
@@ -202,7 +202,7 @@ func (c Config) getOtelTraceExporterFromEnv(ctx context.Context, endpoint string
 	}
 }
 
-func (c Config) getOtelLogExporterFromEnv(ctx context.Context, endpoint string, otelProtocol string) (exp logSdk.Exporter, logFn func(log *slog.Logger), err error) {
+func (c *Config) getOtelLogExporterFromEnv(ctx context.Context, endpoint string, otelProtocol string) (exp logSdk.Exporter, logFn func(log *slog.Logger), err error) {
 	// otelProtocol can be "http/protobuf", the default, or "grpc"
 	switch otelProtocol {
 	case "grpc":
@@ -224,7 +224,7 @@ func (c Config) getOtelLogExporterFromEnv(ctx context.Context, endpoint string, 
 	}
 }
 
-func (c Config) getOtelMetricExporterFromEnv(ctx context.Context, endpoint string, otelProtocol string, log *slog.Logger) (exp metricSdk.Exporter, err error) {
+func (c *Config) getOtelMetricExporterFromEnv(ctx context.Context, endpoint string, otelProtocol string, log *slog.Logger) (exp metricSdk.Exporter, err error) {
 	// otelProtocol can be "http/protobuf", the default, or "grpc"
 	switch otelProtocol {
 	case "grpc":
