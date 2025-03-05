@@ -19,6 +19,8 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/italypaleale/traefik-forward-auth/pkg/config"
+	tfametrics "github.com/italypaleale/traefik-forward-auth/pkg/metrics"
+	"github.com/italypaleale/traefik-forward-auth/pkg/utils"
 	"github.com/italypaleale/traefik-forward-auth/pkg/utils/bufconn"
 )
 
@@ -36,8 +38,8 @@ func TestMain(m *testing.M) {
 		"port":                 testServerPort,
 		"bind":                 "127.0.0.1",
 		"metricsServerEnabled": false,
-		"metricsBind":          "127.0.0.1",
-		"metricsPort":          testMetricsPort,
+		"metricsServerBind":    "127.0.0.1",
+		"metricsServerPort":    testMetricsPort,
 	})
 
 	gin.SetMode(gin.ReleaseMode)
@@ -112,8 +114,20 @@ func newTestServer(t *testing.T) (srv *Server, logBuf *bytes.Buffer) {
 		})).
 		With(slog.String("app", "test"))
 
-	srv, err := NewServer(NewServerOpts{
+	metrics, metricsShutdownFn, err := tfametrics.NewTFAMetrics(t.Context(), log)
+	if err != nil {
+		utils.FatalError(log, "Failed to init metrics", err)
+		return
+	}
+	if metricsShutdownFn != nil {
+		t.Cleanup(func() {
+			metricsShutdownFn(t.Context())
+		})
+	}
+
+	srv, err = NewServer(NewServerOpts{
 		Log:           log,
+		Metrics:       metrics,
 		addTestRoutes: nil,
 	})
 	require.NoError(t, err)
