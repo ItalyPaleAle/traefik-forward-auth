@@ -44,7 +44,7 @@ type NewOpenIDConnectOptions struct {
 
 // NewOpenIDConnect returns a new OpenIDConnect provider
 // The endpoints are resolved by retrieving the openid-configuration document from the URL of the token issuer.
-func NewOpenIDConnect(opts NewOpenIDConnectOptions) (p OpenIDConnect, err error) {
+func NewOpenIDConnect(opts NewOpenIDConnectOptions) (p *OpenIDConnect, err error) {
 	if opts.ClientID == "" {
 		return p, errors.New("value for clientId is required in config for auth with provider 'openidconnect'")
 	}
@@ -82,7 +82,7 @@ func NewOpenIDConnect(opts NewOpenIDConnectOptions) (p OpenIDConnect, err error)
 		return p, err
 	}
 
-	return OpenIDConnect{
+	return &OpenIDConnect{
 		oAuth2:        oauth2,
 		allowedEmails: opts.AllowedEmails,
 		allowedUsers:  opts.AllowedUsers,
@@ -91,7 +91,7 @@ func NewOpenIDConnect(opts NewOpenIDConnectOptions) (p OpenIDConnect, err error)
 
 // newOpenIDConnectInternal returns a new OpenIDConnect provider.
 // It is meant to be used by structs that embed OpenIDConnect.
-func newOpenIDConnectInternal(providerName string, opts NewOpenIDConnectOptions, endpoints OAuth2Endpoints) (p OpenIDConnect, err error) {
+func newOpenIDConnectInternal(providerName string, opts NewOpenIDConnectOptions, endpoints OAuth2Endpoints) (p *OpenIDConnect, err error) {
 	if opts.ClientID == "" {
 		return p, fmt.Errorf("value for clientId is required in config for auth with provider '%s'", providerName)
 	}
@@ -112,14 +112,14 @@ func newOpenIDConnectInternal(providerName string, opts NewOpenIDConnectOptions,
 		return p, err
 	}
 
-	return OpenIDConnect{
+	return &OpenIDConnect{
 		oAuth2:        oauth2,
 		allowedEmails: opts.AllowedEmails,
 		allowedUsers:  opts.AllowedUsers,
 	}, nil
 }
 
-func (a OpenIDConnect) OAuth2RetrieveProfile(ctx context.Context, at OAuth2AccessToken) (profile *user.Profile, err error) {
+func (a *OpenIDConnect) OAuth2RetrieveProfile(ctx context.Context, at OAuth2AccessToken) (profile *user.Profile, err error) {
 	if at.AccessToken == "" {
 		return nil, errors.New("Missing parameter at")
 	}
@@ -231,7 +231,7 @@ func fetchOIDCEndpoints(ctx context.Context, tokenIssuer string, client *http.Cl
 	return endpoints, nil
 }
 
-func (a OpenIDConnect) UserAllowed(profile *user.Profile) error {
+func (a *OpenIDConnect) UserAllowed(profile *user.Profile) error {
 	// Check allowed user IDs
 	if len(a.allowedUsers) > 0 && !slices.Contains(a.allowedUsers, profile.ID) {
 		return errors.New("user ID is not in the allowlist")
@@ -252,4 +252,4 @@ func (a OpenIDConnect) UserAllowed(profile *user.Profile) error {
 }
 
 // Compile-time interface assertion
-var _ OAuth2Provider = OpenIDConnect{}
+var _ OAuth2Provider = &OpenIDConnect{}

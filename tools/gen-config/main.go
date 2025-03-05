@@ -66,6 +66,12 @@ func generateFromStruct(filePath string) error {
 				continue
 			}
 
+			deprecatedTag, _ := tags.Lookup("deprecated")
+			deprecated, _ := strconv.ParseBool(deprecatedTag)
+			if deprecated {
+				continue
+			}
+
 			var (
 				typ, defaultText                 string
 				required, recommended, lastEmpty bool
@@ -84,6 +90,8 @@ func generateFromStruct(filePath string) error {
 				typ = "duration"
 			case "[]string":
 				typ = "list of strings"
+			case "float64", "float32":
+				typ = "float"
 			default:
 				fmt.Printf("WARN: unknown type for field '%s': %s\n", yamlTag, ft)
 			}

@@ -4,10 +4,9 @@ import (
 	"context"
 	"crypto/tls"
 	"fmt"
+	"log/slog"
 	"path/filepath"
 	"sync"
-
-	"github.com/rs/zerolog"
 
 	"github.com/italypaleale/traefik-forward-auth/pkg/utils"
 	"github.com/italypaleale/traefik-forward-auth/pkg/utils/fsnotify"
@@ -90,7 +89,7 @@ func (p *tlsCertProvider) SetTLSCert(tlsCert *tls.Certificate) {
 
 // Watch starts watching (in background) for changes to the TLS certificate and key on disk, and triggers a reload when that happens.
 func (p *tlsCertProvider) Watch(ctx context.Context) error {
-	log := zerolog.Ctx(ctx)
+	log := utils.LogFromContext(ctx)
 
 	watcher, err := fsnotify.WatchFolder(ctx, p.path)
 	if err != nil {
@@ -104,16 +103,14 @@ func (p *tlsCertProvider) Watch(ctx context.Context) error {
 			select {
 			case <-watcher:
 				// Reload
-				log.Info().Msg("Found changes in folder containing TLS certificates; will reload certificates")
+				log.InfoContext(ctx, "Found changes in folder containing TLS certificates; will reload certificates")
 				reloadErr = p.Reload()
 				if reloadErr != nil {
 					// Log errors only
-					log.Error().
-						Err(reloadErr).
-						Msg("Failed to load updated TLS certificates from disk")
+					log.ErrorContext(ctx, "Failed to load updated TLS certificates from disk", slog.Any("error", reloadErr))
 					continue
 				}
-				log.Info().Msg("TLS certificates have been reloaded")
+				log.InfoContext(ctx, "TLS certificates have been reloaded")
 
 			case <-ctx.Done():
 				// Stop on context cancellation

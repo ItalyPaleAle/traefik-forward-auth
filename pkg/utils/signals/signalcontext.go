@@ -6,7 +6,7 @@ import (
 	"os/signal"
 	"syscall"
 
-	"github.com/rs/zerolog"
+	"github.com/italypaleale/traefik-forward-auth/pkg/utils"
 )
 
 /*
@@ -29,12 +29,13 @@ func SignalContext(parentCtx context.Context) context.Context {
 	signal.Notify(sigCh, os.Interrupt, syscall.SIGTERM)
 	go func() {
 		<-sigCh
-		log := zerolog.Ctx(ctx)
-		log.Info().Msg("Received interrupt signal. Shutting down…")
+		log := utils.LogFromContext(ctx)
+		log.InfoContext(ctx, "Received interrupt signal. Shutting down…")
 		cancel()
 
 		<-sigCh
-		log.Fatal().Msg("Received a second interrupt signal. Forcing an immediate shutdown.")
+		log.ErrorContext(ctx, "Received a second interrupt signal. Forcing an immediate shutdown.")
+		os.Exit(1)
 	}()
 
 	return ctx

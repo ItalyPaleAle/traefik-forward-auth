@@ -11,6 +11,8 @@ import (
 	"strings"
 	"time"
 
+	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
+
 	"github.com/italypaleale/traefik-forward-auth/pkg/user"
 )
 
@@ -80,13 +82,17 @@ func NewOAuth2(providerName string, opts NewOAuth2Options) (p oAuth2, err error)
 		reqTimeout = 10 * time.Second
 	}
 
+	// Update the transport for the HTTP client to include tracing information
+	httpClient := &http.Client{}
+	httpClient.Transport = otelhttp.NewTransport(httpClient.Transport)
+
 	p = oAuth2{
 		config:         opts.Config,
 		providerName:   providerName,
 		endpoints:      opts.Endpoints,
 		tokenIssuer:    opts.TokenIssuer,
 		scopes:         scopes,
-		httpClient:     &http.Client{},
+		httpClient:     httpClient,
 		requestTimeout: reqTimeout,
 	}
 	return p, nil

@@ -3,9 +3,9 @@ package config
 import (
 	"bytes"
 	"encoding/hex"
+	"log/slog"
 	"testing"
 
-	"github.com/rs/zerolog"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -23,10 +23,10 @@ func TestValidateConfig(t *testing.T) {
 		"hostname":     "localhost",
 	}))
 
-	log := zerolog.Nop()
+	log := slog.New(slog.DiscardHandler)
 
 	t.Run("succeeds with all required vars", func(t *testing.T) {
-		err := config.Validate(&log)
+		err := config.Validate(log)
 		require.NoError(t, err)
 	})
 
@@ -35,7 +35,7 @@ func TestValidateConfig(t *testing.T) {
 			"authProvider": "",
 		}))
 
-		err := config.Validate(&log)
+		err := config.Validate(log)
 		require.Error(t, err)
 		require.ErrorContains(t, err, "'authProvider' is required")
 	})
@@ -45,7 +45,7 @@ func TestValidateConfig(t *testing.T) {
 			"hostname": "",
 		}))
 
-		err := config.Validate(&log)
+		err := config.Validate(log)
 		require.Error(t, err)
 		require.ErrorContains(t, err, "'hostname' is required")
 	})
@@ -53,14 +53,16 @@ func TestValidateConfig(t *testing.T) {
 
 func TestSetTokenSigningKey(t *testing.T) {
 	logs := &bytes.Buffer{}
-	logger := zerolog.New(logs)
+	logger := slog.New(slog.NewTextHandler(logs, &slog.HandlerOptions{
+		Level: slog.LevelDebug,
+	}))
 
 	t.Run("tokenSigningKey present", func(t *testing.T) {
 		t.Cleanup(SetTestConfig(map[string]any{
 			"tokenSigningKey": "hello-world",
 		}))
 
-		err := config.SetTokenSigningKey(&logger)
+		err := config.SetTokenSigningKey(logger)
 		require.NoError(t, err)
 
 		tsk := config.GetTokenSigningKey()
@@ -75,7 +77,7 @@ func TestSetTokenSigningKey(t *testing.T) {
 			"tokenSigningKey": "",
 		}))
 
-		err := config.SetTokenSigningKey(&logger)
+		err := config.SetTokenSigningKey(logger)
 		require.NoError(t, err)
 		tsk1 := config.GetTokenSigningKey()
 		var tsk1Raw []byte
@@ -87,7 +89,7 @@ func TestSetTokenSigningKey(t *testing.T) {
 		require.Contains(t, logsMsg, "No 'tokenSigningKey' found in the configuration")
 
 		// Should be different every time
-		err = config.SetTokenSigningKey(&logger)
+		err = config.SetTokenSigningKey(logger)
 		require.NoError(t, err)
 
 		tsk2 := config.GetTokenSigningKey()

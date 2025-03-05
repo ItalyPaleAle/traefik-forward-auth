@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"log/slog"
 	"net"
 	"net/http"
 	"os"
@@ -14,11 +15,12 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
-	"github.com/rs/zerolog"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
 	"github.com/italypaleale/traefik-forward-auth/pkg/config"
+	tfametrics "github.com/italypaleale/traefik-forward-auth/pkg/metrics"
+	"github.com/italypaleale/traefik-forward-auth/pkg/utils"
 	"github.com/italypaleale/traefik-forward-auth/pkg/utils/bufconn"
 )
 
@@ -33,11 +35,11 @@ const (
 
 func TestMain(m *testing.M) {
 	_ = config.SetTestConfig(map[string]any{
-		"port":          testServerPort,
-		"bind":          "127.0.0.1",
-		"enableMetrics": false,
-		"metricsBind":   "127.0.0.1",
-		"metricsPort":   testMetricsPort,
+		"port":                 testServerPort,
+		"bind":                 "127.0.0.1",
+		"metricsServerEnabled": false,
+		"metricsServerBind":    "127.0.0.1",
+		"metricsServerPort":    testMetricsPort,
 	})
 
 	gin.SetMode(gin.ReleaseMode)
@@ -49,7 +51,7 @@ func TestServerLifecycle(t *testing.T) {
 	testFn := func(metricsEnabled bool) func(t *testing.T) {
 		return func(t *testing.T) {
 			t.Cleanup(config.SetTestConfig(map[string]any{
-				"enableMetrics": metricsEnabled,
+				"metricsServerEnabled": metricsEnabled,
 			}))
 
 			// Create the server
@@ -106,13 +108,26 @@ func newTestServer(t *testing.T) (srv *Server, logBuf *bytes.Buffer) {
 	logBuf = &bytes.Buffer{}
 	logDest := io.MultiWriter(os.Stdout, logBuf)
 
-	log := zerolog.New(zerolog.SyncWriter(logDest)).
-		With().
-		Str("app", "test").
-		Logger()
+	log := slog.
+		New(slog.NewTextHandler(logDest, &slog.HandlerOptions{
+			Level: slog.LevelDebug,
+		})).
+		With(slog.String("app", "test"))
 
-	srv, err := NewServer(NewServerOpts{
-		Log:           &log,
+	metrics, metricsShutdownFn, err := tfametrics.NewTFAMetrics(t.Context(), log)
+	if err != nil {
+		utils.FatalError(log, "Failed to init metrics", err)
+		return
+	}
+	if metricsShutdownFn != nil {
+		t.Cleanup(func() {
+			metricsShutdownFn(t.Context())
+		})
+	}
+
+	srv, err = NewServer(NewServerOpts{
+		Log:           log,
+		Metrics:       metrics,
 		addTestRoutes: nil,
 	})
 	require.NoError(t, err)

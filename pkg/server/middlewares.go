@@ -2,6 +2,7 @@ package server
 
 import (
 	"fmt"
+	"log/slog"
 	"net"
 	"net/http"
 	"net/netip"
@@ -11,9 +12,9 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
-	"github.com/rs/zerolog"
 
 	"github.com/italypaleale/traefik-forward-auth/pkg/config"
+	"github.com/italypaleale/traefik-forward-auth/pkg/utils"
 )
 
 var proxyHeaders = []string{
@@ -130,17 +131,34 @@ func (s *Server) MiddlewareRequestId(c *gin.Context) {
 	c.Header("x-request-id", v)
 }
 
+// MiddlewareCountMetrics is a Gin middleware that records requests served by the server
+func (s *Server) MiddlewareCountMetrics(c *gin.Context) {
+	if s.metrics == nil {
+		// Process the request and do nothing
+		c.Next()
+		return
+	}
+
+	// Route name is "<method> <path>", where "path" is the path defined in the router
+	route := c.Request.Method + " " + c.FullPath()
+	start := time.Now()
+
+	// Process the route
+	c.Next()
+
+	// Emit the metric
+	s.metrics.RecordServerRequest(route, c.Writer.Status(), time.Since(start))
+}
+
 // MiddlewareLogger is a Gin middleware that uses zerlog for logging
-func (s *Server) MiddlewareLogger(parentLog *zerolog.Logger) func(c *gin.Context) {
+func (s *Server) MiddlewareLogger(parentLog *slog.Logger) func(c *gin.Context) {
 	return func(c *gin.Context) {
 		method := c.Request.Method
 
 		// Ensure the logger in the context has a request ID, then store it in the context
 		reqId := c.GetString("request-id")
-		log := parentLog.With().
-			Str("reqId", reqId).
-			Logger()
-		c.Request = c.Request.WithContext(log.WithContext(c.Request.Context()))
+		log := parentLog.With(slog.String("id", reqId))
+		c.Request = c.Request.WithContext(utils.LogToContext(c.Request.Context(), log))
 
 		// Do not log OPTIONS requests
 		if method == http.MethodOptions {
@@ -174,24 +192,30 @@ func (s *Server) MiddlewareLogger(parentLog *zerolog.Logger) func(c *gin.Context
 		}
 
 		// Get the logger and the appropriate error level
-		var event *zerolog.Event
+		var level slog.Level
 		switch {
 		case statusCode >= 200 && statusCode <= 399:
-			event = log.Info() //nolint:zerologlint
+			level = slog.LevelInfo
 		case statusCode >= 400 && statusCode <= 499:
-			event = log.Warn() //nolint:zerologlint
+			level = slog.LevelWarn
 		default:
-			event = log.Error() //nolint:zerologlint
+			level = slog.LevelError
+		}
+
+		// Check if we have a message
+		msg := c.GetString("log-message")
+		if msg == "" {
+			msg = "HTTP Request"
 		}
 
 		// Check if we have an error
 		if lastErr := c.Errors.Last(); lastErr != nil {
 			// We'll pick the last error only
-			event = event.Err(lastErr.Err)
-		}
+			log = log.With(slog.Any("error", lastErr.Err))
 
-		// Check if we have a message
-		msg := c.GetString("log-message")
+			// Set the message as request failed
+			msg = "Failed request"
+		}
 
 		// Check if we want to mask something in the URL
 		mask, ok := c.Get("log-mask")
@@ -202,16 +226,16 @@ func (s *Server) MiddlewareLogger(parentLog *zerolog.Logger) func(c *gin.Context
 			}
 		}
 
-		// Set parameters
-		event.
-			Int("status", statusCode).
-			Str("method", method).
-			Str("path", path).
-			Str("clientIp", clientIP).
-			Dur("duration", duration).
-			Int("respSize", respSize).
-			Str("traefik", traefik).
-			Msg(msg)
+		// Emit the log
+		log.LogAttrs(c.Request.Context(), level, msg,
+			slog.Int("status", statusCode),
+			slog.String("method", method),
+			slog.String("path", path),
+			slog.String("client", clientIP),
+			slog.Float64("duration", float64(duration.Microseconds())/1000),
+			slog.Int("respSize", respSize),
+			slog.String("traefik", traefik),
+		)
 	}
 }
 
