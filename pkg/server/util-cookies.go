@@ -37,7 +37,7 @@ func (s *Server) getSessionCookie(c *gin.Context) (profile *user.Profile, err er
 		return nil, fmt.Errorf("failed to get session cookie: %w", err)
 	}
 	if cookieValue == "" {
-		return nil, fmt.Errorf("csession ookie %s is empty", cfg.CookieName)
+		return nil, fmt.Errorf("session cookie %s is empty", cfg.CookieName)
 	}
 
 	// Parse the JWT in the cookie
@@ -106,7 +106,7 @@ func (s *Server) setSessionCookie(c *gin.Context, profile *user.Profile) error {
 
 	// Set the cookie
 	c.SetSameSite(http.SameSiteLaxMode)
-	c.SetCookie(cfg.CookieName, string(cookieValue), int(expiration.Seconds()), "/", cfg.CookieDomain, !cfg.CookieInsecure, true)
+	c.SetCookie(cfg.CookieName, string(cookieValue), int(expiration.Seconds())-1, "/", cfg.CookieDomain, !cfg.CookieInsecure, true)
 
 	return nil
 }
@@ -222,7 +222,7 @@ func (s *Server) setStateCookie(c *gin.Context, returnURL string) (nonce string,
 
 	// Set the cookie
 	c.SetSameSite(http.SameSiteLaxMode)
-	c.SetCookie(stateCookieName, string(cookieValue), int(expiration.Seconds()), "/", cfg.CookieDomain, !cfg.CookieInsecure, true)
+	c.SetCookie(stateCookieName, string(cookieValue), int(expiration.Seconds())-1, "/", cfg.CookieDomain, !cfg.CookieInsecure, true)
 
 	// Return the nonce
 	return nonce, nil

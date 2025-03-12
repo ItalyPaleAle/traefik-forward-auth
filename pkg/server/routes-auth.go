@@ -193,7 +193,7 @@ func (s *Server) oAuth2RedirectToAuth(c *gin.Context, provider auth.OAuth2Provid
 	c.Header("Content-Type", "text/plain; charset=utf-8")
 	c.Writer.WriteHeader(http.StatusSeeOther)
 	_, _ = c.Writer.WriteString(`Redirecting to 
-	authentication server: <a href="` + authURL + `">` + authURL + `</a>`)
+	authentication server: ` + authURL)
 }
 
 func (s *Server) getProfileFromContext(c *gin.Context) *user.Profile {
