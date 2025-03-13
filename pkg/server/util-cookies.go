@@ -180,19 +180,24 @@ func (s *Server) getStateCookie(c *gin.Context) (nonce string, returnURL string,
 	return nonce, returnURL, nil
 }
 
-func (s *Server) setStateCookie(c *gin.Context, returnURL string) (nonce string, err error) {
+func (s *Server) generateNonce() (string, error) {
+	nonceBytes := make([]byte, nonceSize)
+	_, err := io.ReadFull(rand.Reader, nonceBytes)
+	if err != nil {
+		return "", fmt.Errorf("failed to get random data: %w", err)
+	}
+	return base64.RawURLEncoding.EncodeToString(nonceBytes), nil
+}
+
+func (s *Server) setStateCookie(c *gin.Context, nonce string, returnURL string) (err error) {
 	cfg := config.Get()
 	expiration := cfg.AuthenticationTimeout
 
-	// Generate a nonce
-	nonceBytes := make([]byte, nonceSize)
-	_, err = io.ReadFull(rand.Reader, nonceBytes)
-	if err != nil {
-		return "", fmt.Errorf("failed to generate nonce: %w", err)
-	}
-	nonce = base64.RawURLEncoding.EncodeToString(nonceBytes)
-
 	// Computes a signature that includes certain properties from the request that are sufficiently stable
+	nonceBytes, err := base64.RawURLEncoding.DecodeString(nonce)
+	if err != nil {
+		return fmt.Errorf("invalid nonce: %w", err)
+	}
 	sig := s.stateCookieSig(c, nonceBytes)
 
 	// Claims for the JWT
@@ -209,7 +214,7 @@ func (s *Server) setStateCookie(c *gin.Context, returnURL string) (nonce string,
 		Claim("return_url", returnURL).
 		Build()
 	if err != nil {
-		return "", fmt.Errorf("failed to build JWT: %w", err)
+		return fmt.Errorf("failed to build JWT: %w", err)
 	}
 
 	// Generate the JWT
@@ -217,7 +222,7 @@ func (s *Server) setStateCookie(c *gin.Context, returnURL string) (nonce string,
 		Sign(jwt.WithKey(jwa.HS256, cfg.GetTokenSigningKey())).
 		Serialize(token)
 	if err != nil {
-		return "", fmt.Errorf("failed to serialize token: %w", err)
+		return fmt.Errorf("failed to serialize token: %w", err)
 	}
 
 	// Set the cookie
@@ -225,7 +230,7 @@ func (s *Server) setStateCookie(c *gin.Context, returnURL string) (nonce string,
 	c.SetCookie(stateCookieName, string(cookieValue), int(expiration.Seconds())-1, "/", cfg.CookieDomain, !cfg.CookieInsecure, true)
 
 	// Return the nonce
-	return nonce, nil
+	return nil
 }
 
 func (s *Server) deleteStateCookie(c *gin.Context) {

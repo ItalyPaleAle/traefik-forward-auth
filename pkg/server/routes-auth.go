@@ -103,7 +103,7 @@ func (s *Server) RouteGetOAuth2Callback(provider auth.OAuth2Provider) func(c *gi
 		c.Header("Location", returnURL)
 		c.Header("Content-Type", "text/plain; charset=utf-8")
 		c.Writer.WriteHeader(http.StatusTemporaryRedirect)
-		_, _ = c.Writer.WriteString(`Redirecting to application: <a href="` + returnURL + `">` + returnURL + `</a>`)
+		_, _ = c.Writer.WriteString(`Redirecting to application: ` + returnURL)
 	}
 }
 
@@ -146,7 +146,7 @@ func (s *Server) RouteGetSeamlessAuthRoot(provider auth.SeamlessProvider) func(c
 			c.Header("Location", returnURL)
 			c.Header("Content-Type", "text/plain; charset=utf-8")
 			c.Writer.WriteHeader(http.StatusSeeOther)
-			_, _ = c.Writer.WriteString(`Redirecting to application: <a href="` + returnURL + `">` + returnURL + `</a>`)
+			_, _ = c.Writer.WriteString(`Redirecting to application: ` + returnURL)
 		}
 
 		// If we are here, we have a valid session, so respond with a 200 status code
@@ -172,10 +172,25 @@ func (s *Server) RouteGetLogout(c *gin.Context) {
 }
 
 func (s *Server) oAuth2RedirectToAuth(c *gin.Context, provider auth.OAuth2Provider) {
+	var err error
+
 	s.metrics.RecordAuthentication(false)
 
+	// Check if there's already a state cookie that's recent, so we can re-use the same nonce
+	// This avoids issues when there's more than one browser tab that's trying to authenticate, for example because of some background refresh
+	nonce, _, _ := s.getStateCookie(c)
+
+	if nonce == "" {
+		// If there's no nonce, generate a new one
+		nonce, err = s.generateNonce()
+		if err != nil {
+			AbortWithError(c, fmt.Errorf("failed to generate nonce: %w", err))
+			return
+		}
+	}
+
 	// Create a new state and set the cookie
-	nonce, err := s.setStateCookie(c, getReturnURL(c))
+	err = s.setStateCookie(c, nonce, getReturnURL(c))
 	if err != nil {
 		AbortWithError(c, fmt.Errorf("failed to set state cookie: %w", err))
 		return
