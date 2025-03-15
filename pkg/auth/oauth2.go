@@ -2,6 +2,9 @@ package auth
 
 import (
 	"context"
+	"crypto/hmac"
+	"crypto/sha256"
+	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -25,6 +28,7 @@ type oAuth2 struct {
 	tokenIssuer    string
 	scopes         string
 	requestTimeout time.Duration
+	pkceKey        []byte
 
 	httpClient *http.Client
 }
@@ -56,6 +60,9 @@ type NewOAuth2Options struct {
 	Scopes string
 	// Request timeout; defaults to 10s
 	RequestTimeout time.Duration
+	// Key for generating PKCE code verifiers
+	// Enables the use of PKCE if non-empty
+	PKCEKey []byte
 }
 
 // NewOAuth2 returns a new OAuth2 provider
@@ -94,6 +101,7 @@ func NewOAuth2(providerName string, opts NewOAuth2Options) (p oAuth2, err error)
 		scopes:         scopes,
 		httpClient:     httpClient,
 		requestTimeout: reqTimeout,
+		pkceKey:        opts.PKCEKey,
 	}
 	return p, nil
 }
@@ -106,27 +114,58 @@ func (a oAuth2) OAuth2AuthorizeURL(state string, redirectURL string) (string, er
 	if state == "" {
 		return "", errors.New("parameter state is required")
 	}
-	params := url.Values{}
-	params.Add("client_id", a.config.ClientID)
-	params.Add("redirect_uri", redirectURL)
-	params.Add("response_type", "code")
-	params.Add("scope", a.scopes)
-	params.Add("state", state)
+
+	params := url.Values{
+		"client_id":     []string{a.config.ClientID},
+		"redirect_uri":  []string{redirectURL},
+		"response_type": []string{"code"},
+		"scope":         []string{a.scopes},
+		"state":         []string{state},
+	}
+
+	// Add a code challenge if PKCE is enabled
+	if len(a.pkceKey) != 0 {
+		codeVerifier := a.getPKCECodeVerifier(state, redirectURL)
+
+		// Create the SHA-256 hash of the code verifier as code challenge
+		codeChallengeBytes := sha256.Sum256([]byte(codeVerifier))
+		codeChallenge := base64.RawURLEncoding.EncodeToString(codeChallengeBytes[:])
+
+		params.Add("code_challenge", codeChallenge)
+		params.Add("code_challenge_method", "S256")
+	}
 
 	return a.endpoints.Authorization + "?" + params.Encode(), nil
 }
 
-func (a oAuth2) OAuth2ExchangeCode(ctx context.Context, code string, redirectURL string) (OAuth2AccessToken, error) {
+func (a oAuth2) getPKCECodeVerifier(state string, redirectURL string) string {
+	// Because we don't have a place to store secrets conveniently, we won't use a random code verifier
+	// Instead, we're generating a HMAC message based on other random data, using the PKCE key
+	h := hmac.New(sha256.New, a.pkceKey)
+	h.Write([]byte("tfa-pkce"))
+	h.Write([]byte(a.config.ClientID))
+	h.Write([]byte(state))
+	h.Write([]byte(redirectURL))
+	return base64.RawURLEncoding.EncodeToString(h.Sum(nil))
+}
+
+func (a oAuth2) OAuth2ExchangeCode(ctx context.Context, state string, code string, redirectURL string) (OAuth2AccessToken, error) {
 	if code == "" {
 		return OAuth2AccessToken{}, errors.New("parameter code is required")
 	}
 
-	data := url.Values{}
-	data.Set("code", code)
-	data.Set("client_id", a.config.ClientID)
-	data.Set("client_secret", a.config.ClientSecret)
-	data.Set("redirect_uri", redirectURL)
-	data.Set("grant_type", "authorization_code")
+	data := url.Values{
+		"code":          []string{code},
+		"client_id":     []string{a.config.ClientID},
+		"client_secret": []string{a.config.ClientSecret},
+		"redirect_uri":  []string{redirectURL},
+		"grant_type":    []string{"authorization_code"},
+	}
+
+	// Add the code verifier if PKCE is enabled
+	if len(a.pkceKey) != 0 {
+		data.Add("code_verifier", a.getPKCECodeVerifier(state, redirectURL))
+	}
 
 	reqCtx, cancel := context.WithTimeout(ctx, a.requestTimeout)
 	defer cancel()

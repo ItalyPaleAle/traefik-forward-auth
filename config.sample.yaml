@@ -265,6 +265,13 @@ authProvider:
 ## Default: 10s
 #authOpenIDConnect_requestTimeout: 
 
+## authOpenIDConnect_enablePKCE (boolean)
+## Description:
+##   If true, enables the use of PKCE during the code exchange.
+##   Ignored if `authProvider` is not `openidconnect`
+## Default: false
+#authOpenIDConnect_enablePKCE: 
+
 ## authTailscaleWhois_allowedTailnet (string)
 ## Description:
 ##   If non-empty, requires the Tailnet of the user to match this value

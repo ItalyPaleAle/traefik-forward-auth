@@ -78,7 +78,7 @@ func (s *Server) RouteGetOAuth2Callback(provider auth.OAuth2Provider) func(c *gi
 		}
 
 		// Exchange the code for a token
-		at, err := provider.OAuth2ExchangeCode(c.Request.Context(), codeParam, getOAuth2RedirectURI(c))
+		at, err := provider.OAuth2ExchangeCode(c.Request.Context(), stateParam, codeParam, getOAuth2RedirectURI(c))
 		if err != nil {
 			AbortWithError(c, fmt.Errorf("failed to exchange code for access token: %w", err))
 			return

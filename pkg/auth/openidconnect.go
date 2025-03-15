@@ -40,6 +40,9 @@ type NewOpenIDConnectOptions struct {
 	AllowedEmails []string
 	// Request timeout; defaults to 10s
 	RequestTimeout time.Duration
+	// Key for generating PKCE code verifiers
+	// Enables the use of PKCE if non-empty
+	PKCEKey []byte
 }
 
 // NewOpenIDConnect returns a new OpenIDConnect provider
@@ -77,6 +80,7 @@ func NewOpenIDConnect(opts NewOpenIDConnectOptions) (p *OpenIDConnect, err error
 		Endpoints:      endpoints,
 		RequestTimeout: opts.RequestTimeout,
 		TokenIssuer:    opts.TokenIssuer,
+		PKCEKey:        opts.PKCEKey,
 	})
 	if err != nil {
 		return p, err

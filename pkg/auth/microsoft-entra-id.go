@@ -27,6 +27,9 @@ type NewMicrosoftEntraIDOptions struct {
 	AllowedEmails []string
 	// Request timeout; defaults to 10s
 	RequestTimeout time.Duration
+	// Key for generating PKCE code verifiers
+	// Enables the use of PKCE if non-empty
+	PKCEKey []byte
 }
 
 func (o NewMicrosoftEntraIDOptions) ToNewOpenIDConnectOptions() NewOpenIDConnectOptions {
@@ -37,6 +40,7 @@ func (o NewMicrosoftEntraIDOptions) ToNewOpenIDConnectOptions() NewOpenIDConnect
 		AllowedEmails:  o.AllowedEmails,
 		AllowedUsers:   o.AllowedUsers,
 		TokenIssuer:    "https://login.microsoftonline.com/" + o.TenantID + "/v2.0",
+		PKCEKey:        o.PKCEKey,
 	}
 }
 

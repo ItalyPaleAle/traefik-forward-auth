@@ -85,7 +85,7 @@ func (a *GitHub) OAuth2RetrieveProfile(ctx context.Context, at OAuth2AccessToken
 		return nil, fmt.Errorf("failed to create HTTP request: %w", err)
 	}
 	req.Header.Set("Authorization", "token "+at.AccessToken)
-	req.Header.Set("User-Agent", "photobox/1")
+	req.Header.Set("User-Agent", "tfa/1")
 
 	res, err := a.httpClient.Do(req)
 	if err != nil {

@@ -200,6 +200,10 @@ type Config struct {
 	// Ignored if `authProvider` is not `openidconnect`
 	// +default 10s
 	AuthOpenIDConnectRequestTimeout time.Duration `env:"AUTHOPENIDCONNECT_REQUESTTIMEOUT" yaml:"authOpenIDConnect_requestTimeout"`
+	// If true, enables the use of PKCE during the code exchange.
+	// Ignored if `authProvider` is not `openidconnect`
+	// +default false
+	AuthOpenIDConnectEnablePKCE bool `env:"AUTHOPENIDCONNECT_ENABLEPKCE" yaml:"authOpenIDConnect_enablePKCE"`
 
 	// If non-empty, requires the Tailnet of the user to match this value
 	// Ignored if `authProvider` is not `tailscalewhois`
@@ -277,6 +281,7 @@ type internal struct {
 	instanceID       string
 	configFileLoaded string // Path to the config file that was loaded
 	tokenSigningKey  jwk.Key
+	pkceKey          []byte
 }
 
 // String implements fmt.Stringer and prints out the config for debugging
@@ -411,8 +416,13 @@ func (c *Config) GetAuthProvider() (auth.Provider, error) {
 			ClientSecret:   c.AuthMicrosoftEntraIDClientSecret,
 			AllowedUsers:   c.AuthMicrosoftEntraIDAllowedUsers,
 			RequestTimeout: c.AuthMicrosoftEntraIDRequestTimeout,
+			PKCEKey:        c.internal.pkceKey,
 		})
 	case "openidconnect", "oidc":
+		var pkceKey []byte
+		if c.AuthOpenIDConnectEnablePKCE {
+			pkceKey = c.internal.pkceKey
+		}
 		return auth.NewOpenIDConnect(auth.NewOpenIDConnectOptions{
 			ClientID:       c.AuthOpenIDConnectClientID,
 			ClientSecret:   c.AuthOpenIDConnectClientSecret,
@@ -420,6 +430,7 @@ func (c *Config) GetAuthProvider() (auth.Provider, error) {
 			AllowedUsers:   c.AuthOpenIDConnectAllowedUsers,
 			AllowedEmails:  c.AuthOpenIDConnectAllowedEmails,
 			RequestTimeout: c.AuthOpenIDConnectRequestTimeout,
+			PKCEKey:        pkceKey,
 		})
 	case "tailscalewhois", "tailscale":
 		return auth.NewTailscaleWhois(auth.NewTailscaleWhoisOptions{
@@ -435,33 +446,44 @@ func (c *Config) GetAuthProvider() (auth.Provider, error) {
 // SetTokenSigningKey parses the token signing key.
 // If it's empty, will generate a new one.
 func (c *Config) SetTokenSigningKey(logger *slog.Logger) (err error) {
-	var rawKey []byte
+	var tokenSigningKeyRaw []byte
 	b := []byte(c.TokenSigningKey)
 	if len(b) == 0 {
 		if logger != nil {
 			logger.Debug("No 'tokenSigningKey' found in the configuration: a random one will be generated")
 		}
 
-		rawKey = make([]byte, 32)
-		_, err = io.ReadFull(rand.Reader, rawKey)
+		// Generate 64 random bytes
+		// First 32 are for the token signing key
+		// Last 32 are for the PKCE key
+		buf := make([]byte, 64)
+		_, err = io.ReadFull(rand.Reader, buf)
 		if err != nil {
 			return fmt.Errorf("failed to generate random bytes: %w", err)
 		}
+
+		tokenSigningKeyRaw = buf[:32]
+		c.internal.pkceKey = buf[32:]
 	} else {
 		// Compute a HMAC to ensure the key is 256-bit long
+		// We generate two keys: one for signing tokens, and one for PKCE
 		h := hmac.New(crypto.SHA256.New, b)
 		h.Write([]byte("tfa-token-signing-key"))
-		rawKey = h.Sum(nil)
+		tokenSigningKeyRaw = h.Sum(nil)
+
+		h = hmac.New(crypto.SHA256.New, b)
+		h.Write([]byte("tfa-pkce-key"))
+		c.internal.pkceKey = h.Sum(nil)
 	}
 
-	// Import the key as a jwk.Key
-	c.internal.tokenSigningKey, err = jwk.FromRaw(rawKey)
+	// Import the token signing key as a jwk.Key
+	c.internal.tokenSigningKey, err = jwk.FromRaw(tokenSigningKeyRaw)
 	if err != nil {
 		return fmt.Errorf("failed to import tokenSigningKey as jwk.Key: %w", err)
 	}
 
 	// Calculate the key ID
-	_ = c.internal.tokenSigningKey.Set("kid", computeKeyId(rawKey))
+	_ = c.internal.tokenSigningKey.Set(jwk.KeyIDKey, computeKeyId(tokenSigningKeyRaw))
 
 	return nil
 }

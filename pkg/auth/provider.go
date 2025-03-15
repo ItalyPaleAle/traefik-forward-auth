@@ -37,7 +37,7 @@ type OAuth2Provider interface {
 	// OAuth2AuthorizeURL returns the URL where to redirect users to for authorization.
 	OAuth2AuthorizeURL(state string, redirectURL string) (string, error)
 	// OAuth2ExchangeCode an authorization code for an access token
-	OAuth2ExchangeCode(ctx context.Context, code string, redirectURL string) (OAuth2AccessToken, error)
+	OAuth2ExchangeCode(ctx context.Context, state string, code string, redirectURL string) (OAuth2AccessToken, error)
 	// OAuth2RetrieveProfile retrieves the user's profile, using the id_token (if present) or requesting it from the user info endpoint.
 	OAuth2RetrieveProfile(ctx context.Context, at OAuth2AccessToken) (*user.Profile, error)
 }
