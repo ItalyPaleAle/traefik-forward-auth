@@ -9,21 +9,23 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/lestrrat-go/jwx/v2/jwa"
 	"github.com/lestrrat-go/jwx/v2/jwt"
+	"golang.org/x/text/unicode/norm"
 
 	"github.com/italypaleale/traefik-forward-auth/pkg/config"
 	"github.com/italypaleale/traefik-forward-auth/pkg/user"
 )
 
 const (
-	jwtIssuer           = "traefik-forward-auth"
-	stateCookieName     = "tf_state"
-	acceptableClockSkew = 30 * time.Second
-	nonceSize           = 12 // Nonce size in bytes
+	jwtIssuer             = "traefik-forward-auth"
+	stateCookieNamePrefix = "tf_state_"
+	acceptableClockSkew   = 30 * time.Second
+	nonceSize             = 12 // Nonce size in bytes
 )
 
 func (s *Server) getSessionCookie(c *gin.Context) (profile *user.Profile, err error) {
@@ -123,11 +125,11 @@ func (s *Server) deleteSessionCookie(c *gin.Context) {
 	c.SetCookie(cfg.CookieName, "", -1, "/", cfg.CookieDomain, !cfg.CookieInsecure, true)
 }
 
-func (s *Server) getStateCookie(c *gin.Context) (nonce string, returnURL string, err error) {
+func (s *Server) getStateCookie(c *gin.Context, stateCookieID string) (nonce string, returnURL string, err error) {
 	cfg := config.Get()
 
 	// Get the cookie
-	cookieValue, err := c.Cookie(stateCookieName)
+	cookieValue, err := c.Cookie(stateCookieNamePrefix + stateCookieID)
 	if errors.Is(err, http.ErrNoCookie) {
 		return "", "", nil
 	} else if err != nil {
@@ -167,7 +169,7 @@ func (s *Server) getStateCookie(c *gin.Context) (nonce string, returnURL string,
 	}
 
 	// Validate the signature inside the token
-	expectSig := s.stateCookieSig(c, nonceBytes)
+	expectSig := s.stateCookieSig(c, stateCookieID, nonceBytes)
 	sigAny, ok := token.Get("sig")
 	if !ok {
 		return "", "", errors.New("claim 'sig' not found in JWT")
@@ -189,7 +191,7 @@ func (s *Server) generateNonce() (string, error) {
 	return base64.RawURLEncoding.EncodeToString(nonceBytes), nil
 }
 
-func (s *Server) setStateCookie(c *gin.Context, nonce string, returnURL string) (err error) {
+func (s *Server) setStateCookie(c *gin.Context, nonce string, returnURL string, stateCookieID string) (err error) {
 	cfg := config.Get()
 	expiration := cfg.AuthenticationTimeout
 
@@ -198,7 +200,7 @@ func (s *Server) setStateCookie(c *gin.Context, nonce string, returnURL string) 
 	if err != nil {
 		return fmt.Errorf("invalid nonce: %w", err)
 	}
-	sig := s.stateCookieSig(c, nonceBytes)
+	sig := s.stateCookieSig(c, stateCookieID, nonceBytes)
 
 	// Claims for the JWT
 	now := time.Now()
@@ -227,30 +229,34 @@ func (s *Server) setStateCookie(c *gin.Context, nonce string, returnURL string) 
 
 	// Set the cookie
 	c.SetSameSite(http.SameSiteLaxMode)
-	c.SetCookie(stateCookieName, string(cookieValue), int(expiration.Seconds())-1, "/", cfg.CookieDomain, !cfg.CookieInsecure, true)
+	c.SetCookie(stateCookieNamePrefix+stateCookieID, string(cookieValue), int(expiration.Seconds())-1, "/", cfg.CookieDomain, !cfg.CookieInsecure, true)
 
 	// Return the nonce
 	return nil
 }
 
-func (s *Server) deleteStateCookie(c *gin.Context) {
+func (s *Server) deleteStateCookies(c *gin.Context) {
 	cfg := config.Get()
 
-	if _, err := c.Cookie(stateCookieName); err != nil {
-		// Cookie was not set in the request, nothing to unset
-		return
-	}
-
+	// Iterate through all cookies looking for state ones
 	c.SetSameSite(http.SameSiteLaxMode)
-	c.SetCookie(stateCookieName, "", -1, "/", cfg.CookieDomain, !cfg.CookieInsecure, true)
+	for _, cookie := range c.Request.Cookies() {
+		if cookie == nil || !strings.HasPrefix(cookie.Name, stateCookieNamePrefix) {
+			continue
+		}
+
+		// We found a state cookie; remove it
+		c.SetCookie(cookie.Name, "", -1, "/", cfg.CookieDomain, !cfg.CookieInsecure, true)
+	}
 }
 
-func (s *Server) stateCookieSig(c *gin.Context, nonce []byte) string {
+func (s *Server) stateCookieSig(c *gin.Context, stateCookieID string, nonce []byte) string {
 	h := hmac.New(sha256.New224, nonce)
 	h.Write([]byte("tfa-state-sig"))
-	h.Write([]byte(c.GetHeader("User-Agent")))
-	h.Write([]byte(c.GetHeader("Accept-Language")))
-	h.Write([]byte(c.GetHeader("DNT")))
+	h.Write([]byte(stateCookieID))
+	h.Write([]byte(strings.ToLower(norm.NFKD.String(c.GetHeader("User-Agent")))))
+	h.Write([]byte(strings.ToLower(norm.NFKD.String(c.GetHeader("Accept-Language")))))
+	h.Write([]byte(strings.ToLower(norm.NFKD.String(c.GetHeader("DNT")))))
 	h.Write([]byte(s.auth.GetProviderName()))
 	return base64.RawURLEncoding.EncodeToString(h.Sum(nil))
 }

@@ -1,9 +1,12 @@
 package server
 
 import (
+	"crypto/sha256"
+	"encoding/base64"
 	"fmt"
 	"net/http"
 	"net/url"
+	"strings"
 
 	"github.com/gin-gonic/gin"
 	"github.com/italypaleale/traefik-forward-auth/pkg/auth"
@@ -49,9 +52,14 @@ func (s *Server) RouteGetOAuth2Callback(provider auth.OAuth2Provider) func(c *gi
 			AbortWithError(c, NewResponseError(http.StatusBadRequest, "The parameters 'state' and 'code' are required in the query string"))
 			return
 		}
+		stateCookieID, expectedNonce, ok := strings.Cut(stateParam, "~")
+		if !ok {
+			AbortWithError(c, NewResponseError(http.StatusUnauthorized, "Query string parameter 'state' is invalid"))
+			return
+		}
 
 		// Get the state cookie
-		nonce, returnURL, err := s.getStateCookie(c)
+		nonce, returnURL, err := s.getStateCookie(c, stateCookieID)
 		if err != nil {
 			AbortWithError(c, fmt.Errorf("invalid state cookie: %w", err))
 			return
@@ -61,10 +69,10 @@ func (s *Server) RouteGetOAuth2Callback(provider auth.OAuth2Provider) func(c *gi
 		}
 
 		// Clear the state cookie
-		s.deleteStateCookie(c)
+		s.deleteStateCookies(c)
 
 		// Check if the nonce matches
-		if nonce != stateParam {
+		if nonce != expectedNonce {
 			AbortWithError(c, NewResponseError(http.StatusUnauthorized, "Parameters in state cookie do not match state token"))
 			return
 		}
@@ -164,7 +172,7 @@ func (s *Server) RouteGetSeamlessAuthRoot(provider auth.SeamlessProvider) func(c
 func (s *Server) RouteGetLogout(c *gin.Context) {
 	// Delete the state and session cookies
 	s.deleteSessionCookie(c)
-	s.deleteStateCookie(c)
+	s.deleteStateCookies(c)
 
 	// Respond with a success message
 	c.Header("Content-Type", "text/plain; charset=utf-8")
@@ -176,9 +184,16 @@ func (s *Server) oAuth2RedirectToAuth(c *gin.Context, provider auth.OAuth2Provid
 
 	s.metrics.RecordAuthentication(false)
 
-	// Check if there's already a state cookie that's recent, so we can re-use the same nonce
+	// Get the return URL
+	returnURL := getReturnURL(c)
+
+	// Each state cookie is unique per return URL
+	// This is
 	// This avoids issues when there's more than one browser tab that's trying to authenticate, for example because of some background refresh
-	nonce, _, _ := s.getStateCookie(c)
+	stateCookieID := getStateCookieID(returnURL)
+
+	// Check if there's already a state cookie that's recent, so we can re-use the same nonce
+	nonce, _, _ := s.getStateCookie(c, stateCookieID)
 
 	if nonce == "" {
 		// If there's no nonce, generate a new one
@@ -190,14 +205,14 @@ func (s *Server) oAuth2RedirectToAuth(c *gin.Context, provider auth.OAuth2Provid
 	}
 
 	// Create a new state and set the cookie
-	err = s.setStateCookie(c, nonce, getReturnURL(c))
+	err = s.setStateCookie(c, nonce, returnURL, stateCookieID)
 	if err != nil {
 		AbortWithError(c, fmt.Errorf("failed to set state cookie: %w", err))
 		return
 	}
 
 	// Redirect to the authorization URL
-	authURL, err := provider.OAuth2AuthorizeURL(nonce, getOAuth2RedirectURI(c))
+	authURL, err := provider.OAuth2AuthorizeURL(stateCookieID+"~"+nonce, getOAuth2RedirectURI(c))
 	if err != nil {
 		AbortWithError(c, fmt.Errorf("failed to get authorize URL: %w", err))
 		return
@@ -238,6 +253,16 @@ func getReturnURL(c *gin.Context) string {
 		reqURL, _ = url.Parse(val)
 	}
 	return c.Request.Header.Get("X-Forwarded-Proto") + "://" + c.Request.Header.Get("X-Forwarded-Host") + reqURL.Path
+}
+
+// Computes the state cookie ID for the given return URL
+func getStateCookieID(returnURL string) string {
+	h := sha256.New()
+	h.Write([]byte("tf_return_url:"))
+	h.Write([]byte(returnURL))
+	digest := h.Sum(nil)
+
+	return base64.RawURLEncoding.EncodeToString(digest[:8])
 }
 
 // Get the redirect URI, which is sent to the OAuth2 authentication server and indicates where to return users after a successful auth with the IdP
