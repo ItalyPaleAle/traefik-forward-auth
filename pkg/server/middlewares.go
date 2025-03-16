@@ -21,8 +21,11 @@ var proxyHeaders = []string{
 	"X-Forwarded-Server",
 	"X-Forwarded-For",
 	"X-Forwarded-Port",
+	"X-Forwarded-Proto",
 	"X-Forwarded-Host",
 }
+
+var hostHeaderRe regexp.Regexp = *regexp.MustCompile(`^(?:[\w-]+|(?:[\w\-]+\.)+\w+|\[[0-9\:]+\])(?::\d+)?$`)
 
 // MiddlewareRequireClientCertificate is a middleware that requires a valid client certificate to be present.
 // This is meant to be used to enforce mTLS on specific routes, when the server's TLS is configured with VerifyClientCertIfGiven.
@@ -63,6 +66,21 @@ func (s *Server) MiddlewareProxyHeaders(c *gin.Context) {
 	_, err := netip.ParseAddrPort(net.JoinHostPort(clientIP, xForwardedPort))
 	if err != nil {
 		AbortWithError(c, NewResponseErrorf(http.StatusBadRequest, "Invalid remote address and port: %v", err))
+		return
+	}
+
+	// Validate X-Forwarded-Proto
+	switch c.Request.Header.Get("X-Forwarded-Proto") {
+	case "http", "https":
+		// All good
+	default:
+		AbortWithError(c, NewResponseError(http.StatusBadRequest, "Invalid value for the 'X-Forwarded-Proto' header: must be 'http' or 'https'"))
+		return
+	}
+
+	// Validate X-Forwarded-Host
+	if !hostHeaderRe.MatchString(c.Request.Header.Get("X-Forwarded-Host")) {
+		AbortWithError(c, NewResponseError(http.StatusBadRequest, "Invalid value for the 'X-Forwarded-Host' header"))
 		return
 	}
 }
