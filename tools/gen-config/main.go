@@ -17,7 +17,7 @@ import (
 )
 
 const (
-	docsFileDest = "README.md"
+	docsFileDest = "docs/03-all-configuration-options.md"
 	envPrefix    = "TFA_"
 )
 
