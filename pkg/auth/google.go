@@ -44,14 +44,14 @@ func (o NewGoogleOptions) ToNewOpenIDConnectOptions() NewOpenIDConnectOptions {
 }
 
 // NewGoogle returns a new Google provider
-func NewGoogle(opts NewGoogleOptions) (p *Google, err error) {
+func NewGoogle(opts NewGoogleOptions) (*Google, error) {
 	oidc, err := newOpenIDConnectInternal("google", opts.ToNewOpenIDConnectOptions(), OAuth2Endpoints{
 		Authorization: "https://accounts.google.com/o/oauth2/v2/auth",
 		Token:         "https://oauth2.googleapis.com/token",
 		UserInfo:      "https://www.googleapis.com/oauth2/v1/userinfo",
 	})
 	if err != nil {
-		return p, err
+		return nil, err
 	}
 
 	return &Google{

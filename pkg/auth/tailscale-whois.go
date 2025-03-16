@@ -42,7 +42,7 @@ type NewTailscaleWhoisOptions struct {
 }
 
 // NewTailscaleWhois returns a new TailscaleWhois provider
-func NewTailscaleWhois(opts NewTailscaleWhoisOptions) (p *TailscaleWhois, err error) {
+func NewTailscaleWhois(opts NewTailscaleWhoisOptions) (*TailscaleWhois, error) {
 	reqTimeout := opts.RequestTimeout
 	if reqTimeout < time.Second {
 		reqTimeout = 10 * time.Second
@@ -52,13 +52,13 @@ func NewTailscaleWhois(opts NewTailscaleWhoisOptions) (p *TailscaleWhois, err er
 	httpClient := &http.Client{}
 	httpClient.Transport = otelhttp.NewTransport(httpClient.Transport)
 
-	p = &TailscaleWhois{
+	a := &TailscaleWhois{
 		httpClient:     httpClient,
 		requestTimeout: reqTimeout,
 		allowedTailnet: opts.AllowedTailnet,
 		allowedUsers:   opts.AllowedUsers,
 	}
-	return p, nil
+	return a, nil
 }
 
 func (a *TailscaleWhois) GetProviderName() string {

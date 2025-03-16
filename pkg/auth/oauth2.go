@@ -30,6 +30,8 @@ type oAuth2 struct {
 	requestTimeout time.Duration
 	pkceKey        []byte
 
+	tokenExchangeParametersModifier tokenExchangeParametersModifierFn
+
 	httpClient *http.Client
 }
 
@@ -49,6 +51,8 @@ type OAuth2Endpoints struct {
 	UserInfo string `json:"userinfo_endpoint"`
 }
 
+type tokenExchangeParametersModifierFn func(context.Context, url.Values) error
+
 // NewOAuth2Options is the options for NewOAuth2
 type NewOAuth2Options struct {
 	Config    OAuth2Config
@@ -63,6 +67,11 @@ type NewOAuth2Options struct {
 	// Key for generating PKCE code verifiers
 	// Enables the use of PKCE if non-empty
 	PKCEKey []byte
+
+	// Some providers validate client secrets separately
+	skipClientSecretValidation bool
+	// Allows providers to modify the parameters passed to the IdP while invoking the token endpoint
+	tokenExchangeParametersModifier tokenExchangeParametersModifierFn
 }
 
 // NewOAuth2 returns a new OAuth2 provider
@@ -70,7 +79,7 @@ func NewOAuth2(providerName string, opts NewOAuth2Options) (p oAuth2, err error)
 	if opts.Config.ClientID == "" {
 		return p, errors.New("value for clientId is required in config for auth provider")
 	}
-	if opts.Config.ClientSecret == "" {
+	if opts.Config.ClientSecret == "" && !opts.skipClientSecretValidation {
 		return p, errors.New("value for clientSecret is required in config for auth provider")
 	}
 	if providerName == "" {
@@ -102,6 +111,8 @@ func NewOAuth2(providerName string, opts NewOAuth2Options) (p oAuth2, err error)
 		httpClient:     httpClient,
 		requestTimeout: reqTimeout,
 		pkceKey:        opts.PKCEKey,
+
+		tokenExchangeParametersModifier: opts.tokenExchangeParametersModifier,
 	}
 	return p, nil
 }
@@ -165,6 +176,13 @@ func (a oAuth2) OAuth2ExchangeCode(ctx context.Context, state string, code strin
 	// Add the code verifier if PKCE is enabled
 	if len(a.pkceKey) != 0 {
 		data.Add("code_verifier", a.getPKCECodeVerifier(state, redirectURL))
+	}
+
+	if a.tokenExchangeParametersModifier != nil {
+		err := a.tokenExchangeParametersModifier(ctx, data)
+		if err != nil {
+			return OAuth2AccessToken{}, err
+		}
 	}
 
 	reqCtx, cancel := context.WithTimeout(ctx, a.requestTimeout)

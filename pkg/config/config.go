@@ -165,6 +165,14 @@ type Config struct {
 	// Client secret for the Microsoft Entra ID auth application
 	// Ignored if `authProvider` is not `microsoftentraid`
 	AuthMicrosoftEntraIDClientSecret string `env:"AUTHMICROSOFTENTRAID_CLIENTSECRET" yaml:"authMicrosoftEntraID_clientSecret"`
+	// Enables the usage of Federated Identity Credentials to obtain assertions for confidential clients for Microsoft Entra ID applications.
+	// This is an alternative to using client secrets, when the application is running in Azure in an environment that supports Managed Identity, or in an environment that supports Workload Identity Federation with Microsoft Entra ID.
+	// Currently, these values are supported:
+	//
+	// - `ManagedIdentity`: uses a system-assigned managed identity
+	// - `ManagedIdentity=client-id`: uses a user-assigned managed identity with client id "client-id" (e.g. "ManagedIdentity=00000000-0000-0000-0000-000000000000")
+	// - `WorkloadIdentity`: uses workload identity, e.g. for Kubernetes
+	AuthMicrosoftEntraIDAzureFederatedIdentity string `env:"AUTHMICROSOFTENTRAID_AZUREFEDERATEDIDENTITY" yaml:"authMicrosoftEntraID_azureFederatedIdentity"`
 	// List of allowed users for Microsoft Entra ID auth
 	// This is a list of user IDs
 	// Ignored if `authProvider` is not `microsoftentraid`
@@ -411,12 +419,13 @@ func (c *Config) GetAuthProvider() (auth.Provider, error) {
 		})
 	case "microsoftentraid", "azuread", "aad", "entraid":
 		return auth.NewMicrosoftEntraID(auth.NewMicrosoftEntraIDOptions{
-			TenantID:       c.AuthMicrosoftEntraIDTenantID,
-			ClientID:       c.AuthMicrosoftEntraIDClientID,
-			ClientSecret:   c.AuthMicrosoftEntraIDClientSecret,
-			AllowedUsers:   c.AuthMicrosoftEntraIDAllowedUsers,
-			RequestTimeout: c.AuthMicrosoftEntraIDRequestTimeout,
-			PKCEKey:        c.internal.pkceKey,
+			TenantID:               c.AuthMicrosoftEntraIDTenantID,
+			ClientID:               c.AuthMicrosoftEntraIDClientID,
+			ClientSecret:           c.AuthMicrosoftEntraIDClientSecret,
+			AzureFederatedIdentity: c.AuthMicrosoftEntraIDAzureFederatedIdentity,
+			AllowedUsers:           c.AuthMicrosoftEntraIDAllowedUsers,
+			RequestTimeout:         c.AuthMicrosoftEntraIDRequestTimeout,
+			PKCEKey:                c.internal.pkceKey,
 		})
 	case "openidconnect", "oidc":
 		var pkceKey []byte

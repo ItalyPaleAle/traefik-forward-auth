@@ -41,12 +41,12 @@ type NewGitHubOptions struct {
 }
 
 // NewGitHub returns a new GitHub provider
-func NewGitHub(opts NewGitHubOptions) (p *GitHub, err error) {
+func NewGitHub(opts NewGitHubOptions) (*GitHub, error) {
 	if opts.ClientID == "" {
-		return p, errors.New("value for clientId is required in config for auth with provider 'github'")
+		return nil, errors.New("value for clientId is required in config for auth with provider 'github'")
 	}
 	if opts.ClientSecret == "" {
-		return p, errors.New("value for clientSecret is required in config for auth with provider 'github'")
+		return nil, errors.New("value for clientSecret is required in config for auth with provider 'github'")
 	}
 
 	oauth2, err := NewOAuth2("github", NewOAuth2Options{
@@ -63,7 +63,7 @@ func NewGitHub(opts NewGitHubOptions) (p *GitHub, err error) {
 		RequestTimeout: opts.RequestTimeout,
 	})
 	if err != nil {
-		return p, err
+		return nil, err
 	}
 
 	return &GitHub{

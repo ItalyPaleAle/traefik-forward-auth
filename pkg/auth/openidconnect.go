@@ -43,23 +43,28 @@ type NewOpenIDConnectOptions struct {
 	// Key for generating PKCE code verifiers
 	// Enables the use of PKCE if non-empty
 	PKCEKey []byte
+
+	// Some providers validate client secrets separately
+	skipClientSecretValidation bool
+	// Allows providers to modify the parameters passed to the IdP while invoking the token endpoint
+	tokenExchangeParametersModifier tokenExchangeParametersModifierFn
 }
 
 // NewOpenIDConnect returns a new OpenIDConnect provider
 // The endpoints are resolved by retrieving the openid-configuration document from the URL of the token issuer.
-func NewOpenIDConnect(opts NewOpenIDConnectOptions) (p *OpenIDConnect, err error) {
+func NewOpenIDConnect(opts NewOpenIDConnectOptions) (*OpenIDConnect, error) {
 	if opts.ClientID == "" {
-		return p, errors.New("value for clientId is required in config for auth with provider 'openidconnect'")
+		return nil, errors.New("value for clientId is required in config for auth with provider 'openidconnect'")
 	}
 	if opts.ClientSecret == "" {
-		return p, errors.New("value for clientSecret is required in config for auth with provider 'openidconnect'")
+		return nil, errors.New("value for clientSecret is required in config for auth with provider 'openidconnect'")
 	}
 	if opts.TokenIssuer == "" {
-		return p, errors.New("value for tokenIssuer is required in config for auth with provider 'openidconnect'")
+		return nil, errors.New("value for tokenIssuer is required in config for auth with provider 'openidconnect'")
 	}
-	_, err = url.Parse(opts.TokenIssuer)
+	_, err := url.Parse(opts.TokenIssuer)
 	if err != nil {
-		return p, fmt.Errorf("value for tokenIssuer is invalid in config for auth with provider 'openidconnect': failed to parse URL: %w", err)
+		return nil, fmt.Errorf("value for tokenIssuer is invalid in config for auth with provider 'openidconnect': failed to parse URL: %w", err)
 	}
 	if opts.RequestTimeout < time.Second {
 		opts.RequestTimeout = 10 * time.Second
@@ -68,7 +73,7 @@ func NewOpenIDConnect(opts NewOpenIDConnectOptions) (p *OpenIDConnect, err error
 	// Fetch the openid-configuration document
 	endpoints, err := fetchOIDCEndpoints(context.TODO(), opts.TokenIssuer, http.DefaultClient, opts.RequestTimeout)
 	if err != nil {
-		return p, err
+		return nil, err
 	}
 
 	// Create the provider.
@@ -77,13 +82,17 @@ func NewOpenIDConnect(opts NewOpenIDConnectOptions) (p *OpenIDConnect, err error
 			ClientID:     opts.ClientID,
 			ClientSecret: opts.ClientSecret,
 		},
+
 		Endpoints:      endpoints,
 		RequestTimeout: opts.RequestTimeout,
 		TokenIssuer:    opts.TokenIssuer,
 		PKCEKey:        opts.PKCEKey,
+
+		skipClientSecretValidation:      opts.skipClientSecretValidation,
+		tokenExchangeParametersModifier: opts.tokenExchangeParametersModifier,
 	})
 	if err != nil {
-		return p, err
+		return nil, err
 	}
 
 	return &OpenIDConnect{
@@ -95,12 +104,12 @@ func NewOpenIDConnect(opts NewOpenIDConnectOptions) (p *OpenIDConnect, err error
 
 // newOpenIDConnectInternal returns a new OpenIDConnect provider.
 // It is meant to be used by structs that embed OpenIDConnect.
-func newOpenIDConnectInternal(providerName string, opts NewOpenIDConnectOptions, endpoints OAuth2Endpoints) (p *OpenIDConnect, err error) {
+func newOpenIDConnectInternal(providerName string, opts NewOpenIDConnectOptions, endpoints OAuth2Endpoints) (*OpenIDConnect, error) {
 	if opts.ClientID == "" {
-		return p, fmt.Errorf("value for clientId is required in config for auth with provider '%s'", providerName)
+		return nil, fmt.Errorf("value for clientId is required in config for auth with provider '%s'", providerName)
 	}
-	if opts.ClientSecret == "" {
-		return p, fmt.Errorf("value for clientSecret is required in config for auth with provider '%s'", providerName)
+	if opts.ClientSecret == "" && !opts.skipClientSecretValidation {
+		return nil, fmt.Errorf("value for clientSecret is required in config for auth with provider '%s'", providerName)
 	}
 
 	oauth2, err := NewOAuth2(providerName, NewOAuth2Options{
@@ -111,9 +120,12 @@ func newOpenIDConnectInternal(providerName string, opts NewOpenIDConnectOptions,
 		Endpoints:      endpoints,
 		RequestTimeout: opts.RequestTimeout,
 		TokenIssuer:    opts.TokenIssuer,
+
+		skipClientSecretValidation:      opts.skipClientSecretValidation,
+		tokenExchangeParametersModifier: opts.tokenExchangeParametersModifier,
 	})
 	if err != nil {
-		return p, err
+		return nil, err
 	}
 
 	return &OpenIDConnect{
@@ -125,7 +137,7 @@ func newOpenIDConnectInternal(providerName string, opts NewOpenIDConnectOptions,
 
 func (a *OpenIDConnect) OAuth2RetrieveProfile(ctx context.Context, at OAuth2AccessToken) (profile *user.Profile, err error) {
 	if at.AccessToken == "" {
-		return nil, errors.New("Missing parameter at")
+		return nil, errors.New("missing parameter at")
 	}
 
 	// Check if we have an ID token to get the profile from
