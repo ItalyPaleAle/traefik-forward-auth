@@ -204,6 +204,17 @@ authProvider:
 ##   Ignored if `authProvider` is not `microsoftentraid`
 #authMicrosoftEntraID_clientSecret: 
 
+## authMicrosoftEntraID_azureFederatedIdentity (string)
+## Description:
+##   Enables the usage of Federated Identity Credentials to obtain assertions for confidential clients for Microsoft Entra ID applications.
+##   This is an alternative to using client secrets, when the application is running in Azure in an environment that supports Managed Identity, or in an environment that supports Workload Identity Federation with Microsoft Entra ID.
+##   Currently, these values are supported:
+##
+##   - `ManagedIdentity`: uses a system-assigned managed identity
+##   - `ManagedIdentity=client-id`: uses a user-assigned managed identity with client id "client-id" (e.g. "ManagedIdentity=00000000-0000-0000-0000-000000000000")
+##   - `WorkloadIdentity`: uses workload identity, e.g. for Kubernetes
+#authMicrosoftEntraID_azureFederatedIdentity: 
+
 ## authMicrosoftEntraID_allowedUsers (list of strings)
 ## Description:
 ##   List of allowed users for Microsoft Entra ID auth

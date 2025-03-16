@@ -52,6 +52,42 @@ You can restrict the users that can authenticate with your service using one (or
 - [`authMicrosoftEntraID_allowedEmails`](./03-all-configuration-options.md#config-opt-authmicrosoftentraid_allowedemails) (env: `TFA_AUTHMICROSOFTENTRAID_ALLOWEDEMAILS`): List of allowed users, matching their email address (e.g. `example@gmail.com`)
 - [`authMicrosoftEntraID_allowedUsers`](./03-all-configuration-options.md#config-opt-authmicrosoftentraid_allowedusers) (env: `TFA_AUTHMICROSOFTENTRAID_ALLOWEDUSERS`): List of allowed users, matching the internal user ID.
 
+### Using Federated Identity Credentials
+
+Using Federated Identity Credentials is an alternative to configuring your Microsoft Entra ID application with a client secret. This offers better security because there are no pre-shared secrets to manage, and easier maintenance since client secrets need to be rotated periodically.
+
+Using Federated Identity Credentials is the **recommended** approach when:
+
+- The application is running on Azure on a platform that supports [Managed Identity](https://learn.microsoft.com/en-us/entra/identity/managed-identities-azure-resources/overview). Both system-assigned and user-assigned identities are supported.
+- The application is running on platforms that support [Workload Identity Federation](https://learn.microsoft.com/en-us/entra/workload-id/workload-identity-federation), for example on Kubernetes (on any cloud or on-premises) or other clouds.
+
+> Check the documentation for your platform on configuring the managed identity or the workload identity for your application.
+
+To use Federated Identity Credentials, you need configure the application for federated credentials. The steps below show an example for using managed identity; for using workload identity federation, consult the documentation for your platform.
+
+For managed identity, you will need the **object ID** (i.e. "principal ID") of your identity. This can usually be found on the Azure Portal in the "Identity" section of your resource.
+
+```sh
+# Set this to the ID of your Entra ID application
+APP_ID="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
+
+# Set this to the UUID of your managed identity
+IDENTITY_OBJECT_ID="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
+
+# Set the TENANT_ID environmental variable
+TENANT_ID=$(az account show | jq -r '.tenantId')
+
+az ad app federated-credential create \
+  --id "$APP_ID" \
+  --parameters "{\"name\": \"mi-${IDENTITY_OBJECT_ID}\",\"issuer\": \"https://login.microsoftonline.com/${TENANT_ID}/v2.0\",\"subject\": \"${IDENTITY_OBJECT_ID}\",\"description\": \"Federated Identity for Managed Identity ${IDENTITY_OBJECT_ID}\",\"audiences\": [\"api://AzureADTokenExchange\"]}"
+```
+
+Finally, configure Traefik Forward Auth by setting a value for [`authMicrosoftEntraID_azureFederatedIdentity`](./03-all-configuration-options.md#config-opt-authmicrosoftentraid_azureFederatedIdentity) (env: `TFA_AUTHMICROSOFTENTRAID_AZUREFEDERATEDIDENTITY`)
+
+- `"ManagedIdentity"` for using a system-assigned managed identity
+- `"ManagedIdentity=xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"` for using a user-assigned managed identity (replace the placeholder value with the **client ID** of your managed identity)
+- `"WorkloadIdentity"` for using workload identity
+
 ## Other OpenID Connect providers
 
 Traefik Forward Auth support generic OpenID Connect providers. This includes Auth0, Okta, etc.
