@@ -34,17 +34,27 @@ func Get() *Config {
 // GetDefaultConfig returns the default configuration.
 func GetDefaultConfig() *Config {
 	return &Config{
-		CookieName:            "tf_sess",
-		CookieInsecure:        false,
-		SessionLifetime:       2 * time.Hour,
-		LogLevel:              "info",
-		Port:                  4181,
-		Bind:                  "0.0.0.0",
-		MetricsServerEnabled:  false,
-		MetricsServerPort:     2112,
-		MetricsServerBind:     "0.0.0.0",
+		Cookies: ConfigCookies{
+			NamePrefix: "tf_sess",
+			Insecure:   false,
+		},
+		Server: ConfigServer{
+			Port: 4181,
+			Bind: "0.0.0.0",
+		},
+		Tokens: ConfigTokens{
+			SessionLifetime: 2 * time.Hour,
+		},
+		Logs: ConfigLogs{
+			Level:            "info",
+			OmitHealthChecks: true,
+		},
+		Metrics: ConfigMetrics{
+			ServerEnabled: false,
+			ServerPort:    2112,
+			ServerBind:    "0.0.0.0",
+		},
 		AuthenticationTimeout: 5 * time.Minute,
-		OmitHealthCheckLogs:   true,
 	}
 }
 

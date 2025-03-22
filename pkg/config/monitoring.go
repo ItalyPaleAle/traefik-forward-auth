@@ -17,7 +17,7 @@ import (
 	metricSdk "go.opentelemetry.io/otel/sdk/metric"
 	"go.opentelemetry.io/otel/sdk/resource"
 	traceSdk "go.opentelemetry.io/otel/sdk/trace"
-	semconv "go.opentelemetry.io/otel/semconv/v1.26.0"
+	semconv "go.opentelemetry.io/otel/semconv/v1.27.0"
 
 	"github.com/italypaleale/traefik-forward-auth/pkg/buildinfo"
 )
@@ -34,22 +34,22 @@ func (c *Config) GetOtelResource(name string) *resource.Resource {
 
 // GetLogsExporter returns the OpenTelemetry log Exporter if configured
 // Note that since the logger isn't configured when this method is invoked, we don't log anything, but return a function that can emit the log
-func (c *Config) GetLogsExporter(ctx context.Context) (exp logSdk.Exporter, logFn func(log *slog.Logger), err error) {
+func (c *ConfigLogs) GetLogsExporter(ctx context.Context) (exp logSdk.Exporter, logFn func(log *slog.Logger), err error) {
 	switch {
-	case strings.HasPrefix(c.LogsOtelCollectorEndpoint, "http://") || strings.HasPrefix(c.LogsOtelCollectorEndpoint, "https://"):
+	case strings.HasPrefix(c.OtelCollectorEndpoint, "http://") || strings.HasPrefix(c.OtelCollectorEndpoint, "https://"):
 		// Configure OTel exporter using HTTP and the endpoint from the configuration
-		logFn = logsExporterLogFnWrapper("Exporting logs to OpenTelemetry collector using HTTP", slog.String("endpoint", c.LogsOtelCollectorEndpoint))
-		exp, err = logExporterOltpHttp.New(ctx, logExporterOltpHttp.WithEndpointURL(c.LogsOtelCollectorEndpoint))
+		logFn = logsExporterLogFnWrapper("Exporting logs to OpenTelemetry collector using HTTP", slog.String("endpoint", c.OtelCollectorEndpoint))
+		exp, err = logExporterOltpHttp.New(ctx, logExporterOltpHttp.WithEndpointURL(c.OtelCollectorEndpoint))
 		if err != nil {
 			return nil, nil, fmt.Errorf("failed to create OpenTelemetry HTTP log exporter: %w", err)
 		}
 		return exp, logFn, nil
 
-	case strings.HasPrefix(c.LogsOtelCollectorEndpoint, "grpc://") || strings.HasPrefix(c.LogsOtelCollectorEndpoint, "grpcs://"):
+	case strings.HasPrefix(c.OtelCollectorEndpoint, "grpc://") || strings.HasPrefix(c.OtelCollectorEndpoint, "grpcs://"):
 		// Configure OTel exporter using gRPC and the endpoint from the configuration
-		logFn = logsExporterLogFnWrapper("Exporting logs to OpenTelemetry collector using gRPC", slog.String("endpoint", c.LogsOtelCollectorEndpoint))
+		logFn = logsExporterLogFnWrapper("Exporting logs to OpenTelemetry collector using gRPC", slog.String("endpoint", c.OtelCollectorEndpoint))
 		// Replace "grpc(s)" with "http(s)"
-		endpoint := "http" + c.LogsOtelCollectorEndpoint[4:]
+		endpoint := "http" + c.OtelCollectorEndpoint[4:]
 		exp, err = logExporterOltpGrpc.New(ctx, logExporterOltpGrpc.WithEndpointURL(endpoint))
 		if err != nil {
 			return nil, nil, fmt.Errorf("failed to create OpenTelemetry gRPC log exporter: %w", err)
@@ -59,7 +59,7 @@ func (c *Config) GetLogsExporter(ctx context.Context) (exp logSdk.Exporter, logF
 	case os.Getenv("OTEL_EXPORTER_OTLP_LOGS_ENDPOINT") != "":
 		// Configure OTel exporter using the standard environmental variable OTEL_EXPORTER_OTLP_LOGS_ENDPOINT
 		// Optionally, OTEL_EXPORTER_OTLP_PROTOCOL can be used to switch to gRPC
-		return c.getOtelLogExporterFromEnv(ctx, os.Getenv("OTEL_EXPORTER_OTLP_LOGS_ENDPOINT"), os.Getenv("OTEL_EXPORTER_OTLP_PROTOCOL"))
+		return getOtelLogExporterFromEnv(ctx, os.Getenv("OTEL_EXPORTER_OTLP_LOGS_ENDPOINT"), os.Getenv("OTEL_EXPORTER_OTLP_PROTOCOL"))
 
 	case os.Getenv("OTEL_EXPORTER_OTLP_ENDPOINT") != "":
 		// The environmental variable OTEL_EXPORTER_OTLP_ENDPOINT is another standard one, and we append "/v1/logs" if using HTTP
@@ -74,7 +74,7 @@ func (c *Config) GetLogsExporter(ctx context.Context) (exp logSdk.Exporter, logF
 				endpoint += "/v1/logs"
 			}
 		}
-		return c.getOtelLogExporterFromEnv(ctx, endpoint, otelProtocol)
+		return getOtelLogExporterFromEnv(ctx, endpoint, otelProtocol)
 
 	default:
 		// No log exporter configured
@@ -83,22 +83,22 @@ func (c *Config) GetLogsExporter(ctx context.Context) (exp logSdk.Exporter, logF
 }
 
 // GetMetricsExporter returns the metrics exporter for the OpenTelemetry collector
-func (c *Config) GetMetricsExporter(ctx context.Context, log *slog.Logger) (exp metricSdk.Exporter, err error) {
+func (c *ConfigMetrics) GetMetricsExporter(ctx context.Context, log *slog.Logger) (exp metricSdk.Exporter, err error) {
 	switch {
-	case strings.HasPrefix(c.MetricsOtelCollectorEndpoint, "http://") || strings.HasPrefix(c.MetricsOtelCollectorEndpoint, "https://"):
+	case strings.HasPrefix(c.OtelCollectorEndpoint, "http://") || strings.HasPrefix(c.OtelCollectorEndpoint, "https://"):
 		// Configure OTel exporter using HTTP and the endpoint from the configuration
-		log.DebugContext(ctx, "Exporting metrics to OpenTelemetry collector using HTTP", slog.String("endpoint", c.MetricsOtelCollectorEndpoint))
-		exp, err = metricExporterOltpHttp.New(ctx, metricExporterOltpHttp.WithEndpointURL(c.MetricsOtelCollectorEndpoint))
+		log.DebugContext(ctx, "Exporting metrics to OpenTelemetry collector using HTTP", slog.String("endpoint", c.OtelCollectorEndpoint))
+		exp, err = metricExporterOltpHttp.New(ctx, metricExporterOltpHttp.WithEndpointURL(c.OtelCollectorEndpoint))
 		if err != nil {
 			return nil, fmt.Errorf("failed to create OpenTelemetry HTTP metric exporter: %w", err)
 		}
 		return exp, nil
 
-	case strings.HasPrefix(c.MetricsOtelCollectorEndpoint, "grpc://") || strings.HasPrefix(c.MetricsOtelCollectorEndpoint, "grpcs://"):
+	case strings.HasPrefix(c.OtelCollectorEndpoint, "grpc://") || strings.HasPrefix(c.OtelCollectorEndpoint, "grpcs://"):
 		// Configure OTel exporter using gRPC and the endpoint from the configuration
-		log.DebugContext(ctx, "Exporting metrics to OpenTelemetry collector using gRPC", slog.String("endpoint", c.MetricsOtelCollectorEndpoint))
+		log.DebugContext(ctx, "Exporting metrics to OpenTelemetry collector using gRPC", slog.String("endpoint", c.OtelCollectorEndpoint))
 		// Replace "grpc(s)" with "http(s)"
-		endpoint := "http" + c.MetricsOtelCollectorEndpoint[4:]
+		endpoint := "http" + c.OtelCollectorEndpoint[4:]
 		exp, err = metricExporterOltpGrpc.New(ctx, metricExporterOltpGrpc.WithEndpointURL(endpoint))
 		if err != nil {
 			return nil, fmt.Errorf("failed to create OpenTelemetry gRPC metric exporter: %w", err)
@@ -108,7 +108,7 @@ func (c *Config) GetMetricsExporter(ctx context.Context, log *slog.Logger) (exp 
 	case os.Getenv("OTEL_EXPORTER_OTLP_METRICS_ENDPOINT") != "":
 		// Configure OTel exporter using the standard environmental variable OTEL_EXPORTER_OTLP_METRICS_ENDPOINT
 		// Optionally, OTEL_EXPORTER_OTLP_PROTOCOL can be used to switch to gRPC
-		return c.getOtelMetricExporterFromEnv(ctx, os.Getenv("OTEL_EXPORTER_OTLP_METRICS_ENDPOINT"), os.Getenv("OTEL_EXPORTER_OTLP_PROTOCOL"), log)
+		return getOtelMetricExporterFromEnv(ctx, os.Getenv("OTEL_EXPORTER_OTLP_METRICS_ENDPOINT"), os.Getenv("OTEL_EXPORTER_OTLP_PROTOCOL"), log)
 
 	case os.Getenv("OTEL_EXPORTER_OTLP_ENDPOINT") != "":
 		// The environmental variable OTEL_EXPORTER_OTLP_ENDPOINT is another standard one, and we append "/v1/metrics" if using HTTP
@@ -123,7 +123,7 @@ func (c *Config) GetMetricsExporter(ctx context.Context, log *slog.Logger) (exp 
 				endpoint += "/v1/metrics"
 			}
 		}
-		return c.getOtelMetricExporterFromEnv(ctx, endpoint, otelProtocol, log)
+		return getOtelMetricExporterFromEnv(ctx, endpoint, otelProtocol, log)
 
 	default:
 		// This disables metrics
@@ -132,22 +132,22 @@ func (c *Config) GetMetricsExporter(ctx context.Context, log *slog.Logger) (exp 
 }
 
 // GetTraceExporter returns the trace exporter, either for the OpenTelemetry Collector or Zipkin
-func (c *Config) GetTraceExporter(ctx context.Context, log *slog.Logger) (exp traceSdk.SpanExporter, err error) {
+func (c *ConfigTracing) GetTraceExporter(ctx context.Context, log *slog.Logger) (exp traceSdk.SpanExporter, err error) {
 	switch {
-	case strings.HasPrefix(c.TracingOtelCollectorEndpoint, "http://") || strings.HasPrefix(c.TracingOtelCollectorEndpoint, "https://"):
+	case strings.HasPrefix(c.OtelCollectorEndpoint, "http://") || strings.HasPrefix(c.OtelCollectorEndpoint, "https://"):
 		// Configure OTel exporter using HTTP and the endpoint from the configuration
-		log.DebugContext(ctx, "Exporting traces to OpenTelemetry collector using HTTP", slog.String("endpoint", c.TracingOtelCollectorEndpoint))
-		exp, err = traceExporterOltpHttp.New(ctx, traceExporterOltpHttp.WithEndpointURL(c.TracingOtelCollectorEndpoint))
+		log.DebugContext(ctx, "Exporting traces to OpenTelemetry collector using HTTP", slog.String("endpoint", c.OtelCollectorEndpoint))
+		exp, err = traceExporterOltpHttp.New(ctx, traceExporterOltpHttp.WithEndpointURL(c.OtelCollectorEndpoint))
 		if err != nil {
 			return nil, fmt.Errorf("failed to create OpenTelemetry HTTP trace exporter: %w", err)
 		}
 		return exp, nil
 
-	case strings.HasPrefix(c.TracingOtelCollectorEndpoint, "grpc://") || strings.HasPrefix(c.TracingOtelCollectorEndpoint, "grpcs://"):
+	case strings.HasPrefix(c.OtelCollectorEndpoint, "grpc://") || strings.HasPrefix(c.OtelCollectorEndpoint, "grpcs://"):
 		// Configure OTel exporter using gRPC and the endpoint from the configuration
-		log.DebugContext(ctx, "Exporting traces to OpenTelemetry collector using gRPC", slog.String("endpoint", c.TracingOtelCollectorEndpoint))
+		log.DebugContext(ctx, "Exporting traces to OpenTelemetry collector using gRPC", slog.String("endpoint", c.OtelCollectorEndpoint))
 		// Replace "grpc(s)" with "http(s)"
-		endpoint := "http" + c.TracingOtelCollectorEndpoint[4:]
+		endpoint := "http" + c.OtelCollectorEndpoint[4:]
 		exp, err = traceExporterOltpGrpc.New(ctx, traceExporterOltpGrpc.WithEndpointURL(endpoint))
 		if err != nil {
 			return nil, fmt.Errorf("failed to create OpenTelemetry gRPC trace exporter: %w", err)
@@ -157,7 +157,7 @@ func (c *Config) GetTraceExporter(ctx context.Context, log *slog.Logger) (exp tr
 	case os.Getenv("OTEL_EXPORTER_OTLP_TRACES_ENDPOINT") != "":
 		// Configure OTel exporter using the standard environmental variable OTEL_EXPORTER_OTLP_TRACES_ENDPOINT
 		// Optionally, OTEL_EXPORTER_OTLP_PROTOCOL can be used to switch to gRPC
-		return c.getOtelTraceExporterFromEnv(ctx, os.Getenv("OTEL_EXPORTER_OTLP_TRACES_ENDPOINT"), os.Getenv("OTEL_EXPORTER_OTLP_PROTOCOL"), log)
+		return getOtelTraceExporterFromEnv(ctx, os.Getenv("OTEL_EXPORTER_OTLP_TRACES_ENDPOINT"), os.Getenv("OTEL_EXPORTER_OTLP_PROTOCOL"), log)
 
 	case os.Getenv("OTEL_EXPORTER_OTLP_ENDPOINT") != "":
 		// The environmental variable OTEL_EXPORTER_OTLP_ENDPOINT is another standard one, and we append "/v1/traces" if using HTTP
@@ -172,7 +172,7 @@ func (c *Config) GetTraceExporter(ctx context.Context, log *slog.Logger) (exp tr
 				endpoint += "/v1/traces"
 			}
 		}
-		return c.getOtelTraceExporterFromEnv(ctx, endpoint, otelProtocol, log)
+		return getOtelTraceExporterFromEnv(ctx, endpoint, otelProtocol, log)
 
 	default:
 		// This disables tracing
@@ -180,7 +180,7 @@ func (c *Config) GetTraceExporter(ctx context.Context, log *slog.Logger) (exp tr
 	}
 }
 
-func (c *Config) getOtelTraceExporterFromEnv(ctx context.Context, endpoint string, otelProtocol string, log *slog.Logger) (exp traceSdk.SpanExporter, err error) {
+func getOtelTraceExporterFromEnv(ctx context.Context, endpoint string, otelProtocol string, log *slog.Logger) (exp traceSdk.SpanExporter, err error) {
 	// otelProtocol can be "http/protobuf", the default, or "grpc"
 	switch otelProtocol {
 	case "grpc":
@@ -202,7 +202,7 @@ func (c *Config) getOtelTraceExporterFromEnv(ctx context.Context, endpoint strin
 	}
 }
 
-func (c *Config) getOtelLogExporterFromEnv(ctx context.Context, endpoint string, otelProtocol string) (exp logSdk.Exporter, logFn func(log *slog.Logger), err error) {
+func getOtelLogExporterFromEnv(ctx context.Context, endpoint string, otelProtocol string) (exp logSdk.Exporter, logFn func(log *slog.Logger), err error) {
 	// otelProtocol can be "http/protobuf", the default, or "grpc"
 	switch otelProtocol {
 	case "grpc":
@@ -224,7 +224,7 @@ func (c *Config) getOtelLogExporterFromEnv(ctx context.Context, endpoint string,
 	}
 }
 
-func (c *Config) getOtelMetricExporterFromEnv(ctx context.Context, endpoint string, otelProtocol string, log *slog.Logger) (exp metricSdk.Exporter, err error) {
+func getOtelMetricExporterFromEnv(ctx context.Context, endpoint string, otelProtocol string, log *slog.Logger) (exp metricSdk.Exporter, err error) {
 	// otelProtocol can be "http/protobuf", the default, or "grpc"
 	switch otelProtocol {
 	case "grpc":
