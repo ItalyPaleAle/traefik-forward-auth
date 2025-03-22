@@ -9,3 +9,5 @@ aStringSlice:
 aMap:
   hello: world
   salut: monde
+nested:
+  foo: "bar"

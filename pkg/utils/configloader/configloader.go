@@ -58,7 +58,8 @@ func Load(dst any, opts LoadOptions) error {
 
 	// Next, update from env
 	err := env.ParseWithOptions(dst, env.Options{
-		Prefix: opts.EnvPrefix,
+		Prefix:                opts.EnvPrefix,
+		UseFieldNameByDefault: false,
 	})
 	if err != nil {
 		return fmt.Errorf("failed to parse config from env vars: %w", err)
