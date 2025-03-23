@@ -47,8 +47,7 @@ func loadConfig() error {
 	// Load the configuration
 	// Note that configFile can be empty
 	cfg := config.Get()
-	err := configloader.Load(cfg, configloader.LoadOptions{
-		FilePath:                 configFile,
+	err := configloader.Load(cfg, configFile, configloader.LoadOptions{
 		EnvPrefix:                configEnvPrefix,
 		IgnoreZeroValuesInConfig: true,
 	})
@@ -69,7 +68,7 @@ func getLogger(cfg *config.Config) (log *slog.Logger, shutdownFn func(ctx contex
 
 	// Check if we are sending logs to an OTel collector
 	// We pass a background context here as the main context for the app isn't ready yet
-	exp, expLogFn, err := cfg.GetLogsExporter(context.Background())
+	exp, expLogFn, err := cfg.Logs.GetLogsExporter(context.Background())
 	if err != nil {
 		// We don't use newLoadConfigError as this is not a loading error
 		return nil, nil, fmt.Errorf("failed to get logger: %w", err)
@@ -78,7 +77,7 @@ func getLogger(cfg *config.Config) (log *slog.Logger, shutdownFn func(ctx contex
 	// Create the handler
 	var handler slog.Handler
 	switch {
-	case cfg.LogAsJSON:
+	case cfg.Logs.JSON:
 		// Log as JSON if configured
 		handler = slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{
 			Level: level,
@@ -169,7 +168,7 @@ func processConfig(log *slog.Logger, cfg *config.Config) (err error) {
 }
 
 func getLogLevel(cfg *config.Config) (slog.Level, error) {
-	switch strings.ToLower(cfg.LogLevel) {
+	switch strings.ToLower(cfg.Logs.Level) {
 	case "debug":
 		return slog.LevelDebug, nil
 	case "", "info": // Also default log level

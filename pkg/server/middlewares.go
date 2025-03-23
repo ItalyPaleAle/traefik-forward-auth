@@ -30,7 +30,7 @@ var hostHeaderRe regexp.Regexp = *regexp.MustCompile(`^(?:[\w-]+|(?:[\w\-]+\.)+\
 // MiddlewareRequireClientCertificate is a middleware that requires a valid client certificate to be present.
 // This is meant to be used to enforce mTLS on specific routes, when the server's TLS is configured with VerifyClientCertIfGiven.
 func (s *Server) MiddlewareRequireClientCertificate(c *gin.Context) {
-	if c.Request.TLS == nil || !config.Get().TLSClientAuth {
+	if c.Request.TLS == nil || !config.Get().Server.TLSClientAuth {
 		// Do nothing if `tlsClientAuth` is disabled or if the server is running without TLS
 		return
 	}
@@ -127,7 +127,7 @@ func (s *Server) MiddlewareLoadAuthCookie(c *gin.Context) {
 // MiddlewareRequestId is a middleware that generates a unique request ID for each request
 func (s *Server) MiddlewareRequestId(c *gin.Context) {
 	// Check if we have a trusted request ID header and it has a value
-	headerName := config.Get().TrustedRequestIdHeader
+	headerName := config.Get().Server.TrustedRequestIdHeader
 	if headerName != "" {
 		v := c.GetHeader(headerName)
 		if v != "" {
@@ -170,6 +170,8 @@ func (s *Server) MiddlewareCountMetrics(c *gin.Context) {
 
 // MiddlewareLogger is a Gin middleware that uses zerlog for logging
 func (s *Server) MiddlewareLogger(parentLog *slog.Logger) func(c *gin.Context) {
+	healthCheckLogs := config.Get().Logs.OmitHealthChecks
+
 	return func(c *gin.Context) {
 		method := c.Request.Method
 
@@ -184,7 +186,7 @@ func (s *Server) MiddlewareLogger(parentLog *slog.Logger) func(c *gin.Context) {
 		}
 
 		// Omit logging /healthz calls if set
-		if c.Request.URL.Path == "/healthz" && config.Get().OmitHealthCheckLogs {
+		if c.Request.URL.Path == "/healthz" && healthCheckLogs {
 			return
 		}
 

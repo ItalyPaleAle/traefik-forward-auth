@@ -268,5 +268,5 @@ func getStateCookieID(returnURL string) string {
 // Get the redirect URI, which is sent to the OAuth2 authentication server and indicates where to return users after a successful auth with the IdP
 func getOAuth2RedirectURI(c *gin.Context) string {
 	cfg := config.Get()
-	return c.GetHeader("X-Forwarded-Proto") + "://" + cfg.Hostname + cfg.BasePath + "/oauth2/callback"
+	return c.GetHeader("X-Forwarded-Proto") + "://" + cfg.Server.Hostname + cfg.Server.BasePath + "/oauth2/callback"
 }

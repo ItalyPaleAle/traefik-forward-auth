@@ -26,23 +26,28 @@ type testConfigNested struct {
 func TestConfigLoader(t *testing.T) {
 	t.Run("load from YAML", func(t *testing.T) {
 		cfg := &testConfig{}
-		err := Load(cfg, LoadOptions{
-			FilePath:  "testdata/full.yaml",
+		err := Load(cfg, "testdata/full.yaml", LoadOptions{
 			EnvPrefix: "TEST_",
 		})
 		require.NoError(t, err)
 
-		assert.Equal(t, "foo", cfg.AString)
-		assert.Equal(t, 42, cfg.AnInt)
-		assert.True(t, cfg.ABool)
-		assert.InDelta(t, 123.45, cfg.AFloat, 0.01)
-		assert.Equal(t, 2*time.Minute, cfg.ADuration)
-		assert.EqualValues(t, []string{"ciao", "mondo"}, cfg.AStringSlice)
-		assert.EqualValues(t, map[string]string{"hello": "world", "salut": "monde"}, cfg.AMap)
-		assert.Equal(t, "bar", cfg.Nested.Foo)
+		expect := &testConfig{
+			AString:      "foo",
+			AnInt:        42,
+			ABool:        true,
+			AFloat:       123.45,
+			ADuration:    2 * time.Minute,
+			AStringSlice: []string{"ciao", "mondo"},
+			AMap:         map[string]string{"hello": "world", "salut": "monde"},
+			Nested: testConfigNested{
+				Foo: "bar",
+			},
+		}
+
+		assert.EqualValues(t, expect, cfg)
 	})
 
-	t.Run("load from env", func(t *testing.T) {
+	t.Run("override from env", func(t *testing.T) {
 		t.Setenv("TEST_A_STRING", "foo2")
 		t.Setenv("TEST_AN_INT", "10")
 		t.Setenv("TEST_A_BOOL", "false")
@@ -53,19 +58,56 @@ func TestConfigLoader(t *testing.T) {
 		t.Setenv("TEST_FOO", "bar2")
 
 		cfg := &testConfig{}
-		err := Load(cfg, LoadOptions{
-			FilePath:  "testdata/full.yaml",
+		err := Load(cfg, "testdata/full.yaml", LoadOptions{
 			EnvPrefix: "TEST_",
 		})
 		require.NoError(t, err)
 
-		assert.Equal(t, "foo2", cfg.AString)
-		assert.Equal(t, 10, cfg.AnInt)
-		assert.False(t, cfg.ABool)
-		assert.InDelta(t, 3.14, cfg.AFloat, 0.01)
-		assert.Equal(t, 4*time.Minute, cfg.ADuration)
-		assert.EqualValues(t, []string{"a", "b", "c"}, cfg.AStringSlice)
-		assert.EqualValues(t, map[string]string{"ciao": "mondo", "hola": "mundo"}, cfg.AMap)
-		assert.Equal(t, "bar2", cfg.Nested.Foo)
+		expect := &testConfig{
+			AString:      "foo2",
+			AnInt:        10,
+			ABool:        false,
+			AFloat:       3.14,
+			ADuration:    4 * time.Minute,
+			AStringSlice: []string{"a", "b", "c"},
+			AMap:         map[string]string{"ciao": "mondo", "hola": "mundo"},
+			Nested: testConfigNested{
+				Foo: "bar2",
+			},
+		}
+
+		assert.EqualValues(t, expect, cfg)
+	})
+
+	t.Run("override default values", func(t *testing.T) {
+		cfg := &testConfig{
+			AString:      "bar",
+			AnInt:        10,
+			AStringSlice: []string{"👋", "🌍"},
+			AMap:         map[string]string{"hello": "who", "me": "🙃"},
+			Nested: testConfigNested{
+				Foo: "nothing",
+			},
+		}
+		err := Load(cfg, "testdata/full.yaml", LoadOptions{
+			EnvPrefix: "TEST_",
+		})
+		require.NoError(t, err)
+
+		expect := &testConfig{
+			AString:      "foo",
+			AnInt:        42,
+			ABool:        true,
+			AFloat:       123.45,
+			ADuration:    2 * time.Minute,
+			AStringSlice: []string{"ciao", "mondo"},
+			// Appends new fields but doesn't delete existing ones
+			AMap: map[string]string{"hello": "world", "me": "🙃", "salut": "monde"},
+			Nested: testConfigNested{
+				Foo: "bar",
+			},
+		}
+
+		assert.EqualValues(t, expect, cfg)
 	})
 }

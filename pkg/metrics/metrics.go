@@ -33,7 +33,7 @@ func NewTFAMetrics(ctx context.Context, log *slog.Logger) (m *TFAMetrics, shutdo
 	providerOpts := make([]metricSdk.Option, 0, 2)
 
 	// If we have an OpenTelemetry Collector for metrics, add that
-	exporter, err := cfg.GetMetricsExporter(ctx, log)
+	exporter, err := cfg.Metrics.GetMetricsExporter(ctx, log)
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to init metrics: %w", err)
 	}
@@ -45,7 +45,7 @@ func NewTFAMetrics(ctx context.Context, log *slog.Logger) (m *TFAMetrics, shutdo
 	}
 
 	// If the metrics server is enabled, create a Prometheus exporter
-	if cfg.MetricsServerEnabled {
+	if cfg.Metrics.ServerEnabled {
 		m.prometheusRegisterer = prom.NewRegistry()
 		promExporter, err := prometheus.New(
 			prometheus.WithRegisterer(m.prometheusRegisterer),

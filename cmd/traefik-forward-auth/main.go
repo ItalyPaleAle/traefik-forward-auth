@@ -84,7 +84,7 @@ func main() {
 	}
 
 	// Get the trace traceExporter if tracing is enabled
-	traceExporter, err := conf.GetTraceExporter(ctx, log)
+	traceExporter, err := conf.Tracing.GetTraceExporter(ctx, log)
 	if err != nil {
 		utils.FatalError(log, "Failed to init trace exporter", err)
 		return

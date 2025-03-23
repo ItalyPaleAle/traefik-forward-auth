@@ -120,15 +120,15 @@ func (s *Server) initTracer(exporter sdkTrace.SpanExporter) error {
 	// Init the trace provider
 	var sampler sdkTrace.Sampler
 	switch {
-	case cfg.TracingSampling == 1:
+	case cfg.Tracing.Sampling == 1:
 		sampler = sdkTrace.ParentBased(sdkTrace.AlwaysSample())
-	case cfg.TracingSampling == 0:
+	case cfg.Tracing.Sampling == 0:
 		sampler = sdkTrace.NeverSample()
-	case cfg.TracingSampling < 0, cfg.TracingSampling > 1:
+	case cfg.Tracing.Sampling < 0, cfg.Tracing.Sampling > 1:
 		// Should never happen
 		return errors.New("invalid tracing sampling: must be between 0 and 1")
 	default:
-		sampler = sdkTrace.ParentBased(sdkTrace.TraceIDRatioBased(cfg.TracingSampling))
+		sampler = sdkTrace.ParentBased(sdkTrace.TraceIDRatioBased(cfg.Tracing.Sampling))
 	}
 
 	s.tracer = sdkTrace.NewTracerProvider(
@@ -174,17 +174,17 @@ func (s *Server) initAppServer(log *slog.Logger) (err error) {
 
 	// Auth routes
 	// For the root route, we add it with and without trailing slash (in case BasePath isn't empty) to avoid Gin setting up a 301 (Permanent) redirect, which causes issues with forward auth
-	appRoutes := s.appRouter.Group(conf.BasePath, s.MiddlewareProxyHeaders)
+	appRoutes := s.appRouter.Group(conf.Server.BasePath, s.MiddlewareProxyHeaders)
 	switch provider := s.auth.(type) {
 	case auth.OAuth2Provider:
 		appRoutes.GET("", s.MiddlewareRequireClientCertificate, s.MiddlewareLoadAuthCookie, s.RouteGetOAuth2Root(provider))
-		if conf.BasePath != "" {
+		if conf.Server.BasePath != "" {
 			appRoutes.GET("/", s.MiddlewareRequireClientCertificate, s.MiddlewareLoadAuthCookie, s.RouteGetOAuth2Root(provider))
 		}
 		appRoutes.GET("/oauth2/callback", codeFilterLogMw, s.RouteGetOAuth2Callback(provider))
 	case auth.SeamlessProvider:
 		appRoutes.GET("", s.MiddlewareRequireClientCertificate, s.MiddlewareLoadAuthCookie, s.RouteGetSeamlessAuthRoot(provider))
-		if conf.BasePath != "" {
+		if conf.Server.BasePath != "" {
 			appRoutes.GET("/", s.MiddlewareRequireClientCertificate, s.MiddlewareLoadAuthCookie, s.RouteGetSeamlessAuthRoot(provider))
 		}
 	}
@@ -237,7 +237,7 @@ func (s *Server) Run(ctx context.Context) error {
 	}()
 
 	// Metrics server
-	if cfg.MetricsServerEnabled {
+	if cfg.Metrics.ServerEnabled {
 		s.wg.Add(1)
 		err = s.startMetricsServer(ctx)
 		if err != nil {
@@ -280,7 +280,7 @@ func (s *Server) startAppServer(ctx context.Context) error {
 
 	// Create the HTTP(S) server
 	s.appSrv = &http.Server{
-		Addr:              net.JoinHostPort(cfg.Bind, strconv.Itoa(cfg.Port)),
+		Addr:              net.JoinHostPort(cfg.Server.Bind, strconv.Itoa(cfg.Server.Port)),
 		MaxHeaderBytes:    1 << 20,
 		ReadHeaderTimeout: 10 * time.Second,
 	}
@@ -306,8 +306,8 @@ func (s *Server) startAppServer(ctx context.Context) error {
 
 	// Start the HTTP(S) server in a background goroutine
 	log.InfoContext(ctx, "App server started",
-		slog.String("bind", cfg.Bind),
-		slog.Int("port", cfg.Port),
+		slog.String("bind", cfg.Server.Bind),
+		slog.Int("port", cfg.Server.Port),
 		slog.Bool("tls", s.tlsConfig != nil),
 	)
 	go func() {
@@ -339,7 +339,7 @@ func (s *Server) startMetricsServer(ctx context.Context) error {
 
 	// Create the HTTP server
 	s.metricsSrv = &http.Server{
-		Addr:              net.JoinHostPort(cfg.MetricsServerBind, strconv.Itoa(cfg.MetricsServerPort)),
+		Addr:              net.JoinHostPort(cfg.Metrics.ServerBind, strconv.Itoa(cfg.Metrics.ServerPort)),
 		Handler:           mux,
 		MaxHeaderBytes:    1 << 20,
 		ReadHeaderTimeout: 10 * time.Second,
@@ -354,10 +354,10 @@ func (s *Server) startMetricsServer(ctx context.Context) error {
 		}
 	}
 
-	// Start the HTTPS server in a background goroutine
+	// Start the HTTP server in a background goroutine
 	log.InfoContext(ctx, "Metrics server started",
-		slog.String("bind", cfg.MetricsServerBind),
-		slog.Int("port", cfg.MetricsServerPort),
+		slog.String("bind", cfg.Metrics.ServerBind),
+		slog.Int("port", cfg.Metrics.ServerPort),
 	)
 	go func() {
 		defer s.metricsListener.Close()
@@ -381,7 +381,7 @@ func (s *Server) loadTLSConfig(log *slog.Logger) (tlsConfig *tls.Config, watchFn
 	}
 
 	// If "tlsPath" is empty, use the folder where the config file is located
-	tlsPath := cfg.TLSPath
+	tlsPath := cfg.Server.TLSPath
 	if tlsPath == "" {
 		file := cfg.GetLoadedConfigPath()
 		if file != "" {
@@ -390,9 +390,9 @@ func (s *Server) loadTLSConfig(log *slog.Logger) (tlsConfig *tls.Config, watchFn
 	}
 
 	// Start by setting the CA certificate and enable mTLS if required
-	if cfg.TLSClientAuth {
+	if cfg.Server.TLSClientAuth {
 		// Check if we have the actual keys
-		caCert := []byte(cfg.TLSCAPEM)
+		caCert := []byte(cfg.Server.TLSCAPEM)
 
 		// If caCert is empty, we need to load the CA certificate from file
 		if len(caCert) > 0 {
@@ -427,8 +427,8 @@ func (s *Server) loadTLSConfig(log *slog.Logger) (tlsConfig *tls.Config, watchFn
 
 	// Let's set the server cert and key now
 	// First, check if we have actual keys
-	tlsCert := cfg.TLSCertPEM
-	tlsKey := cfg.TLSKeyPEM
+	tlsCert := cfg.Server.TLSCertPEM
+	tlsKey := cfg.Server.TLSKeyPEM
 
 	// If we don't have actual keys, then we need to load from file and reload when the files change
 	if tlsCert == "" && tlsKey == "" {

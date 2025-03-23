@@ -6,13 +6,11 @@ package config
 
 import (
 	"github.com/jinzhu/copier"
-
-	"github.com/italypaleale/traefik-forward-auth/pkg/utils/configloader"
 )
 
 // Updates the configuration in the global config object for the test
 // Returns a function that should be called with "defer" to restore the previous configuration
-func SetTestConfig(values map[string]any) func() {
+func SetTestConfig(updater func(c *Config)) func() {
 	// Save the previous config
 	prevConfig := config
 
@@ -28,10 +26,7 @@ func SetTestConfig(values map[string]any) func() {
 	}
 
 	// Set the new values
-	err = configloader.LoadFromMap(config, values)
-	if err != nil {
-		panic(err)
-	}
+	updater(config)
 
 	// Return a function that restores the original value
 	return func() {

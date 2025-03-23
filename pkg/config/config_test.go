@@ -18,9 +18,9 @@ func TestValidateConfig(t *testing.T) {
 		config = oldConfig
 	})
 
-	t.Cleanup(SetTestConfig(map[string]any{
-		"authProvider": "github",
-		"hostname":     "localhost",
+	t.Cleanup(SetTestConfig(func(c *Config) {
+		c.AuthProvider = "github"
+		c.Server.Hostname = "localhost"
 	}))
 
 	log := slog.New(slog.DiscardHandler)
@@ -31,8 +31,8 @@ func TestValidateConfig(t *testing.T) {
 	})
 
 	t.Run("fails without authProvider", func(t *testing.T) {
-		t.Cleanup(SetTestConfig(map[string]any{
-			"authProvider": "",
+		t.Cleanup(SetTestConfig(func(c *Config) {
+			c.AuthProvider = ""
 		}))
 
 		err := config.Validate(log)
@@ -41,13 +41,13 @@ func TestValidateConfig(t *testing.T) {
 	})
 
 	t.Run("fails without hostname", func(t *testing.T) {
-		t.Cleanup(SetTestConfig(map[string]any{
-			"hostname": "",
+		t.Cleanup(SetTestConfig(func(c *Config) {
+			c.Server.Hostname = ""
 		}))
 
 		err := config.Validate(log)
 		require.Error(t, err)
-		require.ErrorContains(t, err, "'hostname' is required")
+		require.ErrorContains(t, err, "'server.hostname' is required")
 	})
 }
 
@@ -58,8 +58,8 @@ func TestSetTokenSigningKey(t *testing.T) {
 	}))
 
 	t.Run("tokenSigningKey present", func(t *testing.T) {
-		t.Cleanup(SetTestConfig(map[string]any{
-			"tokenSigningKey": "hello-world",
+		t.Cleanup(SetTestConfig(func(c *Config) {
+			c.Tokens.SigningKey = "hello-world"
 		}))
 
 		err := config.SetTokenSigningKey(logger)
@@ -73,8 +73,8 @@ func TestSetTokenSigningKey(t *testing.T) {
 	})
 
 	t.Run("tokenSigningKey not present", func(t *testing.T) {
-		t.Cleanup(SetTestConfig(map[string]any{
-			"tokenSigningKey": "",
+		t.Cleanup(SetTestConfig(func(c *Config) {
+			c.Tokens.SigningKey = ""
 		}))
 
 		err := config.SetTokenSigningKey(logger)
@@ -86,7 +86,7 @@ func TestSetTokenSigningKey(t *testing.T) {
 		require.Len(t, tsk1Raw, 32)
 
 		logsMsg := logs.String()
-		require.Contains(t, logsMsg, "No 'tokenSigningKey' found in the configuration")
+		require.Contains(t, logsMsg, "No 'tokens.signingKey' found in the configuration")
 
 		// Should be different every time
 		err = config.SetTokenSigningKey(logger)

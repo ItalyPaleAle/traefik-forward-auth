@@ -32,14 +32,14 @@ func (s *Server) getSessionCookie(c *gin.Context) (profile *user.Profile, err er
 	cfg := config.Get()
 
 	// Get the cookie
-	cookieValue, err := c.Cookie(cfg.CookieName)
+	cookieValue, err := c.Cookie(cfg.Cookies.NamePrefix)
 	if errors.Is(err, http.ErrNoCookie) {
 		return nil, nil
 	} else if err != nil {
 		return nil, fmt.Errorf("failed to get session cookie: %w", err)
 	}
 	if cookieValue == "" {
-		return nil, fmt.Errorf("session cookie %s is empty", cfg.CookieName)
+		return nil, fmt.Errorf("session cookie %s is empty", cfg.Cookies.NamePrefix)
 	}
 
 	// Parse the JWT in the cookie
@@ -69,7 +69,7 @@ func (s *Server) parseSessionToken(val string) (jwt.Token, error) {
 	token, err := jwt.Parse([]byte(val),
 		jwt.WithAcceptableSkew(acceptableClockSkew),
 		jwt.WithIssuer(jwtIssuer+"/"+s.auth.GetProviderName()),
-		jwt.WithAudience(cfg.Hostname),
+		jwt.WithAudience(cfg.Server.Hostname),
 		jwt.WithKey(jwa.HS256, cfg.GetTokenSigningKey()),
 	)
 	if err != nil {
@@ -80,7 +80,7 @@ func (s *Server) parseSessionToken(val string) (jwt.Token, error) {
 
 func (s *Server) setSessionCookie(c *gin.Context, profile *user.Profile) error {
 	cfg := config.Get()
-	expiration := cfg.SessionLifetime
+	expiration := cfg.Tokens.SessionLifetime
 
 	// Claims for the JWT
 	now := time.Now()
@@ -88,7 +88,7 @@ func (s *Server) setSessionCookie(c *gin.Context, profile *user.Profile) error {
 	profile.AppendClaims(builder)
 	token, err := builder.
 		Issuer(jwtIssuer + "/" + s.auth.GetProviderName()).
-		Audience([]string{cfg.Hostname}).
+		Audience([]string{cfg.Server.Hostname}).
 		IssuedAt(now).
 		// Add 1 extra second to synchronize with cookie expiry
 		Expiration(now.Add(expiration + time.Second)).
@@ -108,7 +108,7 @@ func (s *Server) setSessionCookie(c *gin.Context, profile *user.Profile) error {
 
 	// Set the cookie
 	c.SetSameSite(http.SameSiteLaxMode)
-	c.SetCookie(cfg.CookieName, string(cookieValue), int(expiration.Seconds())-1, "/", cfg.CookieDomain, !cfg.CookieInsecure, true)
+	c.SetCookie(cfg.Cookies.NamePrefix, string(cookieValue), int(expiration.Seconds())-1, "/", cfg.Cookies.Domain, !cfg.Cookies.Insecure, true)
 
 	return nil
 }
@@ -116,13 +116,13 @@ func (s *Server) setSessionCookie(c *gin.Context, profile *user.Profile) error {
 func (s *Server) deleteSessionCookie(c *gin.Context) {
 	cfg := config.Get()
 
-	if _, err := c.Cookie(cfg.CookieName); err != nil {
+	if _, err := c.Cookie(cfg.Cookies.NamePrefix); err != nil {
 		// Cookie was not set in the request, nothing to unset
 		return
 	}
 
 	c.SetSameSite(http.SameSiteLaxMode)
-	c.SetCookie(cfg.CookieName, "", -1, "/", cfg.CookieDomain, !cfg.CookieInsecure, true)
+	c.SetCookie(cfg.Cookies.NamePrefix, "", -1, "/", cfg.Cookies.Domain, !cfg.Cookies.Insecure, true)
 }
 
 func (s *Server) getStateCookie(c *gin.Context, stateCookieID string) (nonce string, returnURL string, err error) {
@@ -136,14 +136,14 @@ func (s *Server) getStateCookie(c *gin.Context, stateCookieID string) (nonce str
 		return "", "", fmt.Errorf("failed to get cookie: %w", err)
 	}
 	if cookieValue == "" {
-		return "", "", fmt.Errorf("cookie %s is empty", cfg.CookieName)
+		return "", "", fmt.Errorf("cookie %s is empty", cfg.Cookies.NamePrefix)
 	}
 
 	// Parse the JWT in the cookie
 	token, err := jwt.Parse([]byte(cookieValue),
 		jwt.WithAcceptableSkew(acceptableClockSkew),
 		jwt.WithIssuer(jwtIssuer+"/"+s.auth.GetProviderName()),
-		jwt.WithAudience(cfg.Hostname),
+		jwt.WithAudience(cfg.Server.Hostname),
 		jwt.WithKey(jwa.HS256, cfg.GetTokenSigningKey()),
 	)
 	if err != nil {
@@ -206,7 +206,7 @@ func (s *Server) setStateCookie(c *gin.Context, nonce string, returnURL string, 
 	now := time.Now()
 	token, err := jwt.NewBuilder().
 		Issuer(jwtIssuer+"/"+s.auth.GetProviderName()).
-		Audience([]string{cfg.Hostname}).
+		Audience([]string{cfg.Server.Hostname}).
 		IssuedAt(now).
 		// Add 1 extra second to synchronize with cookie expiry
 		Expiration(now.Add(expiration+time.Second)).
@@ -229,7 +229,7 @@ func (s *Server) setStateCookie(c *gin.Context, nonce string, returnURL string, 
 
 	// Set the cookie
 	c.SetSameSite(http.SameSiteLaxMode)
-	c.SetCookie(stateCookieNamePrefix+stateCookieID, string(cookieValue), int(expiration.Seconds())-1, "/", cfg.CookieDomain, !cfg.CookieInsecure, true)
+	c.SetCookie(stateCookieNamePrefix+stateCookieID, string(cookieValue), int(expiration.Seconds())-1, "/", cfg.Cookies.Domain, !cfg.Cookies.Insecure, true)
 
 	// Return the nonce
 	return nil
@@ -246,7 +246,7 @@ func (s *Server) deleteStateCookies(c *gin.Context) {
 		}
 
 		// We found a state cookie; remove it
-		c.SetCookie(cookie.Name, "", -1, "/", cfg.CookieDomain, !cfg.CookieInsecure, true)
+		c.SetCookie(cookie.Name, "", -1, "/", cfg.Cookies.Domain, !cfg.Cookies.Insecure, true)
 	}
 }
 

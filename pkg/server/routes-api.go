@@ -28,7 +28,7 @@ func (s *Server) RouteGetAPIVerify(c *gin.Context) {
 		}
 	} else {
 		// Try getting the token from the cookie
-		val, err = c.Cookie(cfg.CookieName)
+		val, err = c.Cookie(cfg.Cookies.NamePrefix)
 		if err != nil && !errors.Is(err, http.ErrNoCookie) {
 			AbortWithErrorJSON(c, fmt.Errorf("failed to get session cookie: %w", err))
 			return
