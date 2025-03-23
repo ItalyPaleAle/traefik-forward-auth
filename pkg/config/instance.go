@@ -54,7 +54,6 @@ func GetDefaultConfig() *Config {
 			ServerPort:    2112,
 			ServerBind:    "0.0.0.0",
 		},
-		AuthenticationTimeout: 5 * time.Minute,
 	}
 }
 

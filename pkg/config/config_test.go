@@ -5,6 +5,7 @@ import (
 	"encoding/hex"
 	"log/slog"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -19,7 +20,12 @@ func TestValidateConfig(t *testing.T) {
 	})
 
 	t.Cleanup(SetTestConfig(func(c *Config) {
-		c.AuthProvider = "github"
+		c.Portals = []ConfigPortal{
+			{
+				Name:     "github1",
+				Provider: "github",
+			},
+		}
 		c.Server.Hostname = "localhost"
 	}))
 
@@ -30,14 +36,14 @@ func TestValidateConfig(t *testing.T) {
 		require.NoError(t, err)
 	})
 
-	t.Run("fails without authProvider", func(t *testing.T) {
+	t.Run("fails without a portal", func(t *testing.T) {
 		t.Cleanup(SetTestConfig(func(c *Config) {
-			c.AuthProvider = ""
+			c.Portals = []ConfigPortal{}
 		}))
 
 		err := config.Validate(log)
 		require.Error(t, err)
-		require.ErrorContains(t, err, "'authProvider' is required")
+		assert.ErrorContains(t, err, "at least one portal must be defined")
 	})
 
 	t.Run("fails without hostname", func(t *testing.T) {
@@ -47,7 +53,67 @@ func TestValidateConfig(t *testing.T) {
 
 		err := config.Validate(log)
 		require.Error(t, err)
-		require.ErrorContains(t, err, "'server.hostname' is required")
+		assert.ErrorContains(t, err, "'server.hostname' is required")
+	})
+
+	t.Run("fails when portal has invalid name", func(t *testing.T) {
+		t.Cleanup(SetTestConfig(func(c *Config) {
+			c.Portals = []ConfigPortal{
+				{
+					Name:     "1",
+					Provider: "github",
+				},
+			}
+		}))
+
+		err := config.Validate(log)
+		require.Error(t, err)
+		_ = assert.ErrorContains(t, err, "invalid portal '1'") &&
+			assert.ErrorContains(t, err, "property 'name' is invalid")
+	})
+
+	t.Run("fails when portal has invalid provider", func(t *testing.T) {
+		t.Cleanup(SetTestConfig(func(c *Config) {
+			c.Portals = []ConfigPortal{
+				{
+					Name:     "foo",
+					Provider: "bad",
+				},
+			}
+		}))
+
+		err := config.Validate(log)
+		require.Error(t, err)
+		_ = assert.ErrorContains(t, err, "invalid portal 'foo'") &&
+			assert.ErrorContains(t, err, "invalid value for 'provider': bad")
+	})
+
+	t.Run("parse provider config", func(t *testing.T) {
+		t.Cleanup(SetTestConfig(func(c *Config) {
+			c.Portals = []ConfigPortal{
+				{
+					Name:     "github1",
+					Provider: "github",
+					Config: map[string]any{
+						"clientID":       "abcdef123456",
+						"clientSecret":   "000-000-000",
+						"requestTimeout": "30s",
+					},
+				},
+			}
+		}))
+
+		expectProviderConfig := &ProviderConfig_GitHub{
+			ClientID:       "abcdef123456",
+			ClientSecret:   "000-000-000",
+			RequestTimeout: 30 * time.Second,
+		}
+
+		err := config.Validate(log)
+		require.NoError(t, err)
+
+		require.Len(t, config.Portals, 1)
+		assert.EqualValues(t, expectProviderConfig, config.Portals[0].configParsed)
 	})
 }
 

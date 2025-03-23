@@ -5,7 +5,7 @@ import (
 	"os"
 
 	env "github.com/caarlos0/env/v11"
-	yaml "gopkg.in/yaml.v3"
+	yaml "sigs.k8s.io/yaml/goyaml.v3"
 )
 
 // LoadOptions contains options for the Load method.
