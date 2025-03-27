@@ -1,23 +1,17 @@
 package server
 
 import (
-	"errors"
 	"fmt"
 	"net/http"
 	"strings"
 
 	"github.com/gin-gonic/gin"
-
-	"github.com/italypaleale/traefik-forward-auth/pkg/config"
 )
 
 // RouteGetAPIVerify is the handler for GET /api/verify
 // This API validates a token and returns the list of claims
-// The token can be passed in the Authorization header or in the session cookie
+// The token can be passed in the Authorization header
 func (s *Server) RouteGetAPIVerify(c *gin.Context) {
-	var err error
-	cfg := config.Get()
-
 	// First, get the token
 	// Try with the authorization header first
 	val := c.GetHeader("Authorization")
@@ -25,13 +19,6 @@ func (s *Server) RouteGetAPIVerify(c *gin.Context) {
 		// Trim the "bearer" prefix if found
 		if strings.ToLower(val[0:len("bearer ")]) == "bearer " {
 			val = val[len("bearer "):]
-		}
-	} else {
-		// Try getting the token from the cookie
-		val, err = c.Cookie(cfg.Cookies.NamePrefix)
-		if err != nil && !errors.Is(err, http.ErrNoCookie) {
-			AbortWithErrorJSON(c, fmt.Errorf("failed to get session cookie: %w", err))
-			return
 		}
 	}
 	if len(val) == 0 {

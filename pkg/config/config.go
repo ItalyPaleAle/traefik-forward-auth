@@ -18,6 +18,7 @@ import (
 
 	"github.com/lestrrat-go/jwx/v2/jwk"
 
+	"github.com/italypaleale/traefik-forward-auth/pkg/auth"
 	"github.com/italypaleale/traefik-forward-auth/pkg/utils"
 	"github.com/italypaleale/traefik-forward-auth/pkg/utils/validators"
 )
@@ -321,7 +322,7 @@ func (c *Config) Validate(logger *slog.Logger) error {
 	}
 	names := make(map[string]struct{}, len(c.Portals))
 	for i := range c.Portals {
-		err = c.Portals[i].Parse()
+		err = c.Portals[i].Parse(c)
 		if err != nil {
 			if c.Portals[i].Name == "" {
 				return fmt.Errorf("invalid portal at index %d: %w", i, err)
@@ -341,7 +342,15 @@ func (c *Config) Validate(logger *slog.Logger) error {
 
 var portalNameRegex = regexp.MustCompile(`^[a-zA-Z][a-zA-Z0-9-_\.]{2,39}$`)
 
-func (p *ConfigPortal) Parse() error {
+func (p *ConfigPortal) GetAuthProvider() (auth.Provider, error) {
+	if p.configParsed == nil {
+		return nil, errors.New("method Parse was not called on portal configuration object")
+	}
+
+	return p.configParsed.GetAuthProvider()
+}
+
+func (p *ConfigPortal) Parse(c *Config) error {
 	// Sanitize AuthProvider
 	p.Provider = strings.ReplaceAll(strings.ToLower(p.Provider), "-", "")
 	if p.Provider == "" {
@@ -357,6 +366,11 @@ func (p *ConfigPortal) Parse() error {
 	}
 	p.Name = strings.ToLower(p.Name)
 
+	// Set display name if currently unset
+	if p.DisplayName == "" {
+		p.DisplayName = p.Name
+	}
+
 	// Validate authenticatio timeout
 	if p.AuthenticationTimeout < time.Millisecond {
 		// Default authentication timeout
@@ -370,30 +384,35 @@ func (p *ConfigPortal) Parse() error {
 	switch p.Provider {
 	case "github":
 		p.configParsed = &ProviderConfig_GitHub{}
+		p.configParsed.SetConfigObject(c)
 		err := ApplyProviderConfig(p.Config, p.configParsed)
 		if err != nil {
 			return fmt.Errorf("invalid config for provider 'github': %w", err)
 		}
 	case "google":
 		p.configParsed = &ProviderConfig_Google{}
+		p.configParsed.SetConfigObject(c)
 		err := ApplyProviderConfig(p.Config, p.configParsed)
 		if err != nil {
 			return fmt.Errorf("invalid config for provider 'google': %w", err)
 		}
 	case "microsoftentraid", "azuread", "aad", "entraid":
 		p.configParsed = &ProviderConfig_MicrosoftEntraID{}
+		p.configParsed.SetConfigObject(c)
 		err := ApplyProviderConfig(p.Config, p.configParsed)
 		if err != nil {
 			return fmt.Errorf("invalid config for provider 'microsoftentraid': %w", err)
 		}
 	case "openidconnect", "oidc":
 		p.configParsed = &ProviderConfig_OpenIDConnect{}
+		p.configParsed.SetConfigObject(c)
 		err := ApplyProviderConfig(p.Config, p.configParsed)
 		if err != nil {
 			return fmt.Errorf("invalid config for provider 'openidconnect': %w", err)
 		}
 	case "tailscalewhois", "tailscale":
 		p.configParsed = &ProviderConfig_TailscaleWhois{}
+		p.configParsed.SetConfigObject(c)
 		err := ApplyProviderConfig(p.Config, p.configParsed)
 		if err != nil {
 			return fmt.Errorf("invalid config for provider 'tailscalewhois': %w", err)

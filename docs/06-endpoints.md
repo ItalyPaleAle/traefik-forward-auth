@@ -31,7 +31,7 @@ The information presented on the page depends on what was shared by the identity
 
 The `GET /api/verify` validates a token and returns the list of claims it includes, providing the same information as the [profile route](#profile-route).
 
-The token can be passed in the `Authorization` header or as a session cookie.
+The token can be passed in the `Authorization` header.
 
 The method returns a JSON-encoded response that includes the claims extracted from the token. For example:
 

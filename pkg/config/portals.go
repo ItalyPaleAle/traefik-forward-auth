@@ -10,7 +10,8 @@ import (
 )
 
 type ProviderConfig interface {
-	GetAuthProvider(c *Config) (auth.Provider, error)
+	GetAuthProvider() (auth.Provider, error)
+	SetConfigObject(c *Config)
 }
 
 type ProviderConfig_GitHub struct {
@@ -28,13 +29,17 @@ type ProviderConfig_GitHub struct {
 	RequestTimeout time.Duration `yaml:"requestTimeout"`
 }
 
-func (p *ProviderConfig_GitHub) GetAuthProvider(c *Config) (auth.Provider, error) {
+func (p *ProviderConfig_GitHub) GetAuthProvider() (auth.Provider, error) {
 	return auth.NewGitHub(auth.NewGitHubOptions{
 		ClientID:       p.ClientID,
 		ClientSecret:   p.ClientSecret,
 		AllowedUsers:   p.AllowedUsers,
 		RequestTimeout: p.RequestTimeout,
 	})
+}
+
+func (p *ProviderConfig_GitHub) SetConfigObject(_ *Config) {
+	// Nop for this provider
 }
 
 type ProviderConfig_Google struct {
@@ -58,7 +63,7 @@ type ProviderConfig_Google struct {
 	RequestTimeout time.Duration `yaml:"requestTimeout"`
 }
 
-func (p *ProviderConfig_Google) GetAuthProvider(c *Config) (auth.Provider, error) {
+func (p *ProviderConfig_Google) GetAuthProvider() (auth.Provider, error) {
 	return auth.NewGoogle(auth.NewGoogleOptions{
 		ClientID:       p.ClientID,
 		ClientSecret:   p.ClientSecret,
@@ -67,6 +72,10 @@ func (p *ProviderConfig_Google) GetAuthProvider(c *Config) (auth.Provider, error
 		AllowedDomains: p.AllowedDomains,
 		RequestTimeout: p.RequestTimeout,
 	})
+}
+
+func (p *ProviderConfig_Google) SetConfigObject(_ *Config) {
+	// Nop for this provider
 }
 
 type ProviderConfig_MicrosoftEntraID struct {
@@ -96,9 +105,11 @@ type ProviderConfig_MicrosoftEntraID struct {
 	// Timeout for network requests for Microsoft Entra ID auth
 	// +default 10s
 	RequestTimeout time.Duration `yaml:"requestTimeout"`
+
+	config *Config
 }
 
-func (p *ProviderConfig_MicrosoftEntraID) GetAuthProvider(c *Config) (auth.Provider, error) {
+func (p *ProviderConfig_MicrosoftEntraID) GetAuthProvider() (auth.Provider, error) {
 	return auth.NewMicrosoftEntraID(auth.NewMicrosoftEntraIDOptions{
 		TenantID:               p.TenantID,
 		ClientID:               p.ClientID,
@@ -106,8 +117,12 @@ func (p *ProviderConfig_MicrosoftEntraID) GetAuthProvider(c *Config) (auth.Provi
 		AzureFederatedIdentity: p.AzureFederatedIdentity,
 		AllowedUsers:           p.AllowedUsers,
 		RequestTimeout:         p.RequestTimeout,
-		PKCEKey:                c.internal.pkceKey,
+		PKCEKey:                p.config.internal.pkceKey,
 	})
+}
+
+func (p *ProviderConfig_MicrosoftEntraID) SetConfigObject(c *Config) {
+	p.config = c
 }
 
 type ProviderConfig_OpenIDConnect struct {
@@ -133,12 +148,14 @@ type ProviderConfig_OpenIDConnect struct {
 	// If true, enables the use of PKCE during the code exchange.
 	// +default false
 	EnablePKCE bool `yaml:"enablePKCE"`
+
+	config *Config
 }
 
-func (p *ProviderConfig_OpenIDConnect) GetAuthProvider(c *Config) (auth.Provider, error) {
+func (p *ProviderConfig_OpenIDConnect) GetAuthProvider() (auth.Provider, error) {
 	var pkceKey []byte
 	if p.EnablePKCE {
-		pkceKey = c.internal.pkceKey
+		pkceKey = p.config.internal.pkceKey
 	}
 	return auth.NewOpenIDConnect(auth.NewOpenIDConnectOptions{
 		ClientID:       p.ClientID,
@@ -149,6 +166,10 @@ func (p *ProviderConfig_OpenIDConnect) GetAuthProvider(c *Config) (auth.Provider
 		RequestTimeout: p.RequestTimeout,
 		PKCEKey:        pkceKey,
 	})
+}
+
+func (p *ProviderConfig_OpenIDConnect) SetConfigObject(c *Config) {
+	p.config = c
 }
 
 type ProviderConfig_TailscaleWhois struct {
@@ -162,12 +183,16 @@ type ProviderConfig_TailscaleWhois struct {
 	RequestTimeout time.Duration `yaml:"requestTimeout"`
 }
 
-func (p *ProviderConfig_TailscaleWhois) GetAuthProvider(c *Config) (auth.Provider, error) {
+func (p *ProviderConfig_TailscaleWhois) GetAuthProvider() (auth.Provider, error) {
 	return auth.NewTailscaleWhois(auth.NewTailscaleWhoisOptions{
 		AllowedTailnet: p.AllowedTailnet,
 		AllowedUsers:   p.AllowedUsers,
 		RequestTimeout: p.RequestTimeout,
 	})
+}
+
+func (p *ProviderConfig_TailscaleWhois) SetConfigObject(_ *Config) {
+	// Nop for this provider
 }
 
 func ApplyProviderConfig(props map[string]any, dest any) error {

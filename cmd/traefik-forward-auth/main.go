@@ -76,11 +76,19 @@ func main() {
 		shutdownFns = append(shutdownFns, metricsShutdownFn)
 	}
 
-	// Get the auth provider
-	auth, err := conf.GetAuthProvider()
-	if err != nil {
-		utils.FatalError(log, "Failed to get auth provider", err)
-		return
+	// Get the portals
+	portals := make(map[string]server.Portal, len(conf.Portals))
+	for _, p := range conf.Portals {
+		provider, err := p.GetAuthProvider()
+		if err != nil {
+			utils.FatalError(log, "Failed to get auth provider for portal "+p.Name, err)
+			return
+		}
+		portals[p.Name] = server.Portal{
+			DisplayName:           p.DisplayName,
+			Provider:              provider,
+			AuthenticationTimeout: p.AuthenticationTimeout,
+		}
 	}
 
 	// Get the trace traceExporter if tracing is enabled
@@ -97,7 +105,7 @@ func main() {
 	// Create the Server object
 	srv, err := server.NewServer(server.NewServerOpts{
 		Log:           log,
-		Auth:          auth,
+		Portals:       portals,
 		Metrics:       metrics,
 		TraceExporter: traceExporter,
 	})

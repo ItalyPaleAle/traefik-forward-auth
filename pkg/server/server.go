@@ -10,6 +10,7 @@ import (
 	"net"
 	"net/http"
 	"os"
+	"path"
 	"path/filepath"
 	"regexp"
 	"strconv"
@@ -36,7 +37,7 @@ import (
 type Server struct {
 	appRouter *gin.Engine
 	metrics   *metrics.TFAMetrics
-	auth      auth.Provider
+	portals   map[string]Portal
 
 	// Servers
 	appSrv     *http.Server
@@ -67,7 +68,7 @@ type NewServerOpts struct {
 	Log           *slog.Logger
 	Metrics       *metrics.TFAMetrics
 	TraceExporter sdkTrace.SpanExporter
-	Auth          auth.Provider
+	Portals       map[string]Portal
 
 	// Optional function to add test routes
 	// This is used in testing
@@ -77,8 +78,8 @@ type NewServerOpts struct {
 // NewServer creates a new Server object and initializes it
 func NewServer(opts NewServerOpts) (*Server, error) {
 	s := &Server{
-		auth:    opts.Auth,
 		metrics: opts.Metrics,
+		portals: opts.Portals,
 
 		addTestRoutes: opts.addTestRoutes,
 	}
@@ -172,24 +173,24 @@ func (s *Server) initAppServer(log *slog.Logger) (err error) {
 	// This does not follow BasePath
 	s.appRouter.GET("/healthz", gin.WrapF(s.RouteHealthzHandler))
 
-	// Auth routes
-	// For the root route, we add it with and without trailing slash (in case BasePath isn't empty) to avoid Gin setting up a 301 (Permanent) redirect, which causes issues with forward auth
-	appRoutes := s.appRouter.Group(conf.Server.BasePath, s.MiddlewareProxyHeaders)
-	switch provider := s.auth.(type) {
-	case auth.OAuth2Provider:
-		appRoutes.GET("", s.MiddlewareRequireClientCertificate, s.MiddlewareLoadAuthCookie, s.RouteGetOAuth2Root(provider))
-		if conf.Server.BasePath != "" {
+	// Set up all the portals
+	for _, p := range conf.Portals {
+		basePath := path.Join(conf.Server.BasePath, "portals/"+p.Name)
+
+		// For the root route, we add it with and without trailing slash to avoid Gin setting up a 301 (Permanent) redirect, which causes issues with forward auth
+		appRoutes := s.appRouter.Group(basePath, s.MiddlewareProxyHeaders)
+		switch provider := s.auth.(type) {
+		case auth.OAuth2Provider:
+			appRoutes.GET("", s.MiddlewareRequireClientCertificate, s.MiddlewareLoadAuthCookie, s.RouteGetOAuth2Root(provider))
 			appRoutes.GET("/", s.MiddlewareRequireClientCertificate, s.MiddlewareLoadAuthCookie, s.RouteGetOAuth2Root(provider))
-		}
-		appRoutes.GET("/oauth2/callback", codeFilterLogMw, s.RouteGetOAuth2Callback(provider))
-	case auth.SeamlessProvider:
-		appRoutes.GET("", s.MiddlewareRequireClientCertificate, s.MiddlewareLoadAuthCookie, s.RouteGetSeamlessAuthRoot(provider))
-		if conf.Server.BasePath != "" {
+			appRoutes.GET("/oauth2/callback", codeFilterLogMw, s.RouteGetOAuth2Callback(provider))
+		case auth.SeamlessProvider:
+			appRoutes.GET("", s.MiddlewareRequireClientCertificate, s.MiddlewareLoadAuthCookie, s.RouteGetSeamlessAuthRoot(provider))
 			appRoutes.GET("/", s.MiddlewareRequireClientCertificate, s.MiddlewareLoadAuthCookie, s.RouteGetSeamlessAuthRoot(provider))
 		}
+		appRoutes.GET("profile", s.MiddlewareLoadAuthCookie, s.RouteGetProfile)
+		appRoutes.GET("logout", s.RouteGetLogout)
 	}
-	appRoutes.GET("profile", s.MiddlewareLoadAuthCookie, s.RouteGetProfile)
-	appRoutes.GET("logout", s.RouteGetLogout)
 
 	// API Routes
 	// These do not follow BasePath and do not require a client certificate, or loading the auth cookie, or the proxy headers
@@ -470,4 +471,10 @@ func (s *Server) loadTLSConfig(log *slog.Logger) (tlsConfig *tls.Config, watchFn
 	log.Debug("Loaded TLS certificates from PEM values")
 
 	return tlsConfig, nil, nil
+}
+
+type Portal struct {
+	DisplayName           string
+	Provider              auth.Provider
+	AuthenticationTimeout time.Duration
 }
