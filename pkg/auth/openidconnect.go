@@ -43,6 +43,10 @@ type NewOpenIDConnectOptions struct {
 	// Key for generating PKCE code verifiers
 	// Enables the use of PKCE if non-empty
 	PKCEKey []byte
+	// Skip validating TLS certificates when connecting to the Identity Provider
+	TLSSkipVerify bool
+	// Optional, PEM-encoded CA certificate used when connecting to the Identity Provider
+	TLSCACertificate []byte
 
 	// Some providers validate client secrets separately
 	skipClientSecretValidation bool
@@ -83,10 +87,12 @@ func NewOpenIDConnect(opts NewOpenIDConnectOptions) (*OpenIDConnect, error) {
 			ClientSecret: opts.ClientSecret,
 		},
 
-		Endpoints:      endpoints,
-		RequestTimeout: opts.RequestTimeout,
-		TokenIssuer:    opts.TokenIssuer,
-		PKCEKey:        opts.PKCEKey,
+		Endpoints:        endpoints,
+		RequestTimeout:   opts.RequestTimeout,
+		TokenIssuer:      opts.TokenIssuer,
+		PKCEKey:          opts.PKCEKey,
+		TLSSkipVerify:    opts.TLSSkipVerify,
+		TLSCACertificate: opts.TLSCACertificate,
 
 		skipClientSecretValidation:      opts.skipClientSecretValidation,
 		tokenExchangeParametersModifier: opts.tokenExchangeParametersModifier,
