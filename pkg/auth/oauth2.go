@@ -105,16 +105,18 @@ func NewOAuth2(providerName string, opts NewOAuth2Options) (p oAuth2, err error)
 	}
 
 	// Get the HTTP transport
-	httpTransport := http.DefaultTransport.(*http.Transport)
+	httpTransport := http.DefaultTransport.(*http.Transport) //nolint:forcetypeassert
 	if opts.TLSSkipVerify {
 		httpTransport.TLSClientConfig = &tls.Config{
-			InsecureSkipVerify: true,
+			InsecureSkipVerify: true, //nolint:gosec
+			MinVersion:         tls.VersionTLS12,
 		}
 	} else if len(opts.TLSCACertificate) > 0 {
 		caCertPool := x509.NewCertPool()
 		caCertPool.AppendCertsFromPEM(opts.TLSCACertificate)
 		httpTransport.TLSClientConfig = &tls.Config{
-			RootCAs: caCertPool,
+			RootCAs:    caCertPool,
+			MinVersion: tls.VersionTLS12,
 		}
 	}
 
