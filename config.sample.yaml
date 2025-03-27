@@ -283,18 +283,37 @@ authProvider:
 ## Default: false
 #authOpenIDConnect_enablePKCE: 
 
+## authOpenIDConnect_tlsInsecureSkipVerify (boolean)
+## Description:
+##   If true, skips validating TLS certificates when connecting to the OpenID Connect Identity Provider.
+##   Ignored if `authProvider` is not `openidconnect`
+## Default: false
+#authOpenIDConnect_tlsInsecureSkipVerify: 
+
+## authOpenIDConnect_tlsCACertificatePEM (string)
+## Description:
+##   Optional PEM-encoded CA certificate to trust when connecting to the OpenID Connect Identity Provider.
+##   Ignored if `authProvider` is not `openidconnect`
+#authOpenIDConnect_tlsCACertificatePEM: 
+
+## authOpenIDConnect_tlsCACertificatePath (string)
+## Description:
+##   Optional path to a CA certificate to trust when connecting to the OpenID Connect Identity Provider.
+##   Ignored if `authProvider` is not `openidconnect`
+#authOpenIDConnect_tlsCACertificatePath: 
+
 ## authTailscaleWhois_allowedTailnet (string)
 ## Description:
 ##   If non-empty, requires the Tailnet of the user to match this value
 ##   Ignored if `authProvider` is not `tailscalewhois`
 #authTailscaleWhois_allowedTailnet: 
 
-## authTailscaleConnect_allowedUsers (list of strings)
+## authTailscaleWhois_allowedUsers (list of strings)
 ## Description:
 ##   List of allowed users for Tailscale Whois auth
 ##   This is a list of user IDs as returned by the ID provider
 ##   Ignored if `authProvider` is not `tailscalewhois`
-#authTailscaleConnect_allowedUsers: 
+#authTailscaleWhois_allowedUsers: 
 
 ## authTailscaleWhois_requestTimeout (duration)
 ## Description:

@@ -12,6 +12,7 @@ import (
 	"io"
 	"log/slog"
 	"net"
+	"os"
 	"strings"
 	"time"
 
@@ -212,6 +213,16 @@ type Config struct {
 	// Ignored if `authProvider` is not `openidconnect`
 	// +default false
 	AuthOpenIDConnectEnablePKCE bool `env:"AUTHOPENIDCONNECT_ENABLEPKCE" yaml:"authOpenIDConnect_enablePKCE"`
+	// If true, skips validating TLS certificates when connecting to the OpenID Connect Identity Provider.
+	// Ignored if `authProvider` is not `openidconnect`
+	// +default false
+	AuthOpenIDConnectTLSInsecureSkipVerify bool `env:"AUTHOPENIDCONNECT_TLSINSECURESKIPVERIFY" yaml:"authOpenIDConnect_tlsInsecureSkipVerify"`
+	// Optional PEM-encoded CA certificate to trust when connecting to the OpenID Connect Identity Provider.
+	// Ignored if `authProvider` is not `openidconnect`
+	AuthOpenIDConnectTLSCACertificatePEM string `env:"AUTHOPENIDCONNECT_TLSCACERTIFICATEPEM" yaml:"authOpenIDConnect_tlsCACertificatePEM"`
+	// Optional path to a CA certificate to trust when connecting to the OpenID Connect Identity Provider.
+	// Ignored if `authProvider` is not `openidconnect`
+	AuthOpenIDConnectTLSCACertificatePath string `env:"AUTHOPENIDCONNECT_TLSCACERTIFICATEPath" yaml:"authOpenIDConnect_tlsCACertificatePath"`
 
 	// If non-empty, requires the Tailnet of the user to match this value
 	// Ignored if `authProvider` is not `tailscalewhois`
@@ -219,7 +230,7 @@ type Config struct {
 	// List of allowed users for Tailscale Whois auth
 	// This is a list of user IDs as returned by the ID provider
 	// Ignored if `authProvider` is not `tailscalewhois`
-	AuthTailscaleConnectAllowedUsers []string `env:"AUTHTAILSCALECONNECT_ALLOWEDUSERS" yaml:"authTailscaleConnect_allowedUsers"`
+	AuthTailscaleWhoisAllowedUsers []string `env:"AUTHTAILSCALEWHOIS_ALLOWEDUSERS" yaml:"authTailscaleWhois_allowedUsers"`
 	// Timeout for network requests for Tailscale Whois auth
 	// Ignored if `authProvider` is not `tailscalewhois`
 	// +default 10s
@@ -432,19 +443,37 @@ func (c *Config) GetAuthProvider() (auth.Provider, error) {
 		if c.AuthOpenIDConnectEnablePKCE {
 			pkceKey = c.internal.pkceKey
 		}
+
+		var (
+			tlsCACertificate []byte
+			err              error
+		)
+		switch {
+		case c.AuthOpenIDConnectTLSCACertificatePEM != "" && c.AuthOpenIDConnectTLSCACertificatePath != "":
+			return nil, errors.New("cannot pass both 'authOpenIDConnect_tlsCACertificatePEM' and 'authOpenIDConnect_tlsCACertificatePath'")
+		case c.AuthOpenIDConnectTLSCACertificatePEM != "":
+			tlsCACertificate = []byte(c.AuthOpenIDConnectTLSCACertificatePEM)
+		case c.AuthOpenIDConnectTLSCACertificatePath != "":
+			tlsCACertificate, err = os.ReadFile(c.AuthOpenIDConnectTLSCACertificatePath)
+			if err != nil {
+				return nil, fmt.Errorf("failed to read TLS CA certificate from '%s': %w", c.AuthOpenIDConnectTLSCACertificatePath, err)
+			}
+		}
 		return auth.NewOpenIDConnect(auth.NewOpenIDConnectOptions{
-			ClientID:       c.AuthOpenIDConnectClientID,
-			ClientSecret:   c.AuthOpenIDConnectClientSecret,
-			TokenIssuer:    c.AuthOpenIDConnectTokenIssuer,
-			AllowedUsers:   c.AuthOpenIDConnectAllowedUsers,
-			AllowedEmails:  c.AuthOpenIDConnectAllowedEmails,
-			RequestTimeout: c.AuthOpenIDConnectRequestTimeout,
-			PKCEKey:        pkceKey,
+			ClientID:         c.AuthOpenIDConnectClientID,
+			ClientSecret:     c.AuthOpenIDConnectClientSecret,
+			TokenIssuer:      c.AuthOpenIDConnectTokenIssuer,
+			AllowedUsers:     c.AuthOpenIDConnectAllowedUsers,
+			AllowedEmails:    c.AuthOpenIDConnectAllowedEmails,
+			RequestTimeout:   c.AuthOpenIDConnectRequestTimeout,
+			PKCEKey:          pkceKey,
+			TLSSkipVerify:    c.AuthOpenIDConnectTLSInsecureSkipVerify,
+			TLSCACertificate: tlsCACertificate,
 		})
 	case "tailscalewhois", "tailscale":
 		return auth.NewTailscaleWhois(auth.NewTailscaleWhoisOptions{
 			AllowedTailnet: c.AuthTailscaleWhoisAllowedTailnet,
-			AllowedUsers:   c.AuthTailscaleConnectAllowedUsers,
+			AllowedUsers:   c.AuthTailscaleWhoisAllowedUsers,
 			RequestTimeout: c.AuthTailscaleWhoisRequestTimeout,
 		})
 	default:

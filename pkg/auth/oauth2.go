@@ -4,6 +4,8 @@ import (
 	"context"
 	"crypto/hmac"
 	"crypto/sha256"
+	"crypto/tls"
+	"crypto/x509"
 	"encoding/base64"
 	"encoding/json"
 	"errors"
@@ -67,6 +69,10 @@ type NewOAuth2Options struct {
 	// Key for generating PKCE code verifiers
 	// Enables the use of PKCE if non-empty
 	PKCEKey []byte
+	// Skip validating TLS certificates when connecting to the Identity Provider
+	TLSSkipVerify bool
+	// Optional, PEM-encoded CA certificate used when connecting to the Identity Provider
+	TLSCACertificate []byte
 
 	// Some providers validate client secrets separately
 	skipClientSecretValidation bool
@@ -98,9 +104,24 @@ func NewOAuth2(providerName string, opts NewOAuth2Options) (p oAuth2, err error)
 		reqTimeout = 10 * time.Second
 	}
 
+	// Get the HTTP transport
+	httpTransport := http.DefaultTransport.(*http.Transport)
+	if opts.TLSSkipVerify {
+		httpTransport.TLSClientConfig = &tls.Config{
+			InsecureSkipVerify: true,
+		}
+	} else if len(opts.TLSCACertificate) > 0 {
+		caCertPool := x509.NewCertPool()
+		caCertPool.AppendCertsFromPEM(opts.TLSCACertificate)
+		httpTransport.TLSClientConfig = &tls.Config{
+			RootCAs: caCertPool,
+		}
+	}
+
 	// Update the transport for the HTTP client to include tracing information
-	httpClient := &http.Client{}
-	httpClient.Transport = otelhttp.NewTransport(httpClient.Transport)
+	httpClient := &http.Client{
+		Transport: otelhttp.NewTransport(httpTransport),
+	}
 
 	p = oAuth2{
 		config:         opts.Config,
