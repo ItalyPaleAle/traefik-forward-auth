@@ -108,6 +108,12 @@ You can restrict the users that can authenticate with your service using one (or
 - [`authOpenIDConnect_allowedUsers`](./03-all-configuration-options.md#config-opt-authopenidconnect_allowedusers) (env: `TFA_OPENIDCONNECT_ALLOWEDUSERS`): List of allowed users, matching the value of the "sub" claim.
 - [`authOpenIDConnect_allowedEmails`](./03-all-configuration-options.md#config-opt-authopenidconnect_allowedemails) (env: `TFA_OPENIDCONNECT_ALLOWEDEMAILS`): List of allowed users, matching the value of the "email" claim.
 
+The OpenID Connect provider supports additional configuration options that can be helpful to configure how Traefik Forward Auth communicates with the Identity Provider:
+
+- [`authOpenIDConnect_tlsInsecureSkipVerify`](./03-all-configuration-options.md#config-opt-authopenidconnect_tlsinsecureskipverify) (env: `TFA_OPENIDCONNECT_TLSINSECURESKIPVERIFY`): If true, skips validating TLS certificates when communicating with the Identity Provider. While this option can enable support for self-signed TLS certificates, it should be used with caution.
+- [`authOpenIDConnect_tlsCACertificatePEM`](./03-all-configuration-options.md#config-opt-authopenidconnect_tlsCACertificatePEM) (env: `TFA_OPENIDCONNECT_TLSCACERTIFICATEPEM`): PEM-encoded CA certificate used when communicating with the Identity Provider.
+- [`authOpenIDConnect_tlsCACertificatepath`](./03-all-configuration-options.md#config-opt-authopenidconnect_tlsCACertificatepath) (env: `TFA_OPENIDCONNECT_TLSCACERTIFICATEPATH`): Path to a file containing the PEM-encoded CA certificate used when communicating with the Identity Provider.
+
 ## Tailscale Whois
 
 You can configure Single Sign-On (SSO) for clients that access your Traefik server through [Tailscale](https://tailscale.com/). Users will be automatically authenticated when the request comes through the Tailscale network.
@@ -135,4 +141,4 @@ services:
 You can restrict the users or tailnets that can authenticate with your service using one (or more) of these options:
 
 - [`authTailscaleWhois_allowedTailnet`](./03-all-configuration-options.md#config-opt-authtailscalewhois_allowedtailnet) (env: `TFA_AUTHTAILSCALEWHOIS_ALLOWEDTAILNET`): If set, restricts users who are part of this specific Tailnet. Note that due to how Tailscale works, Tailnet names are only returned for nodes that are part of the current Tailnet, and not nodes that are being added as "guests".
-- [`authTailscaleConnect_allowedUsers`](./03-all-configuration-options.md#config-opt-authtailscaleconnect_allowedusers) (env: `TFA_AUTHTAILSCALECONNECT_ALLOWEDUSERS`): List of allowed users, matching the user ID.
+- [`authTailscaleWhois_allowedUsers`](./03-all-configuration-options.md#config-opt-authtailscalewhois_allowedusers) (env: `TFA_AUTHTAILSCALEWHOIS_ALLOWEDUSERS`): List of allowed users, matching the user ID.
