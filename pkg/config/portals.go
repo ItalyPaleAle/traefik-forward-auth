@@ -1,7 +1,9 @@
 package config
 
 import (
+	"errors"
 	"fmt"
+	"os"
 	"time"
 
 	yaml "sigs.k8s.io/yaml/goyaml.v3"
@@ -148,6 +150,13 @@ type ProviderConfig_OpenIDConnect struct {
 	// If true, enables the use of PKCE during the code exchange.
 	// +default false
 	EnablePKCE bool `yaml:"enablePKCE"`
+	// If true, skips validating TLS certificates when connecting to the OpenID Connect Identity Provider.
+	// +default false
+	TLSInsecureSkipVerify bool `yaml:"tlsInsecureSkipVerify"`
+	// Optional PEM-encoded CA certificate to trust when connecting to the OpenID Connect Identity Provider.
+	TLSCACertificatePEM string `yaml:"tlsCACertificatePEM"`
+	// Optional path to a CA certificate to trust when connecting to the OpenID Connect Identity Provider.
+	TLSCACertificatePath string `yaml:"tlsCACertificatePath"`
 
 	config *Config
 }
@@ -157,14 +166,33 @@ func (p *ProviderConfig_OpenIDConnect) GetAuthProvider() (auth.Provider, error) 
 	if p.EnablePKCE {
 		pkceKey = p.config.internal.pkceKey
 	}
+
+	var (
+		tlsCACertificate []byte
+		err              error
+	)
+	switch {
+	case p.TLSCACertificatePEM != "" && p.TLSCACertificatePath != "":
+		return nil, errors.New("cannot pass both 'authOpenIDConnect_tlsCACertificatePEM' and 'authOpenIDConnect_tlsCACertificatePath'")
+	case p.TLSCACertificatePEM != "":
+		tlsCACertificate = []byte(p.TLSCACertificatePEM)
+	case p.TLSCACertificatePath != "":
+		tlsCACertificate, err = os.ReadFile(p.TLSCACertificatePath)
+		if err != nil {
+			return nil, fmt.Errorf("failed to read TLS CA certificate from '%s': %w", p.TLSCACertificatePath, err)
+		}
+	}
+
 	return auth.NewOpenIDConnect(auth.NewOpenIDConnectOptions{
-		ClientID:       p.ClientID,
-		ClientSecret:   p.ClientSecret,
-		TokenIssuer:    p.TokenIssuer,
-		AllowedUsers:   p.AllowedUsers,
-		AllowedEmails:  p.AllowedEmails,
-		RequestTimeout: p.RequestTimeout,
-		PKCEKey:        pkceKey,
+		ClientID:         p.ClientID,
+		ClientSecret:     p.ClientSecret,
+		TokenIssuer:      p.TokenIssuer,
+		AllowedUsers:     p.AllowedUsers,
+		AllowedEmails:    p.AllowedEmails,
+		RequestTimeout:   p.RequestTimeout,
+		PKCEKey:          pkceKey,
+		TLSSkipVerify:    p.TLSInsecureSkipVerify,
+		TLSCACertificate: tlsCACertificate,
 	})
 }
 
