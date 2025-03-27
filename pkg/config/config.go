@@ -1,6 +1,7 @@
 package config
 
 import (
+	"context"
 	"crypto"
 	"crypto/hmac"
 	"crypto/rand"
@@ -459,7 +460,7 @@ func (c *Config) GetAuthProvider() (auth.Provider, error) {
 				return nil, fmt.Errorf("failed to read TLS CA certificate from '%s': %w", c.AuthOpenIDConnectTLSCACertificatePath, err)
 			}
 		}
-		return auth.NewOpenIDConnect(auth.NewOpenIDConnectOptions{
+		return auth.NewOpenIDConnect(context.TODO(), auth.NewOpenIDConnectOptions{
 			ClientID:         c.AuthOpenIDConnectClientID,
 			ClientSecret:     c.AuthOpenIDConnectClientSecret,
 			TokenIssuer:      c.AuthOpenIDConnectTokenIssuer,

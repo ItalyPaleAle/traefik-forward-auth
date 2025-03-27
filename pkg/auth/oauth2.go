@@ -57,8 +57,7 @@ type tokenExchangeParametersModifierFn func(context.Context, url.Values) error
 
 // NewOAuth2Options is the options for NewOAuth2
 type NewOAuth2Options struct {
-	Config    OAuth2Config
-	Endpoints OAuth2Endpoints
+	Config OAuth2Config
 	// Optional value for the issuer claim
 	TokenIssuer string
 	// Scopes for requesting the token
@@ -90,9 +89,6 @@ func NewOAuth2(providerName string, opts NewOAuth2Options) (p oAuth2, err error)
 	}
 	if providerName == "" {
 		return p, errors.New("missing parameter providerName")
-	}
-	if !opts.Endpoints.Valid() {
-		return p, errors.New("all endpoints must be specified")
 	}
 
 	scopes := opts.Scopes
@@ -128,7 +124,6 @@ func NewOAuth2(providerName string, opts NewOAuth2Options) (p oAuth2, err error)
 	p = oAuth2{
 		config:         opts.Config,
 		providerName:   providerName,
-		endpoints:      opts.Endpoints,
 		tokenIssuer:    opts.TokenIssuer,
 		scopes:         scopes,
 		httpClient:     httpClient,
@@ -140,11 +135,24 @@ func NewOAuth2(providerName string, opts NewOAuth2Options) (p oAuth2, err error)
 	return p, nil
 }
 
-func (a oAuth2) GetProviderName() string {
+func (a *oAuth2) SetEndpoints(endpoints OAuth2Endpoints) error {
+	if !endpoints.Valid() {
+		return errors.New("all endpoints must be specified")
+	}
+
+	a.endpoints = endpoints
+	return nil
+}
+
+func (a *oAuth2) GetHTTPClient() *http.Client {
+	return a.httpClient
+}
+
+func (a *oAuth2) GetProviderName() string {
 	return a.providerName
 }
 
-func (a oAuth2) OAuth2AuthorizeURL(state string, redirectURL string) (string, error) {
+func (a *oAuth2) OAuth2AuthorizeURL(state string, redirectURL string) (string, error) {
 	if state == "" {
 		return "", errors.New("parameter state is required")
 	}
@@ -172,7 +180,7 @@ func (a oAuth2) OAuth2AuthorizeURL(state string, redirectURL string) (string, er
 	return a.endpoints.Authorization + "?" + params.Encode(), nil
 }
 
-func (a oAuth2) getPKCECodeVerifier(state string, redirectURL string) string {
+func (a *oAuth2) getPKCECodeVerifier(state string, redirectURL string) string {
 	// Because we don't have a place to store secrets conveniently, we won't use a random code verifier
 	// Instead, we're generating a HMAC message based on other random data, using the PKCE key
 	h := hmac.New(sha256.New, a.pkceKey)
@@ -183,7 +191,7 @@ func (a oAuth2) getPKCECodeVerifier(state string, redirectURL string) string {
 	return base64.RawURLEncoding.EncodeToString(h.Sum(nil))
 }
 
-func (a oAuth2) OAuth2ExchangeCode(ctx context.Context, state string, code string, redirectURL string) (OAuth2AccessToken, error) {
+func (a *oAuth2) OAuth2ExchangeCode(ctx context.Context, state string, code string, redirectURL string) (OAuth2AccessToken, error) {
 	if code == "" {
 		return OAuth2AccessToken{}, errors.New("parameter code is required")
 	}
@@ -261,25 +269,25 @@ type oAuth2TokenResponse struct {
 	IDToken      string `json:"id_token"`
 }
 
-func (a oAuth2) OAuth2RetrieveProfile(ctx context.Context, at OAuth2AccessToken) (profile *user.Profile, err error) {
+func (a *oAuth2) OAuth2RetrieveProfile(ctx context.Context, at OAuth2AccessToken) (profile *user.Profile, err error) {
 	// This method needs to be implemented in structs that embed OAuth2
 	panic("Method OAuth2RetrieveProfile must be implemented by a struct inheriting OAuth2")
 }
 
-func (a oAuth2) ValidateRequestClaims(r *http.Request, profile *user.Profile) error {
+func (a *oAuth2) ValidateRequestClaims(r *http.Request, profile *user.Profile) error {
 	// This implementation doesn't need performing additional validation on the claims
 	return nil
 }
 
-func (a oAuth2) UserIDFromProfile(profile *user.Profile) string {
+func (a *oAuth2) UserIDFromProfile(profile *user.Profile) string {
 	return profile.ID
 }
 
-func (a oAuth2) PopulateAdditionalClaims(claims map[string]any, setClaimFn func(key, val string)) {
+func (a *oAuth2) PopulateAdditionalClaims(claims map[string]any, setClaimFn func(key, val string)) {
 	// Nop in this implementation
 }
 
-func (a oAuth2) UserAllowed(profile *user.Profile) error {
+func (a *oAuth2) UserAllowed(profile *user.Profile) error {
 	// Nop in this implementation
 	return nil
 }
@@ -290,4 +298,4 @@ func (e OAuth2Endpoints) Valid() bool {
 }
 
 // Compile-time interface assertion
-var _ OAuth2Provider = oAuth2{}
+var _ OAuth2Provider = &oAuth2{}
