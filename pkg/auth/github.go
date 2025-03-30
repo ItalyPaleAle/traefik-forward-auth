@@ -54,13 +54,17 @@ func NewGitHub(opts NewGitHubOptions) (*GitHub, error) {
 			ClientID:     opts.ClientID,
 			ClientSecret: opts.ClientSecret,
 		},
-		Endpoints: OAuth2Endpoints{
-			Authorization: "https://github.com/login/oauth/authorize",
-			Token:         "https://github.com/login/oauth/access_token",
-			UserInfo:      "https://api.github.com/user",
-		},
 		Scopes:         "user",
 		RequestTimeout: opts.RequestTimeout,
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	err = oauth2.SetEndpoints(OAuth2Endpoints{
+		Authorization: "https://github.com/login/oauth/authorize",
+		Token:         "https://github.com/login/oauth/access_token",
+		UserInfo:      "https://api.github.com/user",
 	})
 	if err != nil {
 		return nil, err

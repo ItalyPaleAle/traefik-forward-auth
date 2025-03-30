@@ -56,7 +56,7 @@ type NewOpenIDConnectOptions struct {
 
 // NewOpenIDConnect returns a new OpenIDConnect provider
 // The endpoints are resolved by retrieving the openid-configuration document from the URL of the token issuer.
-func NewOpenIDConnect(opts NewOpenIDConnectOptions) (*OpenIDConnect, error) {
+func NewOpenIDConnect(ctx context.Context, opts NewOpenIDConnectOptions) (*OpenIDConnect, error) {
 	if opts.ClientID == "" {
 		return nil, errors.New("value for clientId is required in config for auth with provider 'openidconnect'")
 	}
@@ -74,12 +74,6 @@ func NewOpenIDConnect(opts NewOpenIDConnectOptions) (*OpenIDConnect, error) {
 		opts.RequestTimeout = 10 * time.Second
 	}
 
-	// Fetch the openid-configuration document
-	endpoints, err := fetchOIDCEndpoints(context.TODO(), opts.TokenIssuer, http.DefaultClient, opts.RequestTimeout)
-	if err != nil {
-		return nil, err
-	}
-
 	// Create the provider.
 	oauth2, err := NewOAuth2("openidconnect", NewOAuth2Options{
 		Config: OAuth2Config{
@@ -87,7 +81,6 @@ func NewOpenIDConnect(opts NewOpenIDConnectOptions) (*OpenIDConnect, error) {
 			ClientSecret: opts.ClientSecret,
 		},
 
-		Endpoints:        endpoints,
 		RequestTimeout:   opts.RequestTimeout,
 		TokenIssuer:      opts.TokenIssuer,
 		PKCEKey:          opts.PKCEKey,
@@ -97,6 +90,17 @@ func NewOpenIDConnect(opts NewOpenIDConnectOptions) (*OpenIDConnect, error) {
 		skipClientSecretValidation:      opts.skipClientSecretValidation,
 		tokenExchangeParametersModifier: opts.tokenExchangeParametersModifier,
 	})
+	if err != nil {
+		return nil, err
+	}
+
+	// Fetch the openid-configuration document and set the endpoints
+	endpoints, err := fetchOIDCEndpoints(ctx, opts.TokenIssuer, oauth2.GetHTTPClient(), opts.RequestTimeout)
+	if err != nil {
+		return nil, err
+	}
+
+	err = oauth2.SetEndpoints(endpoints)
 	if err != nil {
 		return nil, err
 	}
@@ -123,13 +127,17 @@ func newOpenIDConnectInternal(providerName string, opts NewOpenIDConnectOptions,
 			ClientID:     opts.ClientID,
 			ClientSecret: opts.ClientSecret,
 		},
-		Endpoints:      endpoints,
 		RequestTimeout: opts.RequestTimeout,
 		TokenIssuer:    opts.TokenIssuer,
 
 		skipClientSecretValidation:      opts.skipClientSecretValidation,
 		tokenExchangeParametersModifier: opts.tokenExchangeParametersModifier,
 	})
+	if err != nil {
+		return nil, err
+	}
+
+	err = oauth2.SetEndpoints(endpoints)
 	if err != nil {
 		return nil, err
 	}
@@ -186,7 +194,7 @@ func (a *OpenIDConnect) OAuth2RetrieveProfile(ctx context.Context, at OAuth2Acce
 	req.Header.Set("Accept", "application/json")
 	req.Header.Set("Authorization", "Bearer "+at.AccessToken)
 
-	res, err := a.httpClient.Do(req)
+	res, err := a.GetHTTPClient().Do(req)
 	if err != nil {
 		return nil, fmt.Errorf("failed to perform request: %w", err)
 	}
