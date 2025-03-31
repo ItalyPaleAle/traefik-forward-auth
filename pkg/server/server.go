@@ -173,28 +173,18 @@ func (s *Server) initAppServer(log *slog.Logger) (err error) {
 	// This does not follow BasePath
 	s.appRouter.GET("/healthz", gin.WrapF(s.RouteHealthzHandler))
 
-	// Set up all the portals
-	for _, p := range conf.Portals {
-		basePath := path.Join(conf.Server.BasePath, "portals/"+p.Name)
-
-		// For the root route, we add it with and without trailing slash to avoid Gin setting up a 301 (Permanent) redirect, which causes issues with forward auth
-		appRoutes := s.appRouter.Group(basePath, s.MiddlewareProxyHeaders)
-		switch provider := s.auth.(type) {
-		case auth.OAuth2Provider:
-			appRoutes.GET("", s.MiddlewareRequireClientCertificate, s.MiddlewareLoadAuthCookie, s.RouteGetOAuth2Root(provider))
-			appRoutes.GET("/", s.MiddlewareRequireClientCertificate, s.MiddlewareLoadAuthCookie, s.RouteGetOAuth2Root(provider))
-			appRoutes.GET("/oauth2/callback", codeFilterLogMw, s.RouteGetOAuth2Callback(provider))
-		case auth.SeamlessProvider:
-			appRoutes.GET("", s.MiddlewareRequireClientCertificate, s.MiddlewareLoadAuthCookie, s.RouteGetSeamlessAuthRoot(provider))
-			appRoutes.GET("/", s.MiddlewareRequireClientCertificate, s.MiddlewareLoadAuthCookie, s.RouteGetSeamlessAuthRoot(provider))
-		}
-		appRoutes.GET("profile", s.MiddlewareLoadAuthCookie, s.RouteGetProfile)
-		appRoutes.GET("logout", s.RouteGetLogout)
-	}
+	// Portals
+	// For the root route, we add it with and without trailing slash to avoid Gin setting up a 301 (Permanent) redirect, which causes issues with forward auth
+	portalRoutes := s.appRouter.Group(path.Join(conf.Server.BasePath, "portals/:portal"), s.MiddlewareProxyHeaders)
+	portalRoutes.GET("", s.MiddlewareRequireClientCertificate, s.MiddlewareLoadAuthCookie, s.RouteGetAuthRoot)
+	portalRoutes.GET("/", s.MiddlewareRequireClientCertificate, s.MiddlewareLoadAuthCookie, s.RouteGetAuthRoot)
+	portalRoutes.GET("/oauth2/callback", codeFilterLogMw, s.RouteGetOAuth2Callback)
+	portalRoutes.GET("/profile", s.MiddlewareLoadAuthCookie, s.RouteGetProfile)
+	portalRoutes.GET("/logout", s.RouteGetLogout)
 
 	// API Routes
 	// These do not follow BasePath and do not require a client certificate, or loading the auth cookie, or the proxy headers
-	apiRoutes := s.appRouter.Group("/api")
+	apiRoutes := s.appRouter.Group("/api/portals/:portal")
 	apiRoutes.GET("/verify", s.RouteGetAPIVerify)
 
 	// Test routes, that are enabled when running tests only
@@ -474,7 +464,8 @@ func (s *Server) loadTLSConfig(log *slog.Logger) (tlsConfig *tls.Config, watchFn
 }
 
 type Portal struct {
+	Name                  string
 	DisplayName           string
-	Provider              auth.Provider
+	Providers             map[string]auth.Provider
 	AuthenticationTimeout time.Duration
 }

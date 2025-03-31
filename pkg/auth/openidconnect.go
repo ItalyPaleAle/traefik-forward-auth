@@ -213,6 +213,8 @@ func (a *OpenIDConnect) OAuth2RetrieveProfile(ctx context.Context, at OAuth2Acce
 		return nil, fmt.Errorf("invalid response body: %w", err)
 	}
 
+	claims[user.ProviderNameClaim] = a.GetProviderName()
+
 	profile, err = user.NewProfileFromClaims(claims)
 	if err != nil {
 		return nil, fmt.Errorf("invalid claims in token: %w", err)

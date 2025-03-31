@@ -1,6 +1,7 @@
 package config
 
 import (
+	"context"
 	"crypto"
 	"crypto/hmac"
 	"crypto/rand"
@@ -123,6 +124,10 @@ type ConfigCookies struct {
 	Insecure bool `env:"COOKIES_INSECURE" yaml:"insecure"`
 }
 
+func (c ConfigCookies) CookieName(portalName string) string {
+	return c.NamePrefix + "_" + portalName
+}
+
 type ConfigLogs struct {
 	// Controls log level and verbosity. Supported values: `debug`, `info` (default), `warn`, `error`.
 	// +default "info"
@@ -193,6 +198,17 @@ type ConfigPortal struct {
 	// Defaults to the `name` property otherwise
 	DisplayName string `yaml:"displayName"`
 
+	// List of allowed authentication providers.
+	// At least one provider is required.
+	// +required
+	Providers []ConfigPortalProvider `yaml:"providers"`
+
+	// Timeout for authenticating with the authentication provider.
+	// +default 5m
+	AuthenticationTimeout time.Duration `yaml:"authenticationTimeout"`
+}
+
+type ConfigPortalProvider struct {
 	// Authentication provider to use
 	// Currently supported providers:
 	//
@@ -211,10 +227,6 @@ type ConfigPortal struct {
 
 	// Parsed config object
 	configParsed ProviderConfig
-
-	// Timeout for authenticating with the authentication provider.
-	// +default 5m
-	AuthenticationTimeout time.Duration `yaml:"authenticationTimeout"`
 }
 
 // ConfigDev includes options using during development only
@@ -342,21 +354,23 @@ func (c *Config) Validate(logger *slog.Logger) error {
 
 var portalNameRegex = regexp.MustCompile(`^[a-zA-Z][a-zA-Z0-9-_\.]{2,39}$`)
 
-func (p *ConfigPortal) GetAuthProvider() (auth.Provider, error) {
-	if p.configParsed == nil {
-		return nil, errors.New("method Parse was not called on portal configuration object")
+func (p *ConfigPortal) GetAuthProviders(ctx context.Context) ([]auth.Provider, error) {
+	providers := make([]auth.Provider, len(p.Providers))
+	for i, v := range p.Providers {
+		if v.configParsed == nil {
+			return nil, fmt.Errorf("method Parse was not called on portal configuration object %d", i)
+		}
+		ap, err := v.configParsed.GetAuthProvider(ctx)
+		if err != nil {
+			return nil, err
+		}
+		providers[i] = ap
 	}
 
-	return p.configParsed.GetAuthProvider()
+	return providers, nil
 }
 
 func (p *ConfigPortal) Parse(c *Config) error {
-	// Sanitize AuthProvider
-	p.Provider = strings.ReplaceAll(strings.ToLower(p.Provider), "-", "")
-	if p.Provider == "" {
-		return errors.New("property 'provider' is required")
-	}
-
 	// Validate and sanitize name
 	if p.Name == "" {
 		return errors.New("property 'name' is required")
@@ -380,45 +394,62 @@ func (p *ConfigPortal) Parse(c *Config) error {
 		return errors.New("property 'authenticationTimeout' is invalid: must be at least 5 seconds")
 	}
 
-	// Parse the provider's config
-	switch p.Provider {
+	// Parse the providers' config
+	for i := range p.Providers {
+		err := p.Providers[i].Parse(c)
+		if err != nil {
+			return fmt.Errorf("invalid configuration for provider %d: %w", i, err)
+		}
+	}
+
+	return nil
+}
+
+func (v *ConfigPortalProvider) Parse(c *Config) error {
+	// Sanitize the provider name
+	v.Provider = strings.ReplaceAll(strings.ToLower(v.Provider), "-", "")
+	if v.Provider == "" {
+		return errors.New("property 'provider' is required")
+	}
+
+	switch v.Provider {
 	case "github":
-		p.configParsed = &ProviderConfig_GitHub{}
-		p.configParsed.SetConfigObject(c)
-		err := ApplyProviderConfig(p.Config, p.configParsed)
+		v.configParsed = &ProviderConfig_GitHub{}
+		v.configParsed.SetConfigObject(c)
+		err := ApplyProviderConfig(v.Config, v.configParsed)
 		if err != nil {
 			return fmt.Errorf("invalid config for provider 'github': %w", err)
 		}
 	case "google":
-		p.configParsed = &ProviderConfig_Google{}
-		p.configParsed.SetConfigObject(c)
-		err := ApplyProviderConfig(p.Config, p.configParsed)
+		v.configParsed = &ProviderConfig_Google{}
+		v.configParsed.SetConfigObject(c)
+		err := ApplyProviderConfig(v.Config, v.configParsed)
 		if err != nil {
 			return fmt.Errorf("invalid config for provider 'google': %w", err)
 		}
 	case "microsoftentraid", "azuread", "aad", "entraid":
-		p.configParsed = &ProviderConfig_MicrosoftEntraID{}
-		p.configParsed.SetConfigObject(c)
-		err := ApplyProviderConfig(p.Config, p.configParsed)
+		v.configParsed = &ProviderConfig_MicrosoftEntraID{}
+		v.configParsed.SetConfigObject(c)
+		err := ApplyProviderConfig(v.Config, v.configParsed)
 		if err != nil {
 			return fmt.Errorf("invalid config for provider 'microsoftentraid': %w", err)
 		}
 	case "openidconnect", "oidc":
-		p.configParsed = &ProviderConfig_OpenIDConnect{}
-		p.configParsed.SetConfigObject(c)
-		err := ApplyProviderConfig(p.Config, p.configParsed)
+		v.configParsed = &ProviderConfig_OpenIDConnect{}
+		v.configParsed.SetConfigObject(c)
+		err := ApplyProviderConfig(v.Config, v.configParsed)
 		if err != nil {
 			return fmt.Errorf("invalid config for provider 'openidconnect': %w", err)
 		}
 	case "tailscalewhois", "tailscale":
-		p.configParsed = &ProviderConfig_TailscaleWhois{}
-		p.configParsed.SetConfigObject(c)
-		err := ApplyProviderConfig(p.Config, p.configParsed)
+		v.configParsed = &ProviderConfig_TailscaleWhois{}
+		v.configParsed.SetConfigObject(c)
+		err := ApplyProviderConfig(v.Config, v.configParsed)
 		if err != nil {
 			return fmt.Errorf("invalid config for provider 'tailscalewhois': %w", err)
 		}
 	default:
-		return fmt.Errorf("invalid value for 'provider': %s", p.Provider)
+		return fmt.Errorf("invalid value for 'provider': %s", v.Provider)
 	}
 
 	return nil

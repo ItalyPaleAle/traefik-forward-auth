@@ -17,33 +17,39 @@ import (
 	"github.com/lestrrat-go/jwx/v2/jwt"
 	"golang.org/x/text/unicode/norm"
 
+	"github.com/italypaleale/traefik-forward-auth/pkg/auth"
 	"github.com/italypaleale/traefik-forward-auth/pkg/config"
 	"github.com/italypaleale/traefik-forward-auth/pkg/user"
 )
 
 const (
-	jwtIssuer             = "traefik-forward-auth"
-	stateCookieNamePrefix = "tf_state_"
+	jwtIssuer             = "traefik-forward-auth-v4"
+	stateCookieNamePrefix = "tf_state"
 	acceptableClockSkew   = 30 * time.Second
 	nonceSize             = 12 // Nonce size in bytes
+	providerNameClaim     = "tf_provider"
+	portalNameClaim       = "tf_portal"
+	nonceClaim            = "tf_nonce"
+	sigClaim              = "tf_sig"
+	returnURLClaim        = "tf_return_url"
 )
 
-func (s *Server) getSessionCookie(c *gin.Context) (profile *user.Profile, err error) {
+func (s *Server) getSessionCookie(c *gin.Context, portalName string) (profile *user.Profile, err error) {
 	cfg := config.Get()
 
 	// Get the cookie
-	cookieValue, err := c.Cookie(cfg.Cookies.NamePrefix)
+	cookieValue, err := c.Cookie(cfg.Cookies.CookieName(portalName))
 	if errors.Is(err, http.ErrNoCookie) {
 		return nil, nil
 	} else if err != nil {
 		return nil, fmt.Errorf("failed to get session cookie: %w", err)
 	}
 	if cookieValue == "" {
-		return nil, fmt.Errorf("session cookie %s is empty", cfg.Cookies.NamePrefix)
+		return nil, fmt.Errorf("session cookie %s is empty", cfg.Cookies.CookieName(portalName))
 	}
 
 	// Parse the JWT in the cookie
-	token, err := s.parseSessionToken(cookieValue)
+	token, err := s.parseSessionToken(cookieValue, portalName)
 	if err != nil {
 		return nil, err
 	}
@@ -57,18 +63,25 @@ func (s *Server) getSessionCookie(c *gin.Context) (profile *user.Profile, err er
 	if err != nil {
 		return nil, fmt.Errorf("failed to parse claims from session token JWT: %w", err)
 	}
+
+	provider := s.portals[portalName].Providers[profile.Provider]
+	if provider == nil {
+		return nil, errors.New("invalid provider in session token JWT")
+	}
+
+	// Populate additional claims if any
 	if len(claims) > 0 {
-		s.auth.PopulateAdditionalClaims(claims, profile.SetAdditionalClaim)
+		provider.PopulateAdditionalClaims(claims, profile.SetAdditionalClaim)
 	}
 
 	return profile, nil
 }
 
-func (s *Server) parseSessionToken(val string) (jwt.Token, error) {
+func (s *Server) parseSessionToken(val string, portalName string) (jwt.Token, error) {
 	cfg := config.Get()
 	token, err := jwt.Parse([]byte(val),
 		jwt.WithAcceptableSkew(acceptableClockSkew),
-		jwt.WithIssuer(jwtIssuer+"/"+s.auth.GetProviderName()),
+		jwt.WithIssuer(jwtIssuer+"/"+portalName),
 		jwt.WithAudience(cfg.Server.Hostname),
 		jwt.WithKey(jwa.HS256, cfg.GetTokenSigningKey()),
 	)
@@ -78,7 +91,7 @@ func (s *Server) parseSessionToken(val string) (jwt.Token, error) {
 	return token, nil
 }
 
-func (s *Server) setSessionCookie(c *gin.Context, profile *user.Profile) error {
+func (s *Server) setSessionCookie(c *gin.Context, portalName string, providerName string, profile *user.Profile) error {
 	cfg := config.Get()
 	expiration := cfg.Tokens.SessionLifetime
 
@@ -87,7 +100,7 @@ func (s *Server) setSessionCookie(c *gin.Context, profile *user.Profile) error {
 	builder := jwt.NewBuilder()
 	profile.AppendClaims(builder)
 	token, err := builder.
-		Issuer(jwtIssuer + "/" + s.auth.GetProviderName()).
+		Issuer(jwtIssuer + "/" + portalName).
 		Audience([]string{cfg.Server.Hostname}).
 		IssuedAt(now).
 		// Add 1 extra second to synchronize with cookie expiry
@@ -108,78 +121,108 @@ func (s *Server) setSessionCookie(c *gin.Context, profile *user.Profile) error {
 
 	// Set the cookie
 	c.SetSameSite(http.SameSiteLaxMode)
-	c.SetCookie(cfg.Cookies.NamePrefix, string(cookieValue), int(expiration.Seconds())-1, "/", cfg.Cookies.Domain, !cfg.Cookies.Insecure, true)
+	c.SetCookie(cfg.Cookies.CookieName(portalName), string(cookieValue), int(expiration.Seconds())-1, "/", cfg.Cookies.Domain, !cfg.Cookies.Insecure, true)
 
 	return nil
 }
 
-func (s *Server) deleteSessionCookie(c *gin.Context) {
+func (s *Server) deleteSessionCookie(c *gin.Context, portalName string) {
 	cfg := config.Get()
+	cookieName := cfg.Cookies.CookieName(portalName)
 
-	if _, err := c.Cookie(cfg.Cookies.NamePrefix); err != nil {
+	_, err := c.Cookie(cookieName)
+	if err != nil {
 		// Cookie was not set in the request, nothing to unset
 		return
 	}
 
 	c.SetSameSite(http.SameSiteLaxMode)
-	c.SetCookie(cfg.Cookies.NamePrefix, "", -1, "/", cfg.Cookies.Domain, !cfg.Cookies.Insecure, true)
+	c.SetCookie(cookieName, "", -1, "/", cfg.Cookies.Domain, !cfg.Cookies.Insecure, true)
 }
 
-func (s *Server) getStateCookie(c *gin.Context, stateCookieID string) (nonce string, returnURL string, err error) {
+type stateCookieContent struct {
+	portal    string
+	provider  auth.Provider
+	nonce     string
+	returnURL string
+}
+
+func (s *Server) getStateCookie(c *gin.Context, portal Portal, stateCookieID string) (content stateCookieContent, err error) {
 	cfg := config.Get()
 
 	// Get the cookie
-	cookieValue, err := c.Cookie(stateCookieNamePrefix + stateCookieID)
+	cookieValue, err := c.Cookie(stateCookieName(portal.Name, stateCookieID))
 	if errors.Is(err, http.ErrNoCookie) {
-		return "", "", nil
+		return stateCookieContent{}, nil
 	} else if err != nil {
-		return "", "", fmt.Errorf("failed to get cookie: %w", err)
+		return stateCookieContent{}, fmt.Errorf("failed to get cookie: %w", err)
 	}
 	if cookieValue == "" {
-		return "", "", fmt.Errorf("cookie %s is empty", cfg.Cookies.NamePrefix)
+		return stateCookieContent{}, fmt.Errorf("cookie %s is empty", cfg.Cookies.NamePrefix)
 	}
 
 	// Parse the JWT in the cookie
 	token, err := jwt.Parse([]byte(cookieValue),
 		jwt.WithAcceptableSkew(acceptableClockSkew),
-		jwt.WithIssuer(jwtIssuer+"/"+s.auth.GetProviderName()),
+		jwt.WithIssuer(jwtIssuer+"/"+portal.Name),
 		jwt.WithAudience(cfg.Server.Hostname),
 		jwt.WithKey(jwa.HS256, cfg.GetTokenSigningKey()),
 	)
 	if err != nil {
-		return "", "", fmt.Errorf("failed to parse JWT: %w", err)
+		return stateCookieContent{}, fmt.Errorf("failed to parse JWT: %w", err)
+	}
+
+	// Get the portal name
+	portalAny, _ := token.Get(portalNameClaim)
+	content.portal, _ = portalAny.(string)
+	if content.portal == "" {
+		return stateCookieContent{}, fmt.Errorf("claim '%s' not found in JWT", portalNameClaim)
+	} else if content.portal != portal.Name {
+		return stateCookieContent{}, errors.New("portal claim in JWT does not match expected value")
+	}
+
+	// Get the provider name (and ensure it's a valid provider)
+	providerAny, _ := token.Get(providerNameClaim)
+	providerName, _ := providerAny.(string)
+	if providerName == "" {
+		return stateCookieContent{}, fmt.Errorf("claim '%s' not found in JWT", providerNameClaim)
+	}
+	var ok bool
+	content.provider, ok = portal.Providers[providerName]
+	if !ok {
+		return stateCookieContent{}, fmt.Errorf("provider specified in token was not found: %s", content.provider)
 	}
 
 	// Get the nonce
-	nonceAny, _ := token.Get("nonce")
-	nonce, _ = nonceAny.(string)
-	if nonce == "" {
-		return "", "", errors.New("claim 'nonce' not found in JWT")
+	nonceAny, _ := token.Get(nonceClaim)
+	content.nonce, _ = nonceAny.(string)
+	if content.nonce == "" {
+		return stateCookieContent{}, fmt.Errorf("claim '%s' not found in JWT", nonceClaim)
 	}
-	nonceBytes, err := base64.RawURLEncoding.DecodeString(nonce)
+	nonceBytes, err := base64.RawURLEncoding.DecodeString(content.nonce)
 	if err != nil || len(nonceBytes) != nonceSize {
-		return "", "", errors.New("claim 'nonce' not found in JWT")
+		return stateCookieContent{}, fmt.Errorf("claim '%s' not found in JWT", nonceClaim)
 	}
 
 	// Get the return URL
-	returnURLAny, _ := token.Get("return_url")
-	returnURL, _ = returnURLAny.(string)
-	if returnURL == "" {
-		return "", "", errors.New("claim 'return_url' not found in JWT")
+	returnURLAny, _ := token.Get(returnURLClaim)
+	content.returnURL, _ = returnURLAny.(string)
+	if content.returnURL == "" {
+		return stateCookieContent{}, fmt.Errorf("claim '%s' not found in JWT", returnURLClaim)
 	}
 
 	// Validate the signature inside the token
-	expectSig := s.stateCookieSig(c, stateCookieID, nonceBytes)
-	sigAny, ok := token.Get("sig")
-	if !ok {
-		return "", "", errors.New("claim 'sig' not found in JWT")
-	}
+	expectSig := stateCookieSig(c, stateCookieID, content.portal, providerName, nonceBytes)
+	sigAny, _ := token.Get(sigClaim)
 	sig, _ := sigAny.(string)
+	if sig == "" {
+		return stateCookieContent{}, fmt.Errorf("claim '%s' not found in JWT", sigClaim)
+	}
 	if sig != expectSig {
-		return "", "", errors.New("claim 'sig' invalid in JWT")
+		return stateCookieContent{}, fmt.Errorf("claim '%s' invalid in JWT", sigClaim)
 	}
 
-	return nonce, returnURL, nil
+	return content, nil
 }
 
 func (s *Server) generateNonce() (string, error) {
@@ -191,29 +234,31 @@ func (s *Server) generateNonce() (string, error) {
 	return base64.RawURLEncoding.EncodeToString(nonceBytes), nil
 }
 
-func (s *Server) setStateCookie(c *gin.Context, nonce string, returnURL string, stateCookieID string) (err error) {
+func (s *Server) setStateCookie(c *gin.Context, portal Portal, provider auth.Provider, nonce string, returnURL string, stateCookieID string) (err error) {
 	cfg := config.Get()
-	expiration := cfg.AuthenticationTimeout
+	expiration := portal.AuthenticationTimeout
 
 	// Computes a signature that includes certain properties from the request that are sufficiently stable
 	nonceBytes, err := base64.RawURLEncoding.DecodeString(nonce)
 	if err != nil {
 		return fmt.Errorf("invalid nonce: %w", err)
 	}
-	sig := s.stateCookieSig(c, stateCookieID, nonceBytes)
+	sig := stateCookieSig(c, stateCookieID, portal.Name, provider.GetProviderName(), nonceBytes)
 
 	// Claims for the JWT
 	now := time.Now()
 	token, err := jwt.NewBuilder().
-		Issuer(jwtIssuer+"/"+s.auth.GetProviderName()).
+		Issuer(jwtIssuer+"/"+portal.Name).
 		Audience([]string{cfg.Server.Hostname}).
 		IssuedAt(now).
 		// Add 1 extra second to synchronize with cookie expiry
 		Expiration(now.Add(expiration+time.Second)).
 		NotBefore(now).
-		Claim("nonce", nonce).
-		Claim("sig", sig).
-		Claim("return_url", returnURL).
+		Claim(portalNameClaim, portal.Name).
+		Claim(providerNameClaim, provider.GetProviderName()).
+		Claim(nonceClaim, nonce).
+		Claim(sigClaim, sig).
+		Claim(returnURLClaim, returnURL).
 		Build()
 	if err != nil {
 		return fmt.Errorf("failed to build JWT: %w", err)
@@ -229,19 +274,20 @@ func (s *Server) setStateCookie(c *gin.Context, nonce string, returnURL string, 
 
 	// Set the cookie
 	c.SetSameSite(http.SameSiteLaxMode)
-	c.SetCookie(stateCookieNamePrefix+stateCookieID, string(cookieValue), int(expiration.Seconds())-1, "/", cfg.Cookies.Domain, !cfg.Cookies.Insecure, true)
+	c.SetCookie(stateCookieName(portal.Name, stateCookieID), string(cookieValue), int(expiration.Seconds())-1, "/", cfg.Cookies.Domain, !cfg.Cookies.Insecure, true)
 
 	// Return the nonce
 	return nil
 }
 
-func (s *Server) deleteStateCookies(c *gin.Context) {
+func (s *Server) deleteStateCookies(c *gin.Context, portalName string) {
 	cfg := config.Get()
+	prefix := stateCookieName(portalName, "")
 
 	// Iterate through all cookies looking for state ones
 	c.SetSameSite(http.SameSiteLaxMode)
 	for _, cookie := range c.Request.Cookies() {
-		if cookie == nil || !strings.HasPrefix(cookie.Name, stateCookieNamePrefix) {
+		if cookie == nil || !strings.HasPrefix(cookie.Name, prefix) {
 			continue
 		}
 
@@ -250,13 +296,18 @@ func (s *Server) deleteStateCookies(c *gin.Context) {
 	}
 }
 
-func (s *Server) stateCookieSig(c *gin.Context, stateCookieID string, nonce []byte) string {
+func stateCookieName(portalName string, stateCookieID string) string {
+	return stateCookieNamePrefix + "_" + portalName + "_" + stateCookieID
+}
+
+func stateCookieSig(c *gin.Context, portalName string, providerName string, stateCookieID string, nonce []byte) string {
 	h := hmac.New(sha256.New224, nonce)
 	h.Write([]byte("tfa-state-sig"))
 	h.Write([]byte(stateCookieID))
 	h.Write([]byte(strings.ToLower(norm.NFKD.String(c.GetHeader("User-Agent")))))
 	h.Write([]byte(strings.ToLower(norm.NFKD.String(c.GetHeader("Accept-Language")))))
 	h.Write([]byte(strings.ToLower(norm.NFKD.String(c.GetHeader("DNT")))))
-	h.Write([]byte(s.auth.GetProviderName()))
+	h.Write([]byte(portalName))
+	h.Write([]byte(providerName))
 	return base64.RawURLEncoding.EncodeToString(h.Sum(nil))
 }

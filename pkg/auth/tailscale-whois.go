@@ -110,8 +110,9 @@ func (a *TailscaleWhois) SeamlessAuth(r *http.Request) (*user.Profile, error) {
 	}
 
 	// Create the user profile object
-	profile := user.Profile{
-		ID: strings.Split(info.UserProfile.LoginName, "@")[0],
+	profile := &user.Profile{
+		Provider: a.GetProviderName(),
+		ID:       strings.Split(info.UserProfile.LoginName, "@")[0],
 		Email: &user.ProfileEmail{
 			Value: info.UserProfile.LoginName,
 		},
@@ -125,7 +126,7 @@ func (a *TailscaleWhois) SeamlessAuth(r *http.Request) (*user.Profile, error) {
 		},
 	}
 
-	return &profile, nil
+	return profile, nil
 }
 
 func (a *TailscaleWhois) UserAllowed(profile *user.Profile) error {

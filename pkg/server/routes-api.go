@@ -8,10 +8,16 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-// RouteGetAPIVerify is the handler for GET /api/verify
+// RouteGetAPIVerify is the handler for GET /api/portals/:portal/verify
 // This API validates a token and returns the list of claims
 // The token can be passed in the Authorization header
 func (s *Server) RouteGetAPIVerify(c *gin.Context) {
+	portal, err := s.getPortal(c)
+	if err != nil {
+		AbortWithError(c, err)
+		return
+	}
+
 	// First, get the token
 	// Try with the authorization header first
 	val := c.GetHeader("Authorization")
@@ -27,7 +33,7 @@ func (s *Server) RouteGetAPIVerify(c *gin.Context) {
 	}
 
 	// Parse the session token
-	token, err := s.parseSessionToken(val)
+	token, err := s.parseSessionToken(val, portal.Name)
 	if err != nil {
 		AbortWithErrorJSON(c, err)
 		return

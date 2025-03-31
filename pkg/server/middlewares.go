@@ -13,6 +13,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 
+	"github.com/italypaleale/traefik-forward-auth/pkg/auth"
 	"github.com/italypaleale/traefik-forward-auth/pkg/config"
 	"github.com/italypaleale/traefik-forward-auth/pkg/utils"
 )
@@ -87,10 +88,16 @@ func (s *Server) MiddlewareProxyHeaders(c *gin.Context) {
 
 // MiddlewareLoadAuthCookie is a middleware that checks if the request contains a valid authentication token in the cookie.
 func (s *Server) MiddlewareLoadAuthCookie(c *gin.Context) {
-	// Get the cookie and parse it
-	profile, err := s.getSessionCookie(c)
+	portal, provider, err := s.getProvider(c)
 	if err != nil {
-		s.deleteSessionCookie(c)
+		AbortWithError(c, err)
+		return
+	}
+
+	// Get the cookie and parse it
+	profile, err := s.getSessionCookie(c, portal.Name)
+	if err != nil {
+		s.deleteSessionCookie(c, portal.Name)
 		AbortWithError(c, fmt.Errorf("cookie error: %w", err))
 		return
 	}
@@ -101,19 +108,19 @@ func (s *Server) MiddlewareLoadAuthCookie(c *gin.Context) {
 	}
 
 	// Validate the session claims
-	err = s.auth.ValidateRequestClaims(c.Request, profile)
+	err = provider.ValidateRequestClaims(c.Request, profile)
 	if err != nil {
 		// If the claims are invalid for this session, delete the cookie and return a hard error
-		s.deleteSessionCookie(c)
+		s.deleteSessionCookie(c, portal.Name)
 		AbortWithError(c, NewResponseErrorf(http.StatusUnauthorized, "Claims are invalid for the request: %v", err))
 		return
 	}
 
 	// Check if the user is allowed per rules (again)
-	err = s.auth.UserAllowed(profile)
+	err = provider.UserAllowed(profile)
 	if err != nil {
 		// If the user is not allowed, delete the cookie and return a hard error
-		s.deleteSessionCookie(c)
+		s.deleteSessionCookie(c, portal.Name)
 		_ = c.Error(fmt.Errorf("access denied per allowlist rules: %w", err))
 		AbortWithError(c, NewResponseError(http.StatusUnauthorized, "Access denied per allowlist rules"))
 		return
@@ -266,4 +273,29 @@ func (s *Server) MiddlewareLoggerMask(exp *regexp.Regexp, replace string) gin.Ha
 			return exp.ReplaceAllString(path, replace)
 		})
 	}
+}
+
+func (s *Server) getPortal(c *gin.Context) (Portal, error) {
+	portalName := strings.ToLower(c.Param("portal"))
+	portal, ok := s.portals[portalName]
+	if !ok {
+		return Portal{}, NewResponseError(http.StatusNotFound, "Portal not found")
+	}
+
+	return portal, nil
+}
+
+func (s *Server) getProvider(c *gin.Context) (Portal, auth.Provider, error) {
+	portal, err := s.getPortal(c)
+	if err != nil {
+		return Portal{}, nil, err
+	}
+
+	providerName := strings.ToLower(c.Param("provider"))
+	provider, ok := portal.Providers[providerName]
+	if !ok {
+		return Portal{}, nil, NewResponseError(http.StatusNotFound, "Provider not found")
+	}
+
+	return portal, provider, nil
 }

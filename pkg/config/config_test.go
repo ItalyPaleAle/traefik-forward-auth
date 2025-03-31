@@ -22,8 +22,10 @@ func TestValidateConfig(t *testing.T) {
 	t.Cleanup(SetTestConfig(func(c *Config) {
 		c.Portals = []ConfigPortal{
 			{
-				Name:     "github1",
-				Provider: "github",
+				Name: "github1",
+				Providers: []ConfigPortalProvider{
+					{Provider: "github"},
+				},
 			},
 		}
 		c.Server.Hostname = "localhost"
@@ -60,8 +62,10 @@ func TestValidateConfig(t *testing.T) {
 		t.Cleanup(SetTestConfig(func(c *Config) {
 			c.Portals = []ConfigPortal{
 				{
-					Name:     "1",
-					Provider: "github",
+					Name: "1",
+					Providers: []ConfigPortalProvider{
+						{Provider: "github"},
+					},
 				},
 			}
 		}))
@@ -76,8 +80,10 @@ func TestValidateConfig(t *testing.T) {
 		t.Cleanup(SetTestConfig(func(c *Config) {
 			c.Portals = []ConfigPortal{
 				{
-					Name:     "foo",
-					Provider: "bad",
+					Name: "foo",
+					Providers: []ConfigPortalProvider{
+						{Provider: "bad"},
+					},
 				},
 			}
 		}))
@@ -92,12 +98,16 @@ func TestValidateConfig(t *testing.T) {
 		t.Cleanup(SetTestConfig(func(c *Config) {
 			c.Portals = []ConfigPortal{
 				{
-					Name:     "github1",
-					Provider: "github",
-					Config: map[string]any{
-						"clientID":       "abcdef123456",
-						"clientSecret":   "000-000-000",
-						"requestTimeout": "30s",
+					Name: "github1",
+					Providers: []ConfigPortalProvider{
+						{
+							Provider: "github",
+							Config: map[string]any{
+								"clientID":       "abcdef123456",
+								"clientSecret":   "000-000-000",
+								"requestTimeout": "30s",
+							},
+						},
 					},
 				},
 			}
@@ -113,7 +123,7 @@ func TestValidateConfig(t *testing.T) {
 		require.NoError(t, err)
 
 		require.Len(t, config.Portals, 1)
-		assert.EqualValues(t, expectProviderConfig, config.Portals[0].configParsed)
+		assert.EqualValues(t, expectProviderConfig, config.Portals[0].Providers[0].configParsed)
 	})
 }
 

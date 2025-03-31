@@ -130,8 +130,9 @@ func (a *GitHub) OAuth2RetrieveProfile(ctx context.Context, at OAuth2AccessToken
 	}
 
 	profile := &user.Profile{
-		ID:      userData.Login,
-		Picture: userData.AvatarUrl,
+		Provider: a.GetProviderName(),
+		ID:       userData.Login,
+		Picture:  userData.AvatarUrl,
 		Name: user.ProfileName{
 			Nickname: userData.Login,
 			FullName: fn,

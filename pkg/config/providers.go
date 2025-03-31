@@ -1,6 +1,7 @@
 package config
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"os"
@@ -12,7 +13,7 @@ import (
 )
 
 type ProviderConfig interface {
-	GetAuthProvider() (auth.Provider, error)
+	GetAuthProvider(ctx context.Context) (auth.Provider, error)
 	SetConfigObject(c *Config)
 }
 
@@ -31,7 +32,7 @@ type ProviderConfig_GitHub struct {
 	RequestTimeout time.Duration `yaml:"requestTimeout"`
 }
 
-func (p *ProviderConfig_GitHub) GetAuthProvider() (auth.Provider, error) {
+func (p *ProviderConfig_GitHub) GetAuthProvider(_ context.Context) (auth.Provider, error) {
 	return auth.NewGitHub(auth.NewGitHubOptions{
 		ClientID:       p.ClientID,
 		ClientSecret:   p.ClientSecret,
@@ -65,7 +66,7 @@ type ProviderConfig_Google struct {
 	RequestTimeout time.Duration `yaml:"requestTimeout"`
 }
 
-func (p *ProviderConfig_Google) GetAuthProvider() (auth.Provider, error) {
+func (p *ProviderConfig_Google) GetAuthProvider(_ context.Context) (auth.Provider, error) {
 	return auth.NewGoogle(auth.NewGoogleOptions{
 		ClientID:       p.ClientID,
 		ClientSecret:   p.ClientSecret,
@@ -111,7 +112,7 @@ type ProviderConfig_MicrosoftEntraID struct {
 	config *Config
 }
 
-func (p *ProviderConfig_MicrosoftEntraID) GetAuthProvider() (auth.Provider, error) {
+func (p *ProviderConfig_MicrosoftEntraID) GetAuthProvider(_ context.Context) (auth.Provider, error) {
 	return auth.NewMicrosoftEntraID(auth.NewMicrosoftEntraIDOptions{
 		TenantID:               p.TenantID,
 		ClientID:               p.ClientID,
@@ -161,7 +162,7 @@ type ProviderConfig_OpenIDConnect struct {
 	config *Config
 }
 
-func (p *ProviderConfig_OpenIDConnect) GetAuthProvider() (auth.Provider, error) {
+func (p *ProviderConfig_OpenIDConnect) GetAuthProvider(ctx context.Context) (auth.Provider, error) {
 	var pkceKey []byte
 	if p.EnablePKCE {
 		pkceKey = p.config.internal.pkceKey
@@ -183,7 +184,7 @@ func (p *ProviderConfig_OpenIDConnect) GetAuthProvider() (auth.Provider, error) 
 		}
 	}
 
-	return auth.NewOpenIDConnect(auth.NewOpenIDConnectOptions{
+	return auth.NewOpenIDConnect(ctx, auth.NewOpenIDConnectOptions{
 		ClientID:         p.ClientID,
 		ClientSecret:     p.ClientSecret,
 		TokenIssuer:      p.TokenIssuer,
@@ -211,7 +212,7 @@ type ProviderConfig_TailscaleWhois struct {
 	RequestTimeout time.Duration `yaml:"requestTimeout"`
 }
 
-func (p *ProviderConfig_TailscaleWhois) GetAuthProvider() (auth.Provider, error) {
+func (p *ProviderConfig_TailscaleWhois) GetAuthProvider(_ context.Context) (auth.Provider, error) {
 	return auth.NewTailscaleWhois(auth.NewTailscaleWhoisOptions{
 		AllowedTailnet: p.AllowedTailnet,
 		AllowedUsers:   p.AllowedUsers,

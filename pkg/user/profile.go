@@ -2,6 +2,7 @@ package user
 
 import (
 	"errors"
+	"fmt"
 	"strings"
 
 	"github.com/lestrrat-go/jwx/v2/jwt"
@@ -9,8 +10,13 @@ import (
 	"github.com/spf13/cast"
 )
 
+const ProviderNameClaim = "tf_provider"
+
 // Profile is a struct that represents a user's profile.
 type Profile struct {
+	// Identity provider name
+	Provider string
+
 	// ID of the user
 	ID string
 	// Name
@@ -105,7 +111,13 @@ func NewProfileFromOpenIDToken(token openid.Token) (*Profile, error) {
 
 // NewProfileFromClaims returns a new Profile with values from a claim map
 func NewProfileFromClaims(claims map[string]any) (*Profile, error) {
+	provider := cast.ToString(claims[ProviderNameClaim])
+	if provider == "" {
+		return nil, fmt.Errorf("claim %s is missing or empty", ProviderNameClaim)
+	}
+
 	profile := &Profile{
+		Provider: provider,
 		Picture:  cast.ToString(claims["picture"]),
 		Locale:   cast.ToString(claims["locale"]),
 		Timezone: cast.ToString(claims["zoneinfo"]),
@@ -120,7 +132,7 @@ func NewProfileFromClaims(claims map[string]any) (*Profile, error) {
 		}
 	}
 	if profile.ID == "" {
-		return profile, errors.New("at least one of sub or id must be present")
+		return nil, errors.New("at least one of sub or id must be present")
 	}
 
 	// Name
@@ -155,6 +167,7 @@ func (p *Profile) GetEmail() string {
 
 // AppendClaims appends the claims for this user profile to a JWT builder
 func (p *Profile) AppendClaims(builder *jwt.Builder) {
+	builder.Claim(ProviderNameClaim, p.Provider)
 	builder.Subject(p.ID)
 	if p.Name.FullName != "" {
 		builder.Claim("name", p.Name.FullName)
