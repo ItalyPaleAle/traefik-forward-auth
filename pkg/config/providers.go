@@ -17,6 +17,9 @@ type ProviderConfig interface {
 	SetConfigObject(c *Config)
 }
 
+// ProviderConfig_GitHub is the configuration for the GitHub provider
+// +name github
+// +displayName GitHub
 type ProviderConfig_GitHub struct {
 	// Client ID for the GitHub auth application
 	// +required
@@ -45,6 +48,9 @@ func (p *ProviderConfig_GitHub) SetConfigObject(_ *Config) {
 	// Nop for this provider
 }
 
+// ProviderConfig_Google is the configuration for the Google provider
+// +name google
+// +displayName Google
 type ProviderConfig_Google struct {
 	// Client ID for the Google auth application
 	// +required
@@ -81,6 +87,9 @@ func (p *ProviderConfig_Google) SetConfigObject(_ *Config) {
 	// Nop for this provider
 }
 
+// ProviderConfig_MicrosoftEntraID is the configuration for the Microsoft Entra ID provider
+// +name microsoftentraid
+// +displayName Microsoft Entra ID
 type ProviderConfig_MicrosoftEntraID struct {
 	// Tenant ID for the Microsoft Entra ID auth application
 	// +required
@@ -128,6 +137,9 @@ func (p *ProviderConfig_MicrosoftEntraID) SetConfigObject(c *Config) {
 	p.config = c
 }
 
+// ProviderConfig_OpenIDConnect is the configuration for the OpenID Connect provider
+// +name openidconnect
+// +displayName OpenID Connect
 type ProviderConfig_OpenIDConnect struct {
 	// Client ID for the OpenID Connect auth application
 	// +required
@@ -201,6 +213,9 @@ func (p *ProviderConfig_OpenIDConnect) SetConfigObject(c *Config) {
 	p.config = c
 }
 
+// ProviderConfig_TailscaleWhois is the configuration for the Tailscale Whois provider
+// +name tailscalewhois
+// +displayName Tailscale Whois
 type ProviderConfig_TailscaleWhois struct {
 	// If non-empty, requires the Tailnet of the user to match this value
 	AllowedTailnet string `yaml:"allowedTailnet"`

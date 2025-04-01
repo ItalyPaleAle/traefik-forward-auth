@@ -177,3 +177,237 @@ tracing:
 ##   List of portals
 #portals: 
 
+### Example Portal Configurations
+### The following are examples of portal configurations with different providers
+
+portals:
+  # Example portal using GitHub authentication
+  - name: github-portal
+    displayName: "GitHub Authentication"
+    authenticationTimeout: 5m
+    providers:
+      - provider: github
+        config:
+          ## clientID (string)
+          ## Description:
+          ##   Client ID for the GitHub auth application
+          ## Required
+          clientID: "your-client-id"
+
+          ## clientSecret (string)
+          ## Description:
+          ##   Client secret for the GitHub auth application
+          ## Required
+          clientSecret: "your-client-secret"
+
+          ## allowedUsers (list of strings)
+          ## Description:
+          ##   List of allowed users for GitHub auth
+          ##   This is a list of usernames
+          # allowedUsers:
+          #   - "githubuser1"
+          #   - "githubuser2"
+
+          ## requestTimeout (duration)
+          ## Description:
+          ##   Timeout for network requests for GitHub auth
+          ## Default: 10s
+          # requestTimeout: 10s
+
+  # Example portal using Google authentication
+  - name: google-portal
+    displayName: "Google Authentication"
+    authenticationTimeout: 5m
+    providers:
+      - provider: google
+        config:
+          ## clientID (string)
+          ## Description:
+          ##   Client ID for the Google auth application
+          ## Required
+          clientID: "your-google-client-id.apps.googleusercontent.com"
+
+          ## clientSecret (string)
+          ## Description:
+          ##   Client secret for the Google auth application
+          ## Required
+          clientSecret: "your-client-secret"
+
+          ## allowedUsers (list of strings)
+          ## Description:
+          ##   List of allowed users for Google auth
+          ##   This is a list of user IDs
+          # allowedUsers:
+          #   - "user1"
+          #   - "user2"
+
+          ## allowedEmails (list of strings)
+          ## Description:
+          ##   List of allowed email addresses of users for Google auth
+          ##   This is a list of email addresses
+          # allowedEmails:
+          #   - "user@example.com"
+
+          ## allowedDomains (list of strings)
+          ## Description:
+          ##   List of allowed domains for Google auth
+          ##   This is a list of domains for email addresses
+          # allowedDomains:
+          #   - "yourdomain.com"
+
+          ## requestTimeout (duration)
+          ## Description:
+          ##   Timeout for network requests for Google auth
+          ## Default: 10s
+          # requestTimeout: 10s
+
+  # Example portal using Microsoft Entra ID authentication
+  - name: microsoftentraid-portal
+    displayName: "Microsoft Entra ID Authentication"
+    authenticationTimeout: 5m
+    providers:
+      - provider: microsoftentraid
+        config:
+          ## tenantID (string)
+          ## Description:
+          ##   Tenant ID for the Microsoft Entra ID auth application
+          ## Required
+          tenantID: "your-tenant-id"
+
+          ## clientID (string)
+          ## Description:
+          ##   Client ID for the Microsoft Entra ID auth application
+          ## Required
+          clientID: "your-client-id"
+
+          ## clientSecret (string)
+          ## Description:
+          ##   Client secret for the Microsoft Entra ID auth application
+          ##   Required when not using Federated Identity Credentials
+          # clientSecret: "your-client-secret"
+
+          ## azureFederatedIdentity (string)
+          ## Description:
+          ##   Enables the usage of Federated Identity Credentials to obtain assertions for confidential clients for Microsoft Entra ID applications.
+          ##   This is an alternative to using client secrets, when the application is running in Azure in an environment that supports Managed Identity, or in an environment that supports Workload Identity Federation with Microsoft Entra ID.
+          ##   Currently, these values are supported:
+          ##
+          ##   - `ManagedIdentity`: uses a system-assigned managed identity
+          ##   - `ManagedIdentity=client-id`: uses a user-assigned managed identity with client id "client-id" (e.g. "ManagedIdentity=00000000-0000-0000-0000-000000000000")
+          ##   - `WorkloadIdentity`: uses workload identity, e.g. for Kubernetes
+          # azureFederatedIdentity: "ManagedIdentity"
+
+          ## allowedUsers (list of strings)
+          ## Description:
+          ##   List of allowed users for Microsoft Entra ID auth
+          ##   This is a list of user IDs
+          # allowedUsers:
+          #   - "user-object-id"
+
+          ## allowedEmails (list of strings)
+          ## Description:
+          ##   List of allowed email addresses of users for Microsoft Entra ID auth
+          ##   This is a list of email addresses
+          # allowedEmails:
+          #   - "user@example.com"
+
+          ## requestTimeout (duration)
+          ## Description:
+          ##   Timeout for network requests for Microsoft Entra ID auth
+          ## Default: 10s
+          # requestTimeout: 10s
+
+  # Example portal using OpenID Connect authentication
+  - name: openidconnect-portal
+    displayName: "OpenID Connect Authentication"
+    authenticationTimeout: 5m
+    providers:
+      - provider: openidconnect
+        config:
+          ## clientID (string)
+          ## Description:
+          ##   Client ID for the OpenID Connect auth application
+          ## Required
+          clientID: "your-client-id"
+
+          ## clientSecret (string)
+          ## Description:
+          ##   Client secret for the OpenID Connect auth application
+          ## Required
+          clientSecret: "your-client-secret"
+
+          ## tokenIssuer (string)
+          ## Description:
+          ##   OpenID Connect token issuer
+          ##   The OpenID Connect configuration document will be fetched at `<token-issuer>/.well-known/openid-configuration`
+          ## Required
+          tokenIssuer: "https://your-identity-provider/.well-known/openid-configuration"
+
+          ## allowedUsers (list of strings)
+          ## Description:
+          ##   List of allowed users for OpenID Connect auth
+          ##   This is a list of user IDs, as returned by the ID provider in the "sub" claim
+          # allowedUsers:
+          #   - "user1"
+          #   - "user2"
+
+          ## allowedEmails (list of strings)
+          ## Description:
+          ##   List of allowed email addresses for users for OpenID Connect auth
+          ##   This is a list of email addresses, as returned by the ID provider in the "email" claim
+          # allowedEmails:
+          #   - "user@example.com"
+
+          ## requestTimeout (duration)
+          ## Description:
+          ##   Timeout for network requests for OpenID Connect auth
+          ## Default: 10s
+          # requestTimeout: 10s
+
+          ## enablePKCE (boolean)
+          ## Description:
+          ##   If true, enables the use of PKCE during the code exchange.
+          ## Default: false
+          # enablePKCE: true
+
+          ## tlsInsecureSkipVerify (boolean)
+          ## Description:
+          ##   If true, skips validating TLS certificates when connecting to the OpenID Connect Identity Provider.
+          ## Default: false
+          # tlsInsecureSkipVerify: false
+
+          ## tlsCACertificatePEM (string)
+          ## Description:
+          ##   Optional PEM-encoded CA certificate to trust when connecting to the OpenID Connect Identity Provider.
+          # tlsCACertificatePEM: "example-value"
+
+          ## tlsCACertificatePath (string)
+          ## Description:
+          ##   Optional path to a CA certificate to trust when connecting to the OpenID Connect Identity Provider.
+          # tlsCACertificatePath: "example-value"
+
+  # Example portal using Tailscale Whois authentication
+  - name: tailscalewhois-portal
+    displayName: "Tailscale Whois Authentication"
+    authenticationTimeout: 5m
+    providers:
+      - provider: tailscalewhois
+        config:
+          ## allowedTailnet (string)
+          ## Description:
+          ##   If non-empty, requires the Tailnet of the user to match this value
+          # allowedTailnet: "yourtailnet.ts.net"
+
+          ## allowedUsers (list of strings)
+          ## Description:
+          ##   List of allowed users for Tailscale Whois auth
+          ##   This is a list of user IDs as returned by the ID provider
+          # allowedUsers:
+          #   - "user@example.com"
+
+          ## requestTimeout (duration)
+          ## Description:
+          ##   Timeout for network requests for Tailscale Whois auth
+          ## Default: 10s
+          # requestTimeout: 10s
+
