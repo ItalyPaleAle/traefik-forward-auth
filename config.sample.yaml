@@ -1,389 +1,179 @@
-## hostname (string)
-## Description:
-##   The hostname the application is reached at.
-##   This is used for setting the "redirect_uri" field for OAuth2 callbacks.
-## Required
-hostname:
+server:
+  ## server.hostname (string)
+  ## Description:
+  ##   The hostname the application is reached at.
+  ##   This is used for setting the "redirect_uri" field for OAuth2 callbacks.
+  ## Required
+  hostname:
 
-## cookieDomain (string)
-## Description:
-##   Domain name for setting cookies.
-##   If empty, this is set to the value of the `hostname` property.
-##   This value must either be the same as the `hostname` property, or the hostname must be a sub-domain of the cookie domain name.
-#cookieDomain: 
+  ## server.port (number)
+  ## Description:
+  ##   Port to bind to.
+  ## Default: 4181
+  #port: 
 
-## cookieName (string)
-## Description:
-##   Name of the cookie used to store the session.
-## Default: "tf_sess"
-#cookieName: 
+  ## server.bind (string)
+  ## Description:
+  ##   Address/interface to bind to.
+  ## Default: "0.0.0.0"
+  #bind: 
 
-## cookieInsecure (boolean)
-## Description:
-##   If true, sets cookies as "insecure", which are served on HTTP endpoints too.
-##   By default, this is false and cookies are sent on HTTPS endpoints only.
-## Default: false
-#cookieInsecure: 
+  ## server.basePath (string)
+  ## Description:
+  ##   Base path for all routes.
+  ##   Set this if Traefik is forwarding requests to traefik-forward-auth for specific paths only.
+  ##   Note: this does not apply to /api and /healthz routes
+  #basePath: 
 
-## sessionLifetime (duration)
-## Description:
-##   Lifetime for sessions after a successful authentication.
-## Default: 2h
-#sessionLifetime: 
+  ## server.tlsPath (string)
+  ## Description:
+  ##   Path where to load TLS certificates from. Within the folder, the files must be named `tls-cert.pem` and `tls-key.pem` (and optionally `tls-ca.pem`).
+  ##   The server watches for changes in this folder and automatically reloads the TLS certificates when they're updated.
+  ##   If empty, certificates are loaded from the same folder where the loaded `config.yaml` is located.
+  ## Default: Folder where the `config.yaml` file is located
+  #tlsPath: 
 
-## port (number)
-## Description:
-##   Port to bind to.
-## Default: 4181
-#port: 
+  ## server.tlsCertPEM (string)
+  ## Description:
+  ##   Full, PEM-encoded TLS certificate.
+  ##   Using `server.tlsCertPEM` and `server.tlsKeyPEM` is an alternative method of passing TLS certificates than using `server.tlsPath`.
+  #tlsCertPEM: 
 
-## bind (string)
-## Description:
-##   Address/interface to bind to.
-## Default: "0.0.0.0"
-#bind: 
+  ## server.tlsKeyPEM (string)
+  ## Description:
+  ##   Full, PEM-encoded TLS key.
+  ##   Using `server.tlsCertPEM` and `server.tlsKeyPEM` is an alternative method of passing TLS certificates than using `server.tlsPath`.
+  #tlsKeyPEM: 
 
-## basePath (string)
-## Description:
-##   Base path for all routes.
-##   Set this if Traefik is forwarding requests to traefik-forward-auth for specific paths only.
-##   Note: this does not apply to /api and /healthz routes
-#basePath: 
+  ## server.tlsCAPEM (string)
+  ## Description:
+  ##   Full, PEM-encoded TLS CA certificate, used for TLS client authentication (mTLS).
+  ##   This is an alternative method of passing the CA certificate than using `tlsPath`.
+  ##   Note that this is ignored unless `server.tlsClientAuth` is set to `true`.
+  #tlsCAPEM: 
 
-## logLevel (string)
-## Description:
-##   Controls log level and verbosity. Supported values: `debug`, `info` (default), `warn`, `error`.
-## Default: info
-#logLevel: 
+  ## server.tlsClientAuth (boolean)
+  ## Description:
+  ##   If true, enables mTLS for client authentication.
+  ##   Requests to the root endpoint (normally used by Traefik) must have a valid client certificate signed by the CA.
+  ## Default: false
+  #tlsClientAuth: 
 
-## omitHealthCheckLogs (boolean)
-## Description:
-##   If true, calls to the healthcheck endpoint (`/healthz`) are not included in the logs.
-## Default: true
-#omitHealthCheckLogs: 
+  ## server.trustedRequestIdHeader (string)
+  ## Description:
+  ##   String with the name of a header to trust as ID of each request. The ID is included in logs and in responses as `X-Request-ID` header.
+  ##   Common values include:
+  ##
+  ##   - `X-Request-ID`: a [de-facto standard](https://http.dev/x-request-id) that's vendor agnostic
+  ##   - `CF-Ray`: when the application is served by a [Cloudflare CDN](https://developers.cloudflare.com/fundamentals/get-started/reference/cloudflare-ray-id/)
+  ##
+  ##   If this option is empty, or if it contains the name of a header that is not found in an incoming request, a random UUID is generated as request ID.
+  #trustedRequestIdHeader: 
 
-## logAsJson (boolean)
-## Description:
-##   If true, emits logs formatted as JSON, otherwise uses a text-based structured log format.
-## Default: false if a TTY is attached (e.g. in development); true otherwise.
-#logAsJson: 
+cookies:
+  ## cookies.domain (string)
+  ## Description:
+  ##   Domain name for setting cookies.
+  ##   If empty, this is set to the value of the `hostname` property.
+  ##   This value must either be the same as the `hostname` property, or the hostname must be a sub-domain of the cookie domain name.
+  #domain: 
 
-## logsOtelCollectorEndpoint (string)
-## Description:
-##   OpenTelemetry Collector endpoint for sending logs, for example: `<http(s)>://<otel-collector-address>:<otel-collector-port>/v1/logs`.
-##   If configured,logs are sent to the collector at the given address.
-##   This value can also be set using the environmental variables `OTEL_EXPORTER_OTLP_LOGS_ENDPOINT` or `OTEL_EXPORTER_OTLP_ENDPOINT` ("/v1/logs" is appended for HTTP), and optionally `OTEL_EXPORTER_OTLP_PROTOCOL` ("http/protobuf", the default, or "grpc").
-#logsOtelCollectorEndpoint: 
+  ## cookies.namePrefix (string)
+  ## Description:
+  ##   Prefix for the cookies used to store the sessions.
+  ## Default: "tf_sess"
+  #namePrefix: 
 
-## metricsServerEnabled (boolean)
-## Description:
-##   Enable the metrics server, which exposes a Prometheus-compatible endpoint `/metrics`.
-## Default: false
-#metricsServerEnabled: 
+  ## cookies.insecure (boolean)
+  ## Description:
+  ##   If true, sets cookies as "insecure", which are served on HTTP endpoints too.
+  ##   By default, this is false and cookies are sent on HTTPS endpoints only.
+  ## Default: false
+  #insecure: 
 
-## metricsServerPort (number)
-## Description:
-##   Port for the metrics server to bind to.
-## Default: 2112
-#metricsServerPort: 
+tokens:
+  ## tokens.sessionLifetime (duration)
+  ## Description:
+  ##   Lifetime for sessions after a successful authentication.
+  ## Default: 2h
+  #sessionLifetime: 
 
-## metricsServerBind (string)
-## Description:
-##   Address/interface for the metrics server to bind to.
-## Default: "0.0.0.0"
-#metricsServerBind: 
+  ## tokens.signingKey (string)
+  ## Description:
+  ##   String used as key to sign state tokens.
+  ##   Can be generated for example with `openssl rand -base64 32`
+  ##   If left empty, it will be randomly generated every time the app starts (recommended, unless you need user sessions to persist after the application is restarted).
+  #signingKey: 
 
-## metricsOtelCollectorEndpoint (string)
-## Description:
-##   OpenTelemetry Collector endpoint for sending metrics, for example: `<http(s)-or-grpc(s)>://<otel-collector-address>:<otel-collector-port>/v1/metrics`
-##   If metrics are enabled and `metricsOtelCollectorEndpoint` is set, metrics are sent to the collector
-##   This value can also be set using the environmental variables `OTEL_EXPORTER_OTLP_METRICS_ENDPOINT` or `OTEL_EXPORTER_OTLP_ENDPOINT` ("/v1/metrics" is appended for HTTP), and optionally `OTEL_EXPORTER_OTLP_PROTOCOL` ("http/protobuf", the default, or "grpc")
-#metricsOtelCollectorEndpoint: 
+logs:
+  ## logs.level (string)
+  ## Description:
+  ##   Controls log level and verbosity. Supported values: `debug`, `info` (default), `warn`, `error`.
+  ## Default: "info"
+  #level: 
 
-## tokenSigningKey (string)
-## Description:
-##   String used as key to sign state tokens.
-##   Can be generated for example with `openssl rand -base64 32`
-##   If left empty, it will be randomly generated every time the app starts (recommended, unless you need user sessions to persist after the application is restarted).
-#tokenSigningKey: 
+  ## logs.omitHealthChecks (boolean)
+  ## Description:
+  ##   If true, calls to the healthcheck endpoint (`/healthz`) are not included in the logs.
+  ## Default: true
+  #omitHealthChecks: 
 
-## authProvider (string)
-## Description:
-##   Authentication provider to use
-##   Currently supported providers:
-##
-##   - `github`
-##   - `google`
-##   - `microsoftentraid`
-##   - `openidconnect`
-##   - `tailscalewhois`
-## Required
-authProvider:
+  ## logs.json (boolean)
+  ## Description:
+  ##   If true, emits logs formatted as JSON, otherwise uses a text-based structured log format.
+  ## Default: false if a TTY is attached (e.g. in development); true otherwise.
+  #json: 
 
-## authGoogle_clientID (string)
-## Description:
-##   Client ID for the Google auth application
-##   Ignored if `authProvider` is not `google`
-#authGoogle_clientID: 
+  ## logs.otelCollectorEndpoint (string)
+  ## Description:
+  ##   OpenTelemetry Collector endpoint for sending logs, for example: `<http(s)>://<otel-collector-address>:<otel-collector-port>/v1/logs`.
+  ##   If configured,logs are sent to the collector at the given address.
+  ##   This value can also be set using the environmental variables `OTEL_EXPORTER_OTLP_LOGS_ENDPOINT` or `OTEL_EXPORTER_OTLP_ENDPOINT` ("/v1/logs" is appended for HTTP), and optionally `OTEL_EXPORTER_OTLP_PROTOCOL` ("http/protobuf", the default, or "grpc").
+  #otelCollectorEndpoint: 
 
-## authGoogle_clientSecret (string)
-## Description:
-##   Client secret for the Google auth application
-##   Ignored if `authProvider` is not `google`
-#authGoogle_clientSecret: 
+metrics:
+  ## metrics.serverEnabled (boolean)
+  ## Description:
+  ##   Enable the metrics server, which exposes a Prometheus-compatible endpoint `/metrics`.
+  ## Default: false
+  #serverEnabled: 
 
-## authGoogle_allowedUsers (list of strings)
-## Description:
-##   List of allowed users for Google auth
-##   This is a list of user IDs
-##   Ignored if `authProvider` is not `google`
-#authGoogle_allowedUsers: 
+  ## metrics.serverPort (number)
+  ## Description:
+  ##   Port for the metrics server to bind to.
+  ## Default: 2112
+  #serverPort: 
 
-## authGoogle_allowedEmails (list of strings)
-## Description:
-##   List of allowed email addresses of users for Google auth
-##   This is a list of email addresses
-##   Ignored if `authProvider` is not `google`
-#authGoogle_allowedEmails: 
+  ## metrics.serverBind (string)
+  ## Description:
+  ##   Address/interface for the metrics server to bind to.
+  ## Default: "0.0.0.0"
+  #serverBind: 
 
-## authGoogle_allowedDomains (list of strings)
-## Description:
-##   List of allowed domains for Google auth
-##   This is a list of domains for email addresses
-##   Ignored if `authProvider` is not `google`
-#authGoogle_allowedDomains: 
+  ## metrics.otelCollectorEndpoint (string)
+  ## Description:
+  ##   OpenTelemetry Collector endpoint for sending metrics, for example: `<http(s)-or-grpc(s)>://<otel-collector-address>:<otel-collector-port>/v1/metrics`
+  ##   If metrics are enabled and `metricsOtelCollectorEndpoint` is set, metrics are sent to the collector
+  ##   This value can also be set using the environmental variables `OTEL_EXPORTER_OTLP_METRICS_ENDPOINT` or `OTEL_EXPORTER_OTLP_ENDPOINT` ("/v1/metrics" is appended for HTTP), and optionally `OTEL_EXPORTER_OTLP_PROTOCOL` ("http/protobuf", the default, or "grpc")
+  #otelCollectorEndpoint: 
 
-## authGoogle_requestTimeout (duration)
-## Description:
-##   Timeout for network requests for Google auth
-##   Ignored if `authProvider` is not `google`
-## Default: 10s
-#authGoogle_requestTimeout: 
+tracing:
+  ## tracing.sampling (float)
+  ## Description:
+  ##   Sampling rate for traces, as a float.
+  ##   The default value is 1, sampling all requests.
+  ## Default: 1
+  #sampling: 
 
-## authGitHub_clientID (string)
-## Description:
-##   Client ID for the GitHub auth application
-##   Ignored if `authProvider` is not `github`
-#authGitHub_clientID: 
+  ## tracing.otelCollectorEndpoint (string)
+  ## Description:
+  ##   OpenTelemetry Collector endpoint for sending traces, for example: `<http(s)-or-grpc(s)>://<otel-collector-address>:<otel-collector-port>/v1/traces`.
+  ##   If `tracingOtelCollectorEndpoint` is set, tracing is enabled and sent to the collector.
+  ##   This value can also be set using the environmental variables `OTEL_EXPORTER_OTLP_TRACES_ENDPOINT` or `OTEL_EXPORTER_OTLP_ENDPOINT` ("/v1/traces" is appended for HTTP), and optionally `OTEL_EXPORTER_OTLP_PROTOCOL` ("http/protobuf", the default, or "grpc").
+  #otelCollectorEndpoint: 
 
-## authGitHub_clientSecret (string)
+## portals (list)
 ## Description:
-##   Client secret for the GitHub auth application
-##   Ignored if `authProvider` is not `github`
-#authGitHub_clientSecret: 
-
-## authGitHub_allowedUsers (list of strings)
-## Description:
-##   List of allowed users for GitHub auth
-##   This is a list of usernames
-##   Ignored if `authProvider` is not `github`
-#authGitHub_allowedUsers: 
-
-## authGitHub_requestTimeout (duration)
-## Description:
-##   Timeout for network requests for GitHub auth
-##   Ignored if `authProvider` is not `github`
-## Default: 10s
-#authGitHub_requestTimeout: 
-
-## authMicrosoftEntraID_tenantID (string)
-## Description:
-##   Tenant ID for the Microsoft Entra ID auth application
-##   Ignored if `authProvider` is not `microsoftentraid`
-#authMicrosoftEntraID_tenantID: 
-
-## authMicrosoftEntraID_clientID (string)
-## Description:
-##   Client ID for the Microsoft Entra ID auth application
-##   Ignored if `authProvider` is not `microsoftentraid`
-#authMicrosoftEntraID_clientID: 
-
-## authMicrosoftEntraID_clientSecret (string)
-## Description:
-##   Client secret for the Microsoft Entra ID auth application
-##   Ignored if `authProvider` is not `microsoftentraid`
-#authMicrosoftEntraID_clientSecret: 
-
-## authMicrosoftEntraID_azureFederatedIdentity (string)
-## Description:
-##   Enables the usage of Federated Identity Credentials to obtain assertions for confidential clients for Microsoft Entra ID applications.
-##   This is an alternative to using client secrets, when the application is running in Azure in an environment that supports Managed Identity, or in an environment that supports Workload Identity Federation with Microsoft Entra ID.
-##   Currently, these values are supported:
-##
-##   - `ManagedIdentity`: uses a system-assigned managed identity
-##   - `ManagedIdentity=client-id`: uses a user-assigned managed identity with client id "client-id" (e.g. "ManagedIdentity=00000000-0000-0000-0000-000000000000")
-##   - `WorkloadIdentity`: uses workload identity, e.g. for Kubernetes
-#authMicrosoftEntraID_azureFederatedIdentity: 
-
-## authMicrosoftEntraID_allowedUsers (list of strings)
-## Description:
-##   List of allowed users for Microsoft Entra ID auth
-##   This is a list of user IDs
-##   Ignored if `authProvider` is not `microsoftentraid`
-#authMicrosoftEntraID_allowedUsers: 
-
-## authMicrosoftEntraID_allowedEmails (list of strings)
-## Description:
-##   List of allowed email addresses of users for Microsoft Entra ID auth
-##   This is a list of email addresses
-##   Ignored if `authProvider` is not `microsoftentraid`
-#authMicrosoftEntraID_allowedEmails: 
-
-## authMicrosoftEntraID_requestTimeout (duration)
-## Description:
-##   Timeout for network requests for Microsoft Entra ID auth
-##   Ignored if `authProvider` is not `microsoftentraid`
-## Default: 10s
-#authMicrosoftEntraID_requestTimeout: 
-
-## authOpenIDConnect_clientID (string)
-## Description:
-##   Client ID for the OpenID Connect auth application
-##   Ignored if `authProvider` is not `openidconnect`
-#authOpenIDConnect_clientID: 
-
-## authOpenIDConnect_clientSecret (string)
-## Description:
-##   Client secret for the OpenID Connect auth application
-##   Ignored if `authProvider` is not `openidconnect`
-#authOpenIDConnect_clientSecret: 
-
-## authOpenIDConnect_tokenIssuer (string)
-## Description:
-##   OpenID Connect token issuer
-##   The OpenID Connect configuration document will be fetched at `<token-issuer>/.well-known/openid-configuration`
-##   Ignored if `authProvider` is not `openidconnect`
-#authOpenIDConnect_tokenIssuer: 
-
-## authOpenIDConnect_allowedUsers (list of strings)
-## Description:
-##   List of allowed users for OpenID Connect auth
-##   This is a list of user IDs, as returned by the ID provider in the "sub" claim
-##   Ignored if `authProvider` is not `openidconnect`
-#authOpenIDConnect_allowedUsers: 
-
-## authOpenIDConnect_allowedEmails (list of strings)
-## Description:
-##   List of allowed email addresses for users for OpenID Connect auth
-##   This is a list of email addresses, as returned by the ID provider in the "email" claim
-##   Ignored if `authProvider` is not `openidconnect`
-#authOpenIDConnect_allowedEmails: 
-
-## authOpenIDConnect_requestTimeout (duration)
-## Description:
-##   Timeout for network requests for OpenID Connect auth
-##   Ignored if `authProvider` is not `openidconnect`
-## Default: 10s
-#authOpenIDConnect_requestTimeout: 
-
-## authOpenIDConnect_enablePKCE (boolean)
-## Description:
-##   If true, enables the use of PKCE during the code exchange.
-##   Ignored if `authProvider` is not `openidconnect`
-## Default: false
-#authOpenIDConnect_enablePKCE: 
-
-## authOpenIDConnect_tlsInsecureSkipVerify (boolean)
-## Description:
-##   If true, skips validating TLS certificates when connecting to the OpenID Connect Identity Provider.
-##   Ignored if `authProvider` is not `openidconnect`
-## Default: false
-#authOpenIDConnect_tlsInsecureSkipVerify: 
-
-## authOpenIDConnect_tlsCACertificatePEM (string)
-## Description:
-##   Optional PEM-encoded CA certificate to trust when connecting to the OpenID Connect Identity Provider.
-##   Ignored if `authProvider` is not `openidconnect`
-#authOpenIDConnect_tlsCACertificatePEM: 
-
-## authOpenIDConnect_tlsCACertificatePath (string)
-## Description:
-##   Optional path to a CA certificate to trust when connecting to the OpenID Connect Identity Provider.
-##   Ignored if `authProvider` is not `openidconnect`
-#authOpenIDConnect_tlsCACertificatePath: 
-
-## authTailscaleWhois_allowedTailnet (string)
-## Description:
-##   If non-empty, requires the Tailnet of the user to match this value
-##   Ignored if `authProvider` is not `tailscalewhois`
-#authTailscaleWhois_allowedTailnet: 
-
-## authTailscaleWhois_allowedUsers (list of strings)
-## Description:
-##   List of allowed users for Tailscale Whois auth
-##   This is a list of user IDs as returned by the ID provider
-##   Ignored if `authProvider` is not `tailscalewhois`
-#authTailscaleWhois_allowedUsers: 
-
-## authTailscaleWhois_requestTimeout (duration)
-## Description:
-##   Timeout for network requests for Tailscale Whois auth
-##   Ignored if `authProvider` is not `tailscalewhois`
-## Default: 10s
-#authTailscaleWhois_requestTimeout: 
-
-## authenticationTimeout (duration)
-## Description:
-##   Timeout for authenticating with the authentication provider.
-## Default: 5m
-#authenticationTimeout: 
-
-## tlsPath (string)
-## Description:
-##   Path where to load TLS certificates from. Within the folder, the files must be named `tls-cert.pem` and `tls-key.pem` (and optionally `tls-ca.pem`).
-##   The server watches for changes in this folder and automatically reloads the TLS certificates when they're updated.
-##   If empty, certificates are loaded from the same folder where the loaded `config.yaml` is located.
-## Default: Folder where the `config.yaml` file is located
-#tlsPath: 
-
-## tlsCertPEM (string)
-## Description:
-##   Full, PEM-encoded TLS certificate.
-##   Using `tlsCertPEM` and `tlsKeyPEM` is an alternative method of passing TLS certificates than using `tlsPath`.
-#tlsCertPEM: 
-
-## tlsKeyPEM (string)
-## Description:
-##   Full, PEM-encoded TLS key.
-##   Using `tlsCertPEM` and `tlsKeyPEM` is an alternative method of passing TLS certificates than using `tlsPath`.
-#tlsKeyPEM: 
-
-## tlsCAPEM (string)
-## Description:
-##   Full, PEM-encoded TLS CA certificate, used for TLS client authentication (mTLS).
-##   This is an alternative method of passing the CA certificate than using `tlsPath`.
-##   Note that this is ignored unless `tlsClientAuth` is set to `true`.
-#tlsCAPEM: 
-
-## tlsClientAuth (boolean)
-## Description:
-##   If true, enables mTLS for client authentication.
-##   Requests to the root endpoint (normally used by Traefik) must have a valid client certificate signed by the CA.
-## Default: false
-#tlsClientAuth: 
-
-## trustedRequestIdHeader (string)
-## Description:
-##   String with the name of a header to trust as ID of each request. The ID is included in logs and in responses as `X-Request-ID` header.
-##   Common values include:
-##
-##   - `X-Request-ID`: a [de-facto standard](https://http.dev/x-request-id) that's vendor agnostic
-##   - `CF-Ray`: when the application is served by a [Cloudflare CDN](https://developers.cloudflare.com/fundamentals/get-started/reference/cloudflare-ray-id/)
-##
-##   If this option is empty, or if it contains the name of a header that is not found in an incoming request, a random UUID is generated as request ID.
-#trustedRequestIdHeader: 
-
-## tracingSampling (float)
-## Description:
-##   Sampling rate for traces, as a float.
-##   The default value is 1, sampling all requests.
-## Default: 1
-#tracingSampling: 
-
-## tracingOtelCollectorEndpoint (string)
-## Description:
-##   OpenTelemetry Collector endpoint for sending traces, for example: `<http(s)-or-grpc(s)>://<otel-collector-address>:<otel-collector-port>/v1/traces`.
-##   If `tracingOtelCollectorEndpoint` is set, tracing is enabled and sent to the collector.
-##   This value can also be set using the environmental variables `OTEL_EXPORTER_OTLP_TRACES_ENDPOINT` or `OTEL_EXPORTER_OTLP_ENDPOINT` ("/v1/traces" is appended for HTTP), and optionally `OTEL_EXPORTER_OTLP_PROTOCOL` ("http/protobuf", the default, or "grpc").
-#tracingOtelCollectorEndpoint: 
+##   List of portals
+#portals: 
 
