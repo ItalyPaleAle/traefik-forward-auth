@@ -27,7 +27,6 @@ const (
 	stateCookieNamePrefix = "tf_state"
 	acceptableClockSkew   = 30 * time.Second
 	nonceSize             = 12 // Nonce size in bytes
-	providerNameClaim     = "tf_provider"
 	portalNameClaim       = "tf_portal"
 	nonceClaim            = "tf_nonce"
 	sigClaim              = "tf_sig"
@@ -142,7 +141,6 @@ func (s *Server) deleteSessionCookie(c *gin.Context, portalName string) {
 
 type stateCookieContent struct {
 	portal    string
-	provider  auth.Provider
 	nonce     string
 	returnURL string
 }
@@ -181,18 +179,6 @@ func (s *Server) getStateCookie(c *gin.Context, portal Portal, stateCookieID str
 		return stateCookieContent{}, errors.New("portal claim in JWT does not match expected value")
 	}
 
-	// Get the provider name (and ensure it's a valid provider)
-	providerAny, _ := token.Get(providerNameClaim)
-	providerName, _ := providerAny.(string)
-	if providerName == "" {
-		return stateCookieContent{}, fmt.Errorf("claim '%s' not found in JWT", providerNameClaim)
-	}
-	var ok bool
-	content.provider, ok = portal.Providers[providerName]
-	if !ok {
-		return stateCookieContent{}, fmt.Errorf("provider specified in token was not found: %s", content.provider)
-	}
-
 	// Get the nonce
 	nonceAny, _ := token.Get(nonceClaim)
 	content.nonce, _ = nonceAny.(string)
@@ -212,7 +198,7 @@ func (s *Server) getStateCookie(c *gin.Context, portal Portal, stateCookieID str
 	}
 
 	// Validate the signature inside the token
-	expectSig := stateCookieSig(c, stateCookieID, content.portal, providerName, nonceBytes)
+	expectSig := stateCookieSig(c, stateCookieID, content.portal, nonceBytes)
 	sigAny, _ := token.Get(sigClaim)
 	sig, _ := sigAny.(string)
 	if sig == "" {
@@ -234,7 +220,7 @@ func (s *Server) generateNonce() (string, error) {
 	return base64.RawURLEncoding.EncodeToString(nonceBytes), nil
 }
 
-func (s *Server) setStateCookie(c *gin.Context, portal Portal, provider auth.Provider, nonce string, returnURL string, stateCookieID string) (err error) {
+func (s *Server) setStateCookie(c *gin.Context, portal Portal, nonce string, returnURL string, stateCookieID string) (err error) {
 	cfg := config.Get()
 	expiration := portal.AuthenticationTimeout
 
@@ -243,7 +229,7 @@ func (s *Server) setStateCookie(c *gin.Context, portal Portal, provider auth.Pro
 	if err != nil {
 		return fmt.Errorf("invalid nonce: %w", err)
 	}
-	sig := stateCookieSig(c, stateCookieID, portal.Name, provider.GetProviderName(), nonceBytes)
+	sig := stateCookieSig(c, stateCookieID, portal.Name, nonceBytes)
 
 	// Claims for the JWT
 	now := time.Now()
@@ -255,7 +241,6 @@ func (s *Server) setStateCookie(c *gin.Context, portal Portal, provider auth.Pro
 		Expiration(now.Add(expiration+time.Second)).
 		NotBefore(now).
 		Claim(portalNameClaim, portal.Name).
-		Claim(providerNameClaim, provider.GetProviderName()).
 		Claim(nonceClaim, nonce).
 		Claim(sigClaim, sig).
 		Claim(returnURLClaim, returnURL).
@@ -300,7 +285,7 @@ func stateCookieName(portalName string, stateCookieID string) string {
 	return stateCookieNamePrefix + "_" + portalName + "_" + stateCookieID
 }
 
-func stateCookieSig(c *gin.Context, portalName string, providerName string, stateCookieID string, nonce []byte) string {
+func stateCookieSig(c *gin.Context, portalName string, stateCookieID string, nonce []byte) string {
 	h := hmac.New(sha256.New224, nonce)
 	h.Write([]byte("tfa-state-sig"))
 	h.Write([]byte(stateCookieID))
@@ -308,6 +293,5 @@ func stateCookieSig(c *gin.Context, portalName string, providerName string, stat
 	h.Write([]byte(strings.ToLower(norm.NFKD.String(c.GetHeader("Accept-Language")))))
 	h.Write([]byte(strings.ToLower(norm.NFKD.String(c.GetHeader("DNT")))))
 	h.Write([]byte(portalName))
-	h.Write([]byte(providerName))
 	return base64.RawURLEncoding.EncodeToString(h.Sum(nil))
 }

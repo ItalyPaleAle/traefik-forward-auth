@@ -174,6 +174,7 @@ func (a *OpenIDConnect) OAuth2RetrieveProfile(ctx context.Context, at OAuth2Acce
 		}
 
 		profile, err = user.NewProfileFromOpenIDToken(oidToken)
+		profile.Provider = a.GetProviderName()
 		if err != nil {
 			return nil, fmt.Errorf("invalid claims in token: %w", err)
 		}

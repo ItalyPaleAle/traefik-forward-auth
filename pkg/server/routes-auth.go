@@ -29,7 +29,37 @@ func (s *Server) RouteGetAuthRoot(c *gin.Context) {
 	profile, provider := s.getProfileFromContext(c)
 	if profile == nil || provider == nil {
 		// We don't have a session, so redirect to the sign-in page
-		signInURL := getSignInURI(c, portal.Name)
+		s.metrics.RecordAuthentication(false)
+
+		// Get the return URL
+		returnURL := getReturnURL(c, portal.Name)
+
+		// Each state cookie is unique per return URL
+		// This avoids issues when there's more than one browser tab that's trying to authenticate, for example because of some background refresh
+		stateCookieID := getStateCookieID(returnURL)
+
+		// Check if there's already a state cookie that's recent, so we can re-use the same nonce
+		content, _ := s.getStateCookie(c, portal, stateCookieID)
+
+		// If there's no nonce, generate a new one
+		nonce := content.nonce
+		if content.nonce == "" {
+			nonce, err = s.generateNonce()
+			if err != nil {
+				AbortWithError(c, fmt.Errorf("failed to generate nonce: %w", err))
+				return
+			}
+		}
+
+		// Create a new state and set the cookie
+		err = s.setStateCookie(c, portal, nonce, returnURL, stateCookieID)
+		if err != nil {
+			AbortWithError(c, fmt.Errorf("failed to set state cookie: %w", err))
+			return
+		}
+
+		// Redirect the user
+		signInURL := getPortalURI(c, portal.Name) + "/signin?state=" + stateCookieID + "~" + nonce
 		c.Header("Location", signInURL)
 		c.Header("Content-Type", "text/plain; charset=utf-8")
 		c.Writer.WriteHeader(http.StatusSeeOther)
@@ -55,8 +85,45 @@ func (s *Server) RouteGetAuthSignin(c *gin.Context) {
 		return
 	}
 
-	fmt.Println(maps.Keys(portal.Providers))
-	fmt.Fprint(c.Writer, "OK")
+	// Ensure we have a state parameter
+	content, stateCookieID, err := s.parseStateParamPreAuth(c, portal)
+	if err != nil {
+		AbortWithError(c, err)
+		return
+	}
+
+	for v := range maps.Keys(portal.Providers) {
+		providerURI := getPortalURI(c, portal.Name) + "/provider/" + v + "?state=" + stateCookieID + "~" + content.nonce
+		fmt.Fprintf(c.Writer, `<a href="%s">%s</a><br>`+"\n", providerURI, v)
+	}
+}
+
+func (s *Server) parseStateParamPreAuth(c *gin.Context, portal Portal) (stateCookieContent, string, error) {
+	// Ensure we have a state parameter
+	stateParam := c.Query("state")
+	if stateParam == "" {
+		return stateCookieContent{}, "", NewResponseError(http.StatusBadRequest, "The parameter 'state' is required in the query string")
+	}
+
+	stateCookieID, expectedNonce, ok := strings.Cut(stateParam, "~")
+	if !ok {
+		return stateCookieContent{}, "", NewResponseError(http.StatusUnauthorized, "Query string parameter 'state' is invalid")
+	}
+
+	// Get the state cookie
+	content, err := s.getStateCookie(c, portal, stateCookieID)
+	if err != nil {
+		return stateCookieContent{}, "", fmt.Errorf("invalid state cookie: %w", err)
+	} else if content.nonce == "" {
+		return stateCookieContent{}, "", NewResponseError(http.StatusUnauthorized, "State cookie not found")
+	}
+
+	// Check if the nonce matches
+	if content.nonce != expectedNonce {
+		return stateCookieContent{}, "", NewResponseError(http.StatusUnauthorized, "Parameters in state cookie do not match state token")
+	}
+
+	return content, stateCookieID, nil
 }
 
 // RouteGetAuthProvider is the handler for GET /portals/:portal/provider/:provider
@@ -68,50 +135,29 @@ func (s *Server) RouteGetAuthProvider(c *gin.Context) {
 		return
 	}
 
+	// Ensure we have a state parameter
+	content, stateCookieID, err := s.parseStateParamPreAuth(c, portal)
+	if err != nil {
+		AbortWithError(c, err)
+		return
+	}
+
 	switch provider := provider.(type) {
 	case auth.OAuth2Provider:
-		s.handleGetAuthProviderOAuth2(c, portal, provider)
+		s.handleGetAuthProviderOAuth2(c, portal, stateCookieID, content.nonce, provider)
 	case auth.SeamlessProvider:
-		s.handleGetAuthProviderSeamlessAuth(c, portal, provider)
+		s.handleGetAuthProviderSeamlessAuth(c, portal, content.returnURL, provider)
 	}
 }
 
 // Handles GET /portals/:portal/provider/:provider when using an OAuth2-based provider
 // This redirects users to the OAuth2 Identity Provider
-func (s *Server) handleGetAuthProviderOAuth2(c *gin.Context, portal Portal, provider auth.OAuth2Provider) {
+func (s *Server) handleGetAuthProviderOAuth2(c *gin.Context, portal Portal, stateCookieID string, nonce string, provider auth.OAuth2Provider) {
 	var err error
 
-	s.metrics.RecordAuthentication(false)
-
-	// Get the return URL
-	returnURL := getReturnURL(c)
-
-	// Each state cookie is unique per return URL
-	// This is
-	// This avoids issues when there's more than one browser tab that's trying to authenticate, for example because of some background refresh
-	stateCookieID := getStateCookieID(returnURL)
-
-	// Check if there's already a state cookie that's recent, so we can re-use the same nonce
-	content, _ := s.getStateCookie(c, portal, stateCookieID)
-
-	if content.nonce == "" {
-		// If there's no nonce, generate a new one
-		content.nonce, err = s.generateNonce()
-		if err != nil {
-			AbortWithError(c, fmt.Errorf("failed to generate nonce: %w", err))
-			return
-		}
-	}
-
-	// Create a new state and set the cookie
-	err = s.setStateCookie(c, portal, provider, content.nonce, returnURL, stateCookieID)
-	if err != nil {
-		AbortWithError(c, fmt.Errorf("failed to set state cookie: %w", err))
-		return
-	}
-
 	// Redirect to the authorization URL
-	authURL, err := provider.OAuth2AuthorizeURL(stateCookieID+"~"+content.nonce, getOAuth2RedirectURI(c, portal.Name))
+	stateParam := provider.GetProviderName() + "~" + stateCookieID + "~" + nonce
+	authURL, err := provider.OAuth2AuthorizeURL(stateParam, getOAuth2RedirectURI(c, portal.Name))
 	if err != nil {
 		AbortWithError(c, fmt.Errorf("failed to get authorize URL: %w", err))
 		return
@@ -148,14 +194,15 @@ func (s *Server) RouteGetOAuth2Callback(c *gin.Context) {
 		AbortWithError(c, NewResponseError(http.StatusBadRequest, "The parameters 'state' and 'code' are required in the query string"))
 		return
 	}
-	stateCookieID, expectedNonce, ok := strings.Cut(stateParam, "~")
-	if !ok {
+	// Format is: "Provider~StateCookieID~Nonce"
+	parts := strings.SplitN(stateParam, "~", 3)
+	if len(parts) != 3 || parts[0] == "" || parts[1] == "" || parts[2] == "" {
 		AbortWithError(c, NewResponseError(http.StatusUnauthorized, "Query string parameter 'state' is invalid"))
 		return
 	}
 
 	// Get the state cookie
-	content, err := s.getStateCookie(c, portal, stateCookieID)
+	content, err := s.getStateCookie(c, portal, parts[1])
 	if err != nil {
 		AbortWithError(c, fmt.Errorf("invalid state cookie: %w", err))
 		return
@@ -164,19 +211,24 @@ func (s *Server) RouteGetOAuth2Callback(c *gin.Context) {
 		return
 	}
 
+	// Get the provider
+	providerI, ok := portal.Providers[parts[0]]
+	if !ok {
+		AbortWithError(c, NewResponseError(http.StatusConflict, "Auth provider not found"))
+		return
+	}
+	provider, ok := providerI.(auth.OAuth2Provider)
+	if !ok {
+		AbortWithError(c, NewResponseError(http.StatusConflict, "Auth provider does not implement OAuth2"))
+		return
+	}
+
 	// Clear the state cookie for the portal
 	s.deleteStateCookies(c, portal.Name)
 
 	// Check if the nonce matches
-	if content.nonce != expectedNonce {
+	if content.nonce != parts[2] {
 		AbortWithError(c, NewResponseError(http.StatusUnauthorized, "Parameters in state cookie do not match state token"))
-		return
-	}
-
-	// Get the provider
-	provider, ok := content.provider.(auth.OAuth2Provider)
-	if !ok {
-		AbortWithError(c, NewResponseError(http.StatusConflict, "Auth provider does not implement OAuth2"))
 		return
 	}
 
@@ -219,7 +271,7 @@ func (s *Server) RouteGetOAuth2Callback(c *gin.Context) {
 
 // Handles GET /portals/:portal/provider/:provider when using a seamless auth provider
 // This performs seamless auth
-func (s *Server) handleGetAuthProviderSeamlessAuth(c *gin.Context, portal Portal, provider auth.SeamlessProvider) {
+func (s *Server) handleGetAuthProviderSeamlessAuth(c *gin.Context, portal Portal, returnURL string, provider auth.SeamlessProvider) {
 	// Try to authenticate with the seamless auth
 	var err error
 	profile, err := provider.SeamlessAuth(c.Request)
@@ -230,6 +282,9 @@ func (s *Server) handleGetAuthProviderSeamlessAuth(c *gin.Context, portal Portal
 		AbortWithError(c, NewResponseError(http.StatusUnauthorized, "Not authenticated"))
 		return
 	}
+
+	// Clear the state cookie for the portal
+	s.deleteStateCookies(c, portal.Name)
 
 	// Check if the user is allowed per rules
 	err = provider.UserAllowed(profile)
@@ -248,7 +303,6 @@ func (s *Server) handleGetAuthProviderSeamlessAuth(c *gin.Context, portal Portal
 
 	// We need to do a redirect to be able to have the cookies actually set
 	// Also see: https://github.com/traefik/traefik/issues/3660
-	returnURL := getReturnURL(c)
 	c.Header("Location", returnURL)
 	c.Header("Content-Type", "text/plain; charset=utf-8")
 	c.Writer.WriteHeader(http.StatusSeeOther)
@@ -300,16 +354,17 @@ func (s *Server) getProfileFromContext(c *gin.Context) (*user.Profile, auth.Prov
 }
 
 // Get the return URL, to redirect users to after a successful auth
-func getReturnURL(c *gin.Context) string {
-	// Here we use  X-Forwarded-* headers which have the data of the original request
-	reqURL := c.Request.URL
-	if slice, ok := c.Request.Header["X-Forwarded-Uri"]; ok {
-		var val string
-		if len(slice) > 0 {
-			val = slice[0]
-		}
-		reqURL, _ = url.Parse(val)
+func getReturnURL(c *gin.Context, portal string) string {
+	// Traefik docs: https://doc.traefik.io/traefik/middlewares/http/forwardauth/
+	// If there's no "X-Forwarded-Uri" header, it means that the auth request was not initiated by Traefik originally
+	// In this case, we redirect to the /portal/:portal/profile route
+	forwardedURI := c.Request.Header.Get("X-Forwarded-Uri")
+	if forwardedURI == "" {
+		return getPortalURI(c, portal) + "/profile"
 	}
+
+	// Here we use  X-Forwarded-* headers which have the data of the original request
+	reqURL, _ := url.Parse(forwardedURI)
 	return c.Request.Header.Get("X-Forwarded-Proto") + "://" + c.Request.Header.Get("X-Forwarded-Host") + reqURL.Path
 }
 
@@ -326,12 +381,11 @@ func getStateCookieID(returnURL string) string {
 // Get the redirect URI, which is sent to the OAuth2 authentication server and indicates where to return users after a successful auth with the IdP
 // The URI is specific to each portal
 func getOAuth2RedirectURI(c *gin.Context, portal string) string {
-	cfg := config.Get()
-	return c.GetHeader("X-Forwarded-Proto") + "://" + cfg.Server.Hostname + cfg.Server.BasePath + "/portals/" + portal + "/oauth2/callback"
+	return getPortalURI(c, portal) + "/oauth2/callback"
 }
 
-// Get the sign-in URI, which is specific to each portal
-func getSignInURI(c *gin.Context, portal string) string {
+// Get the URI for a portal
+func getPortalURI(c *gin.Context, portal string) string {
 	cfg := config.Get()
-	return c.GetHeader("X-Forwarded-Proto") + "://" + cfg.Server.Hostname + cfg.Server.BasePath + "/portals/" + portal + "/signin"
+	return c.GetHeader("X-Forwarded-Proto") + "://" + cfg.Server.Hostname + cfg.Server.BasePath + "/portals/" + portal
 }
