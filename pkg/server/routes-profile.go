@@ -11,7 +11,7 @@ import (
 // This handler serves the profile of authenticated users in clear-text
 func (s *Server) RouteGetProfile(c *gin.Context) {
 	// Check if we have a session
-	profile := s.getProfileFromContext(c)
+	profile, _ := s.getProfileFromContext(c)
 	if profile == nil {
 		AbortWithError(c, NewResponseError(http.StatusUnauthorized, "Not authenticated"))
 		return

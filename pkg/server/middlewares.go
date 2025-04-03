@@ -18,6 +18,15 @@ import (
 	"github.com/italypaleale/traefik-forward-auth/pkg/utils"
 )
 
+const (
+	sessionAuthContextKey     = "session-auth"
+	sessionProfileContextKey  = "session-profile"
+	sessionProviderContextKey = "session-provider"
+	requestIDContextKey       = "request-id"
+	logMaskContextKey         = "log-mask"
+	logMessageContextKey      = "log-message"
+)
+
 var proxyHeaders = []string{
 	"X-Forwarded-Server",
 	"X-Forwarded-For",
@@ -88,14 +97,14 @@ func (s *Server) MiddlewareProxyHeaders(c *gin.Context) {
 
 // MiddlewareLoadAuthCookie is a middleware that checks if the request contains a valid authentication token in the cookie.
 func (s *Server) MiddlewareLoadAuthCookie(c *gin.Context) {
-	portal, provider, err := s.getProvider(c)
+	portal, err := s.getPortal(c)
 	if err != nil {
 		AbortWithError(c, err)
 		return
 	}
 
 	// Get the cookie and parse it
-	profile, err := s.getSessionCookie(c, portal.Name)
+	profile, provider, err := s.getSessionCookie(c, portal.Name)
 	if err != nil {
 		s.deleteSessionCookie(c, portal.Name)
 		AbortWithError(c, fmt.Errorf("cookie error: %w", err))
@@ -103,7 +112,7 @@ func (s *Server) MiddlewareLoadAuthCookie(c *gin.Context) {
 	}
 
 	// If we don't have a valid session, stop here
-	if profile == nil || profile.ID == "" {
+	if profile == nil || profile.ID == "" || provider == nil {
 		return
 	}
 
@@ -127,8 +136,9 @@ func (s *Server) MiddlewareLoadAuthCookie(c *gin.Context) {
 	}
 
 	// Set the claims in the context
-	c.Set("session-auth", true)
-	c.Set("session-profile", profile)
+	c.Set(sessionAuthContextKey, true)
+	c.Set(sessionProfileContextKey, profile)
+	c.Set(sessionProviderContextKey, provider)
 }
 
 // MiddlewareRequestId is a middleware that generates a unique request ID for each request
@@ -138,7 +148,7 @@ func (s *Server) MiddlewareRequestId(c *gin.Context) {
 	if headerName != "" {
 		v := c.GetHeader(headerName)
 		if v != "" {
-			c.Set("request-id", v)
+			c.Set(requestIDContextKey, v)
 			c.Header("x-request-id", v)
 			return
 		}
@@ -152,7 +162,7 @@ func (s *Server) MiddlewareRequestId(c *gin.Context) {
 	}
 
 	v := reqUuid.String()
-	c.Set("request-id", v)
+	c.Set(requestIDContextKey, v)
 	c.Header("x-request-id", v)
 }
 
@@ -183,7 +193,7 @@ func (s *Server) MiddlewareLogger(parentLog *slog.Logger) func(c *gin.Context) {
 		method := c.Request.Method
 
 		// Ensure the logger in the context has a request ID, then store it in the context
-		reqId := c.GetString("request-id")
+		reqId := c.GetString(requestIDContextKey)
 		log := parentLog.With(slog.String("id", reqId))
 		c.Request = c.Request.WithContext(utils.LogToContext(c.Request.Context(), log))
 
@@ -230,7 +240,7 @@ func (s *Server) MiddlewareLogger(parentLog *slog.Logger) func(c *gin.Context) {
 		}
 
 		// Check if we have a message
-		msg := c.GetString("log-message")
+		msg := c.GetString(logMessageContextKey)
 		if msg == "" {
 			msg = "HTTP Request"
 		}
@@ -245,7 +255,7 @@ func (s *Server) MiddlewareLogger(parentLog *slog.Logger) func(c *gin.Context) {
 		}
 
 		// Check if we want to mask something in the URL
-		mask, ok := c.Get("log-mask")
+		mask, ok := c.Get(logMaskContextKey)
 		if ok {
 			f, ok := mask.(func(string) string)
 			if ok && f != nil {
@@ -266,10 +276,10 @@ func (s *Server) MiddlewareLogger(parentLog *slog.Logger) func(c *gin.Context) {
 	}
 }
 
-// MiddlewareLoggerMask returns a Gin middleware that adds the "log-mask" to mask the path using a regular expression
+// MiddlewareLoggerMask returns a Gin middleware that adds the logMaskContextKey to mask the path using a regular expression
 func (s *Server) MiddlewareLoggerMask(exp *regexp.Regexp, replace string) gin.HandlerFunc {
 	return func(c *gin.Context) {
-		c.Set("log-mask", func(path string) string {
+		c.Set(logMaskContextKey, func(path string) string {
 			return exp.ReplaceAllString(path, replace)
 		})
 	}

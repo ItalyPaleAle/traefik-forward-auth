@@ -178,7 +178,9 @@ func (s *Server) initAppServer(log *slog.Logger) (err error) {
 	portalRoutes := s.appRouter.Group(path.Join(conf.Server.BasePath, "portals/:portal"), s.MiddlewareProxyHeaders)
 	portalRoutes.GET("", s.MiddlewareRequireClientCertificate, s.MiddlewareLoadAuthCookie, s.RouteGetAuthRoot)
 	portalRoutes.GET("/", s.MiddlewareRequireClientCertificate, s.MiddlewareLoadAuthCookie, s.RouteGetAuthRoot)
+	portalRoutes.GET("/provider/:provider", s.MiddlewareRequireClientCertificate, s.MiddlewareLoadAuthCookie, s.RouteGetAuthProvider)
 	portalRoutes.GET("/oauth2/callback", codeFilterLogMw, s.RouteGetOAuth2Callback)
+	portalRoutes.GET("/signin", s.RouteGetAuthSignin)
 	portalRoutes.GET("/profile", s.MiddlewareLoadAuthCookie, s.RouteGetProfile)
 	portalRoutes.GET("/logout", s.RouteGetLogout)
 

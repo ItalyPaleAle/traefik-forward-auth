@@ -4,6 +4,7 @@ import (
 	"crypto/sha256"
 	"encoding/base64"
 	"fmt"
+	"maps"
 	"net/http"
 	"net/url"
 	"strings"
@@ -15,30 +16,24 @@ import (
 	"github.com/italypaleale/traefik-forward-auth/pkg/user"
 )
 
-// RouteGetAuthRoot is the handler for GET /portals/:portal/provider/:provider
-// This handles requests from Traefik and redirects users to auth servers if needed
+// RouteGetAuthRoot is the handler for GET /portals/:portal
+// This handles requests from Traefik and redirects users if needed
 func (s *Server) RouteGetAuthRoot(c *gin.Context) {
-	portal, provider, err := s.getProvider(c)
+	portal, err := s.getPortal(c)
 	if err != nil {
 		AbortWithError(c, err)
 		return
 	}
 
-	switch provider := provider.(type) {
-	case auth.OAuth2Provider:
-		s.handleGetRootOAuth2(c, portal, provider)
-	case auth.SeamlessProvider:
-		s.handleGetRootSeamlessAuth(c, portal, provider)
-	}
-}
-
-// Handles GET /portals/:portal/provider/:provider when using an OAuth2-based provider
-// This handles requests from Traefik and redirects users to auth servers if needed
-func (s *Server) handleGetRootOAuth2(c *gin.Context, portal Portal, provider auth.OAuth2Provider) {
 	// Check if we have a session
-	profile := s.getProfileFromContext(c)
-	if profile == nil {
-		s.oAuth2RedirectToAuth(c, portal, provider)
+	profile, provider := s.getProfileFromContext(c)
+	if profile == nil || provider == nil {
+		// We don't have a session, so redirect to the sign-in page
+		signInURL := getSignInURI(c, portal.Name)
+		c.Header("Location", signInURL)
+		c.Header("Content-Type", "text/plain; charset=utf-8")
+		c.Writer.WriteHeader(http.StatusSeeOther)
+		_, _ = c.Writer.WriteString(`Redirecting to sign-in page: ` + signInURL)
 		return
 	}
 
@@ -47,7 +42,86 @@ func (s *Server) handleGetRootOAuth2(c *gin.Context, portal Portal, provider aut
 	s.metrics.RecordAuthentication(true)
 	user := provider.UserIDFromProfile(profile)
 	c.Header("X-Forwarded-User", user)
-	c.Data(http.StatusOK, "text/plain; charset=utf-8", []byte(`You're authenticated as '`+user+`'`))
+	c.Header("Content-Type", "text/plain; charset=utf-8")
+	_, _ = c.Writer.WriteString("You're authenticated as '" + user + "'")
+}
+
+// RouteGetAuthSignin is the handler for GET /portals/:portal/signin
+// It displays the list of providers
+func (s *Server) RouteGetAuthSignin(c *gin.Context) {
+	portal, err := s.getPortal(c)
+	if err != nil {
+		AbortWithError(c, err)
+		return
+	}
+
+	fmt.Println(maps.Keys(portal.Providers))
+	fmt.Fprint(c.Writer, "OK")
+}
+
+// RouteGetAuthProvider is the handler for GET /portals/:portal/provider/:provider
+// This redirects users to auth servers
+func (s *Server) RouteGetAuthProvider(c *gin.Context) {
+	portal, provider, err := s.getProvider(c)
+	if err != nil {
+		AbortWithError(c, err)
+		return
+	}
+
+	switch provider := provider.(type) {
+	case auth.OAuth2Provider:
+		s.handleGetAuthProviderOAuth2(c, portal, provider)
+	case auth.SeamlessProvider:
+		s.handleGetAuthProviderSeamlessAuth(c, portal, provider)
+	}
+}
+
+// Handles GET /portals/:portal/provider/:provider when using an OAuth2-based provider
+// This redirects users to the OAuth2 Identity Provider
+func (s *Server) handleGetAuthProviderOAuth2(c *gin.Context, portal Portal, provider auth.OAuth2Provider) {
+	var err error
+
+	s.metrics.RecordAuthentication(false)
+
+	// Get the return URL
+	returnURL := getReturnURL(c)
+
+	// Each state cookie is unique per return URL
+	// This is
+	// This avoids issues when there's more than one browser tab that's trying to authenticate, for example because of some background refresh
+	stateCookieID := getStateCookieID(returnURL)
+
+	// Check if there's already a state cookie that's recent, so we can re-use the same nonce
+	content, _ := s.getStateCookie(c, portal, stateCookieID)
+
+	if content.nonce == "" {
+		// If there's no nonce, generate a new one
+		content.nonce, err = s.generateNonce()
+		if err != nil {
+			AbortWithError(c, fmt.Errorf("failed to generate nonce: %w", err))
+			return
+		}
+	}
+
+	// Create a new state and set the cookie
+	err = s.setStateCookie(c, portal, provider, content.nonce, returnURL, stateCookieID)
+	if err != nil {
+		AbortWithError(c, fmt.Errorf("failed to set state cookie: %w", err))
+		return
+	}
+
+	// Redirect to the authorization URL
+	authURL, err := provider.OAuth2AuthorizeURL(stateCookieID+"~"+content.nonce, getOAuth2RedirectURI(c, portal.Name))
+	if err != nil {
+		AbortWithError(c, fmt.Errorf("failed to get authorize URL: %w", err))
+		return
+	}
+
+	// Use a custom redirect code to write a response in the body
+	c.Header("Location", authURL)
+	c.Header("Content-Type", "text/plain; charset=utf-8")
+	c.Writer.WriteHeader(http.StatusSeeOther)
+	_, _ = c.Writer.WriteString(`Redirecting to authentication server: ` + authURL)
 }
 
 // RouteGetOAuth2Callback is the handler for GET /portals/:portal/oauth2/callback
@@ -60,8 +134,9 @@ func (s *Server) RouteGetOAuth2Callback(c *gin.Context) {
 	}
 
 	// Check if there's an error in the query string
-	if qsErr := c.Query("error"); qsErr != "" {
-		c.Set("log-message", "Error from the app server: "+qsErr)
+	qsErr := c.Query("error")
+	if qsErr != "" {
+		c.Set(logMessageContextKey, "Error from the app server: "+qsErr)
 		AbortWithError(c, NewResponseError(http.StatusFailedDependency, "The auth server returned an error"))
 		return
 	}
@@ -106,7 +181,7 @@ func (s *Server) RouteGetOAuth2Callback(c *gin.Context) {
 	}
 
 	// Exchange the code for a token
-	at, err := provider.OAuth2ExchangeCode(c.Request.Context(), stateParam, codeParam, getOAuth2RedirectURI(c))
+	at, err := provider.OAuth2ExchangeCode(c.Request.Context(), stateParam, codeParam, getOAuth2RedirectURI(c, portal.Name))
 	if err != nil {
 		AbortWithError(c, fmt.Errorf("failed to exchange code for access token: %w", err))
 		return
@@ -143,53 +218,41 @@ func (s *Server) RouteGetOAuth2Callback(c *gin.Context) {
 }
 
 // Handles GET /portals/:portal/provider/:provider when using a seamless auth provider
-// This handles requests from Traefik
-func (s *Server) handleGetRootSeamlessAuth(c *gin.Context, portal Portal, provider auth.SeamlessProvider) {
-	// Check if we have a session already
-	profile := s.getProfileFromContext(c)
-	if profile == nil {
-		// Try to authenticate with the seamless auth
-		var err error
-		profile, err = provider.SeamlessAuth(c.Request)
-		if err != nil {
-			c.Set("log-message", "Seamless authentication failed: "+err.Error())
-			s.metrics.RecordAuthentication(false)
-			s.deleteSessionCookie(c, portal.Name)
-			AbortWithError(c, NewResponseError(http.StatusUnauthorized, "Not authenticated"))
-			return
-		}
-
-		// Check if the user is allowed per rules
-		err = provider.UserAllowed(profile)
-		if err != nil {
-			_ = c.Error(fmt.Errorf("access denied per allowlist rules: %w", err))
-			AbortWithError(c, NewResponseError(http.StatusUnauthorized, "Access denied per allowlist rules"))
-			return
-		}
-
-		// Set the profile in the cookie
-		err = s.setSessionCookie(c, portal.Name, provider.GetProviderName(), profile)
-		if err != nil {
-			AbortWithError(c, fmt.Errorf("failed to set session cookie: %w", err))
-			return
-		}
-
-		// We need to do a redirect to be able to have the cookies actually set
-		// Also see: https://github.com/traefik/traefik/issues/3660
-		returnURL := getReturnURL(c)
-		c.Header("Location", returnURL)
-		c.Header("Content-Type", "text/plain; charset=utf-8")
-		c.Writer.WriteHeader(http.StatusSeeOther)
-		_, _ = c.Writer.WriteString(`Redirecting to application: ` + returnURL)
+// This performs seamless auth
+func (s *Server) handleGetAuthProviderSeamlessAuth(c *gin.Context, portal Portal, provider auth.SeamlessProvider) {
+	// Try to authenticate with the seamless auth
+	var err error
+	profile, err := provider.SeamlessAuth(c.Request)
+	if err != nil {
+		c.Set(logMessageContextKey, "Seamless authentication failed: "+err.Error())
+		s.metrics.RecordAuthentication(false)
+		s.deleteSessionCookie(c, portal.Name)
+		AbortWithError(c, NewResponseError(http.StatusUnauthorized, "Not authenticated"))
+		return
 	}
 
-	// If we are here, we have a valid session, so respond with a 200 status code
-	// Include the user name in the response body in case a visitor is hitting the auth server directly
-	s.metrics.RecordAuthentication(true)
-	user := provider.UserIDFromProfile(profile)
-	c.Header("X-Forwarded-User", user)
+	// Check if the user is allowed per rules
+	err = provider.UserAllowed(profile)
+	if err != nil {
+		_ = c.Error(fmt.Errorf("access denied per allowlist rules: %w", err))
+		AbortWithError(c, NewResponseError(http.StatusUnauthorized, "Access denied per allowlist rules"))
+		return
+	}
+
+	// Set the profile in the cookie
+	err = s.setSessionCookie(c, portal.Name, provider.GetProviderName(), profile)
+	if err != nil {
+		AbortWithError(c, fmt.Errorf("failed to set session cookie: %w", err))
+		return
+	}
+
+	// We need to do a redirect to be able to have the cookies actually set
+	// Also see: https://github.com/traefik/traefik/issues/3660
+	returnURL := getReturnURL(c)
+	c.Header("Location", returnURL)
 	c.Header("Content-Type", "text/plain; charset=utf-8")
-	_, _ = c.Writer.WriteString("You're authenticated as '" + user + "'")
+	c.Writer.WriteHeader(http.StatusSeeOther)
+	_, _ = c.Writer.WriteString(`Redirecting to application: ` + returnURL)
 }
 
 // RouteGetLogout is the handler for GET /portals/:portal/logout
@@ -210,65 +273,30 @@ func (s *Server) RouteGetLogout(c *gin.Context) {
 	_, _ = c.Writer.WriteString("You've logged out")
 }
 
-func (s *Server) oAuth2RedirectToAuth(c *gin.Context, portal Portal, provider auth.OAuth2Provider) {
-	var err error
-
-	s.metrics.RecordAuthentication(false)
-
-	// Get the return URL
-	returnURL := getReturnURL(c)
-
-	// Each state cookie is unique per return URL
-	// This is
-	// This avoids issues when there's more than one browser tab that's trying to authenticate, for example because of some background refresh
-	stateCookieID := getStateCookieID(returnURL)
-
-	// Check if there's already a state cookie that's recent, so we can re-use the same nonce
-	content, _ := s.getStateCookie(c, portal, stateCookieID)
-
-	if content.nonce == "" {
-		// If there's no nonce, generate a new one
-		content.nonce, err = s.generateNonce()
-		if err != nil {
-			AbortWithError(c, fmt.Errorf("failed to generate nonce: %w", err))
-			return
-		}
+func (s *Server) getProfileFromContext(c *gin.Context) (*user.Profile, auth.Provider) {
+	if !c.GetBool(sessionAuthContextKey) {
+		return nil, nil
 	}
 
-	// Create a new state and set the cookie
-	err = s.setStateCookie(c, portal, provider, content.nonce, returnURL, stateCookieID)
-	if err != nil {
-		AbortWithError(c, fmt.Errorf("failed to set state cookie: %w", err))
-		return
-	}
-
-	// Redirect to the authorization URL
-	authURL, err := provider.OAuth2AuthorizeURL(stateCookieID+"~"+content.nonce, getOAuth2RedirectURI(c))
-	if err != nil {
-		AbortWithError(c, fmt.Errorf("failed to get authorize URL: %w", err))
-		return
-	}
-
-	// Use a custom redirect code to write a response in the body
-	c.Header("Location", authURL)
-	c.Header("Content-Type", "text/plain; charset=utf-8")
-	c.Writer.WriteHeader(http.StatusSeeOther)
-	_, _ = c.Writer.WriteString(`Redirecting to authentication server: ` + authURL)
-}
-
-func (s *Server) getProfileFromContext(c *gin.Context) *user.Profile {
-	if !c.GetBool("session-auth") {
-		return nil
-	}
-	profileAny, ok := c.Get("session-profile")
+	profileAny, ok := c.Get(sessionProfileContextKey)
 	if !ok {
-		return nil
+		return nil, nil
 	}
 	profile, ok := profileAny.(*user.Profile)
 	if !ok || profile == nil || profile.ID == "" {
-		return nil
+		return nil, nil
 	}
-	return profile
+
+	providerAny, ok := c.Get(sessionProviderContextKey)
+	if !ok {
+		return nil, nil
+	}
+	provider, ok := providerAny.(auth.Provider)
+	if !ok || provider == nil {
+		return nil, nil
+	}
+
+	return profile, provider
 }
 
 // Get the return URL, to redirect users to after a successful auth
@@ -296,7 +324,14 @@ func getStateCookieID(returnURL string) string {
 }
 
 // Get the redirect URI, which is sent to the OAuth2 authentication server and indicates where to return users after a successful auth with the IdP
-func getOAuth2RedirectURI(c *gin.Context) string {
+// The URI is specific to each portal
+func getOAuth2RedirectURI(c *gin.Context, portal string) string {
 	cfg := config.Get()
-	return c.GetHeader("X-Forwarded-Proto") + "://" + cfg.Server.Hostname + cfg.Server.BasePath + "/oauth2/callback"
+	return c.GetHeader("X-Forwarded-Proto") + "://" + cfg.Server.Hostname + cfg.Server.BasePath + "/portals/" + portal + "/oauth2/callback"
+}
+
+// Get the sign-in URI, which is specific to each portal
+func getSignInURI(c *gin.Context, portal string) string {
+	cfg := config.Get()
+	return c.GetHeader("X-Forwarded-Proto") + "://" + cfg.Server.Hostname + cfg.Server.BasePath + "/portals/" + portal + "/signin"
 }
