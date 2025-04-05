@@ -255,7 +255,7 @@ func (s *Server) RouteGetOAuth2Callback(c *gin.Context) {
 	}
 
 	// Set the profile in the cookie
-	err = s.setSessionCookie(c, portal.Name, provider.GetProviderName(), profile)
+	err = s.setSessionCookie(c, portal.Name, profile)
 	if err != nil {
 		AbortWithError(c, fmt.Errorf("failed to set session cookie: %w", err))
 		return
@@ -277,7 +277,6 @@ func (s *Server) handleGetAuthProviderSeamlessAuth(c *gin.Context, portal Portal
 	profile, err := provider.SeamlessAuth(c.Request)
 	if err != nil {
 		c.Set(logMessageContextKey, "Seamless authentication failed: "+err.Error())
-		s.metrics.RecordAuthentication(false)
 		s.deleteSessionCookie(c, portal.Name)
 		AbortWithError(c, NewResponseError(http.StatusUnauthorized, "Not authenticated"))
 		return
@@ -295,7 +294,7 @@ func (s *Server) handleGetAuthProviderSeamlessAuth(c *gin.Context, portal Portal
 	}
 
 	// Set the profile in the cookie
-	err = s.setSessionCookie(c, portal.Name, provider.GetProviderName(), profile)
+	err = s.setSessionCookie(c, portal.Name, profile)
 	if err != nil {
 		AbortWithError(c, fmt.Errorf("failed to set session cookie: %w", err))
 		return

@@ -80,8 +80,8 @@ func (s *Server) parseSessionToken(val string, portalName string) (jwt.Token, er
 	cfg := config.Get()
 	token, err := jwt.Parse([]byte(val),
 		jwt.WithAcceptableSkew(acceptableClockSkew),
-		jwt.WithIssuer(jwtIssuer+"/"+portalName),
-		jwt.WithAudience(cfg.Server.Hostname),
+		jwt.WithIssuer(jwtIssuer+":"+cfg.Server.Hostname+cfg.Server.BasePath+":"+portalName),
+		jwt.WithAudience(cfg.Server.Hostname+cfg.Server.BasePath),
 		jwt.WithKey(jwa.HS256, cfg.GetTokenSigningKey()),
 	)
 	if err != nil {
@@ -90,7 +90,7 @@ func (s *Server) parseSessionToken(val string, portalName string) (jwt.Token, er
 	return token, nil
 }
 
-func (s *Server) setSessionCookie(c *gin.Context, portalName string, providerName string, profile *user.Profile) error {
+func (s *Server) setSessionCookie(c *gin.Context, portalName string, profile *user.Profile) error {
 	cfg := config.Get()
 	expiration := cfg.Tokens.SessionLifetime
 
@@ -99,8 +99,8 @@ func (s *Server) setSessionCookie(c *gin.Context, portalName string, providerNam
 	builder := jwt.NewBuilder()
 	profile.AppendClaims(builder)
 	token, err := builder.
-		Issuer(jwtIssuer + "/" + portalName).
-		Audience([]string{cfg.Server.Hostname}).
+		Issuer(jwtIssuer + ":" + cfg.Server.Hostname + cfg.Server.BasePath + ":" + portalName).
+		Audience([]string{cfg.Server.Hostname + cfg.Server.BasePath}).
 		IssuedAt(now).
 		// Add 1 extra second to synchronize with cookie expiry
 		Expiration(now.Add(expiration + time.Second)).
@@ -162,8 +162,8 @@ func (s *Server) getStateCookie(c *gin.Context, portal Portal, stateCookieID str
 	// Parse the JWT in the cookie
 	token, err := jwt.Parse([]byte(cookieValue),
 		jwt.WithAcceptableSkew(acceptableClockSkew),
-		jwt.WithIssuer(jwtIssuer+"/"+portal.Name),
-		jwt.WithAudience(cfg.Server.Hostname),
+		jwt.WithIssuer(jwtIssuer+":"+cfg.Server.Hostname+cfg.Server.BasePath+":"+portal.Name),
+		jwt.WithAudience(cfg.Server.Hostname+cfg.Server.BasePath),
 		jwt.WithKey(jwa.HS256, cfg.GetTokenSigningKey()),
 	)
 	if err != nil {
@@ -234,8 +234,8 @@ func (s *Server) setStateCookie(c *gin.Context, portal Portal, nonce string, ret
 	// Claims for the JWT
 	now := time.Now()
 	token, err := jwt.NewBuilder().
-		Issuer(jwtIssuer+"/"+portal.Name).
-		Audience([]string{cfg.Server.Hostname}).
+		Issuer(jwtIssuer+":"+cfg.Server.Hostname+cfg.Server.BasePath+":"+portal.Name).
+		Audience([]string{cfg.Server.Hostname + cfg.Server.BasePath}).
 		IssuedAt(now).
 		// Add 1 extra second to synchronize with cookie expiry
 		Expiration(now.Add(expiration+time.Second)).
