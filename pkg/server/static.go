@@ -4,6 +4,7 @@ import (
 	"io/fs"
 	"net/http"
 	"path/filepath"
+	"time"
 )
 
 // staticFS extends http.FileSystem but does not list files in a directory
@@ -15,6 +16,21 @@ func newStaticFS(data fs.FS) staticFS {
 	return staticFS{
 		fs: http.FS(data),
 	}
+}
+
+func (s staticFS) GetModifiedTime(path string) (time.Time, error) {
+	f, err := s.fs.Open(path)
+	if err != nil {
+		return time.Time{}, err
+	}
+	defer f.Close()
+
+	stat, err := f.Stat()
+	if err != nil {
+		return time.Time{}, err
+	}
+
+	return stat.ModTime().UTC(), nil
 }
 
 func (s staticFS) Open(path string) (http.File, error) {

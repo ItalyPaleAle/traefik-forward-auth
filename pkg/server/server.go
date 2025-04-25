@@ -200,7 +200,33 @@ func (s *Server) initAppServer(log *slog.Logger) (err error) {
 	if err != nil {
 		return fmt.Errorf("failed to open embedded static assets FS: %w", err)
 	}
-	s.appRouter.StaticFS("/img", newStaticFS(imgFS))
+	imgStaticFS := newStaticFS(imgFS)
+	imgHandler := http.StripPrefix("/img", http.FileServer(imgStaticFS))
+
+	// Go does not save the last modification time for embedded files
+	// As a workaround, we set the time the app started as modification time
+	modTime := time.Now().UTC()
+	lastModifiedHeader := modTime.Format(time.RFC1123)
+
+	// Use custom static file handler with cache control headers
+	s.appRouter.GET("/img/*filepath", func(c *gin.Context) {
+		// Check if there's an If-Modified-Since header
+		ims := c.Request.Header.Get("If-Modified-Since")
+		if ims != "" {
+			imsDate, err := time.Parse(time.RFC1123, ims)
+			// Ignore headers with invalid dates
+			if err == nil && imsDate.After(modTime) {
+				c.AbortWithStatus(http.StatusNotModified)
+				return
+			}
+		}
+
+		// Add cache-control header for static assets to cache for 24 hours
+		c.Header("Cache-Control", "public, max-age=86400")
+		c.Header("Last-Modified", lastModifiedHeader)
+
+		imgHandler.ServeHTTP(c.Writer, c.Request)
+	})
 
 	return nil
 }
