@@ -93,7 +93,7 @@ func generateFromStruct(filePath string) error {
 	})
 
 	// Parse providers and generate examples dynamically
-	providerFilePath := filepath.Join(filepath.Dir(filePath), "providers.go")
+	providerFilePath := filepath.Join(filepath.Dir(filePath), "providers-config.go")
 	err = generatePortalExamples(outYAML, providerFilePath)
 	if err != nil {
 		return fmt.Errorf("failed to generate portal examples: %w", err)
@@ -296,7 +296,7 @@ func generatePortalExamples(outYAML io.Writer, providerFilePath string) error {
 	providerTypes := make(map[string]*struct {
 		structType   *ast.StructType
 		displayName  string
-		providerName string
+		providerType string
 		doc          string
 	})
 
@@ -315,7 +315,7 @@ func generatePortalExamples(outYAML io.Writer, providerFilePath string) error {
 		// Look for provider config structs that match the pattern ProviderConfig_*
 		typeName := typeSpec.Name.Name
 		if strings.HasPrefix(typeName, "ProviderConfig_") {
-			providerName := strings.TrimPrefix(typeName, "ProviderConfig_")
+			providerType := strings.TrimPrefix(typeName, "ProviderConfig_")
 
 			// Get documentation from comments
 			doc := ""
@@ -327,12 +327,12 @@ func generatePortalExamples(outYAML io.Writer, providerFilePath string) error {
 			providerTypes[typeName] = &struct {
 				structType   *ast.StructType
 				displayName  string
-				providerName string
+				providerType string
 				doc          string
 			}{
 				structType:   structType,
-				displayName:  getProviderDisplayName(providerName),
-				providerName: getProviderName(providerName),
+				displayName:  getProviderDisplayName(providerType),
+				providerType: getProviderType(providerType),
 				doc:          doc,
 			}
 		}
@@ -340,17 +340,15 @@ func generatePortalExamples(outYAML io.Writer, providerFilePath string) error {
 	})
 
 	// Generate example for each provider type
-	portalIndex := 1
 	for _, provider := range providerTypes {
-		generateProviderExample(outYAML, provider.structType, provider.providerName, provider.displayName, portalIndex)
-		portalIndex++
+		generateProviderExample(outYAML, provider.structType, provider.providerType, provider.displayName)
 	}
 
 	return nil
 }
 
-// getProviderName converts the struct name to the actual provider name used in configuration
-func getProviderName(name string) string {
+// getProviderType converts the struct name to the actual provider type used in configuration
+func getProviderType(name string) string {
 	switch name {
 	case "GitHub":
 		return "github"
@@ -386,8 +384,8 @@ func getProviderDisplayName(name string) string {
 }
 
 // generateProviderExample creates a YAML example for a single provider
-func generateProviderExample(outYAML io.Writer, structType *ast.StructType, providerName, displayName string, index int) {
-	portalName := providerName + "-portal"
+func generateProviderExample(outYAML io.Writer, structType *ast.StructType, providerType string, displayName string) {
+	portalName := providerType + "-portal"
 	displayTitle := displayName + " Authentication"
 
 	fmt.Fprintf(outYAML, "  # Example portal using %s authentication\n", displayName)
@@ -395,7 +393,14 @@ func generateProviderExample(outYAML io.Writer, structType *ast.StructType, prov
 	fmt.Fprintf(outYAML, "    displayName: \"%s\"\n", displayTitle)
 	fmt.Fprintf(outYAML, "    authenticationTimeout: 5m\n")
 	fmt.Fprintf(outYAML, "    providers:\n")
-	fmt.Fprintf(outYAML, "      - provider: %s\n", providerName)
+	fmt.Fprintf(outYAML, "      - provider: %s\n", providerType)
+	fmt.Fprintf(outYAML, "        # Default name is the provider type\n")
+	fmt.Fprintf(outYAML, "        name: \"\"\n")
+	fmt.Fprintf(outYAML, "        # Optional display name; if empty, uses the default value for the provider type\n")
+	fmt.Fprintf(outYAML, "        displayName: \"\"\n")
+	fmt.Fprintf(outYAML, "        # Optional icon; if empty, uses the default value for the provider type\n")
+	fmt.Fprintf(outYAML, "        icon: \"\"\n")
+	fmt.Fprintf(outYAML, "        # Provider configuration\n")
 	fmt.Fprintf(outYAML, "        config:\n")
 
 	// Process fields from the struct
@@ -474,7 +479,7 @@ func generateProviderExample(outYAML io.Writer, structType *ast.StructType, prov
 		if !required {
 			examplePrefix += "# "
 		}
-		exampleValue := generateExampleValue(field.Type, yamlTag, providerName, examplePrefix)
+		exampleValue := generateExampleValue(field.Type, yamlTag, providerType, examplePrefix)
 
 		if exampleValue != "" {
 			if strings.HasPrefix(exampleValue, "\n") {
@@ -489,12 +494,12 @@ func generateProviderExample(outYAML io.Writer, structType *ast.StructType, prov
 }
 
 // generateExampleValue creates an appropriate example value based on field type
-func generateExampleValue(fieldType ast.Expr, fieldName string, providerName string, fieldPrefix string) string {
+func generateExampleValue(fieldType ast.Expr, fieldName string, providerType string, fieldPrefix string) string {
 	ft := types.ExprString(fieldType)
 
 	// Special cases based on field name and provider
 	if fieldName == "clientID" {
-		switch providerName {
+		switch providerType {
 		case "google":
 			return `"your-google-client-id.apps.googleusercontent.com"`
 		default:
@@ -506,19 +511,19 @@ func generateExampleValue(fieldType ast.Expr, fieldName string, providerName str
 		return `"your-client-secret"`
 	}
 
-	if fieldName == "tenantID" && providerName == "microsoftentraid" {
+	if fieldName == "tenantID" && providerType == "microsoftentraid" {
 		return `"your-tenant-id"`
 	}
 
-	if fieldName == "tokenIssuer" && providerName == "openidconnect" {
+	if fieldName == "tokenIssuer" && providerType == "openidconnect" {
 		return `"https://your-identity-provider/.well-known/openid-configuration"`
 	}
 
-	if fieldName == "allowedTailnet" && providerName == "tailscalewhois" {
+	if fieldName == "allowedTailnet" && providerType == "tailscalewhois" {
 		return `"yourtailnet.ts.net"`
 	}
 
-	if fieldName == "azureFederatedIdentity" && providerName == "microsoftentraid" {
+	if fieldName == "azureFederatedIdentity" && providerType == "microsoftentraid" {
 		return `"ManagedIdentity"`
 	}
 
@@ -538,11 +543,11 @@ func generateExampleValue(fieldType ast.Expr, fieldName string, providerName str
 	case "[]string":
 		switch fieldName {
 		case "allowedUsers":
-			if providerName == "github" {
+			if providerType == "github" {
 				return "\n" + fieldPrefix + "  - \"githubuser1\"\n" + fieldPrefix + "  - \"githubuser2\""
-			} else if providerName == "microsoftentraid" {
+			} else if providerType == "microsoftentraid" {
 				return "\n" + fieldPrefix + "  - \"user-object-id\""
-			} else if providerName == "tailscalewhois" {
+			} else if providerType == "tailscalewhois" {
 				return "\n" + fieldPrefix + "  - \"user@example.com\""
 			}
 			return "\n" + fieldPrefix + "  - \"user1\"\n" + fieldPrefix + "  - \"user2\""

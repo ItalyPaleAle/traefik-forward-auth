@@ -45,7 +45,13 @@ func (o NewGoogleOptions) ToNewOpenIDConnectOptions() NewOpenIDConnectOptions {
 
 // NewGoogle returns a new Google provider
 func NewGoogle(opts NewGoogleOptions) (*Google, error) {
-	oidc, err := newOpenIDConnectInternal("google", opts.ToNewOpenIDConnectOptions(), OAuth2Endpoints{
+	const providerType = "google"
+	metadata := ProviderMetadata{
+		DisplayName: "Google",
+		Name:        providerType,
+		Icon:        "google",
+	}
+	oidc, err := newOpenIDConnectInternal(providerType, metadata, opts.ToNewOpenIDConnectOptions(), OAuth2Endpoints{
 		Authorization: "https://accounts.google.com/o/oauth2/v2/auth",
 		Token:         "https://oauth2.googleapis.com/token",
 		UserInfo:      "https://www.googleapis.com/oauth2/v1/userinfo",

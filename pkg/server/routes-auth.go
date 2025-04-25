@@ -4,7 +4,6 @@ import (
 	"crypto/sha256"
 	"encoding/base64"
 	"fmt"
-	"maps"
 	"net/http"
 	"net/url"
 	"strings"
@@ -70,10 +69,11 @@ func (s *Server) RouteGetAuthRoot(c *gin.Context) {
 	// If we are here, we have a valid session, so respond with a 200 status code
 	// Include the user name in the response body in case a visitor is hitting the auth server directly
 	s.metrics.RecordAuthentication(true)
-	user := provider.UserIDFromProfile(profile)
-	c.Header("X-Forwarded-User", user)
+	userID := provider.UserIDFromProfile(profile)
+	c.Header("X-Forwarded-User", userID)
+	c.Header("X-Authenticated-User", auth.AuthenticatedUserFromProfile(provider, profile))
 	c.Header("Content-Type", "text/plain; charset=utf-8")
-	_, _ = c.Writer.WriteString("You're authenticated as '" + user + "'")
+	_, _ = c.Writer.WriteString("You're authenticated with provider '" + provider.GetProviderName() + "' as '" + userID + "'")
 }
 
 // RouteGetAuthSignin is the handler for GET /portals/:portal/signin
@@ -92,9 +92,10 @@ func (s *Server) RouteGetAuthSignin(c *gin.Context) {
 		return
 	}
 
-	for v := range maps.Keys(portal.Providers) {
-		providerURI := getPortalURI(c, portal.Name) + "/provider/" + v + "?state=" + stateCookieID + "~" + content.nonce
-		fmt.Fprintf(c.Writer, `<a href="%s">%s</a><br>`+"\n", providerURI, v)
+	c.Header("Content-Type", "text/html")
+	for k, v := range portal.Providers {
+		providerURI := getPortalURI(c, portal.Name) + "/provider/" + k + "?state=" + stateCookieID + "~" + content.nonce
+		fmt.Fprintf(c.Writer, `%s <a href="%s">%s</a><br>`+"\n", v.GetProviderDisplayName(), providerURI, k)
 	}
 }
 

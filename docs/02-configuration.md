@@ -69,8 +69,8 @@ To configure Traefik and Traefik Forward Auth in this scenario:
 
    - `address`: `http://traefik-forward-auth:4181`  
       This is the address of the `traefik-forward-auth` container within your Docker network. In this example, we are assuming the container/service is named `traefik-forward-auth`. Also note that the internal communication happens over HTTP by default.
-   - `authResponseHeaders`: `X-Forwarded-User`  
-      This is optional, but allows your application to read the ID of the authenticated user through the request header `X-Forwarded-User`.
+   - `authResponseHeaders`: `X-Forwarded-User,X-Authenticated-User`  
+      This is optional, but allows your application to read the ID of the authenticated user through the request header `X-Forwarded-User`. Alternatively, `X-Authenticated-User` contains a JSON object similar to `{"provider":"provider-name","user":"user-id"}`.
 
 4. Configure Traefik to expose your applications, including:
 
@@ -105,7 +105,7 @@ services:
       - ...
     labels:
       - "traefik.http.middlewares.traefik-forward-auth.forwardauth.address=http://traefik-forward-auth:4181"
-      - "traefik.http.middlewares.traefik-forward-auth.forwardauth.authResponseHeaders=X-Forwarded-User"
+      - "traefik.http.middlewares.traefik-forward-auth.forwardauth.authResponseHeaders=X-Forwarded-User,X-Authenticated-User"
       - "traefik.http.services.traefik-forward-auth.loadbalancer.server.port=4181"
       - "traefik.http.routers.traefik-forward-auth.rule=Host(`auth.example.com`)"
       - "traefik.http.routers.traefik-forward-auth.entrypoints=websecure"
@@ -144,8 +144,8 @@ To configure Traefik and Traefik Forward Auth in this scenario:
 
    - `address`: `http://traefik-forward-auth:4181/auth`  
       This is the address of the `traefik-forward-auth` container within your Docker network. In this example, we are assuming the container/service is named `traefik-forward-auth`. Also note that the internal communication happens over HTTP by default.
-   - `authResponseHeaders`: `X-Forwarded-User`  
-      This is optional, but allows your application to read the ID of the authenticated user through the request header `X-Forwarded-User`.
+   - `authResponseHeaders`: `X-Forwarded-User,X-Authenticated-User`  
+      This is optional, but allows your application to read the ID of the authenticated user through the request header `X-Forwarded-User`. Alternatively, `X-Authenticated-User` contains a JSON object similar to `{"provider":"provider-name","user":"user-id"}`.
 
 4. Configure Traefik to expose your applications, including:
 
@@ -180,7 +180,7 @@ services:
       - ...
     labels:
       - "traefik.http.middlewares.traefik-forward-auth.forwardauth.address=http://traefik-forward-auth:4181/auth"
-      - "traefik.http.middlewares.traefik-forward-auth.forwardauth.authResponseHeaders=X-Forwarded-User"
+      - "traefik.http.middlewares.traefik-forward-auth.forwardauth.authResponseHeaders=X-Forwarded-User,X-Authenticated-User"
       - "traefik.http.services.traefik-forward-auth.loadbalancer.server.port=4181"
       - "traefik.http.routers.traefik-forward-auth.rule=Host(`example.com`) && PathPrefix(`/auth`)"
       - "traefik.http.routers.traefik-forward-auth.entrypoints=websecure"

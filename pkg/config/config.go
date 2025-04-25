@@ -221,6 +221,19 @@ type ConfigPortalProvider struct {
 	// +required
 	Provider string `yaml:"provider"`
 
+	// Name of the authentication provider
+	// If empty, this defaults to the provider type (e.g. `google`)
+	// +default name of the provider type
+	Name string `yaml:"name"`
+
+	// Optional display name for the provider
+	// +default default display name for the provider
+	DisplayName string `yaml:"displayName"`
+
+	// Optional icon for the provider
+	// +default default icon for the provider
+	Icon string `yaml:"icon"`
+
 	// Configuration for the provider.
 	// The properties depend on the provider type.
 	Config map[string]any `yaml:"config"`
@@ -352,10 +365,11 @@ func (c *Config) Validate(logger *slog.Logger) error {
 	return nil
 }
 
-var portalNameRegex = regexp.MustCompile(`^[a-zA-Z][a-zA-Z0-9-_\.]{2,39}$`)
+var portalProviderNameRegex = regexp.MustCompile(`^[a-zA-Z][a-zA-Z0-9-_\.]{1,39}$`)
+var portalProviderError = errors.New("property 'name' is invalid: must contain letters, numbers, or '-_.' only, must be between 2 and 40 characters, and must start with a letter")
 
-func (p *ConfigPortal) GetAuthProviders(ctx context.Context) ([]auth.Provider, error) {
-	providers := make([]auth.Provider, len(p.Providers))
+func (p *ConfigPortal) GetAuthProviders(ctx context.Context) (map[string]auth.Provider, error) {
+	providers := make(map[string]auth.Provider, len(p.Providers))
 	for i, v := range p.Providers {
 		if v.configParsed == nil {
 			return nil, fmt.Errorf("method Parse was not called on portal configuration object %d", i)
@@ -364,7 +378,14 @@ func (p *ConfigPortal) GetAuthProviders(ctx context.Context) ([]auth.Provider, e
 		if err != nil {
 			return nil, err
 		}
-		providers[i] = ap
+		ap.SetProviderMetadata(v.GetProviderMetadata())
+
+		name := ap.GetProviderName()
+		_, ok := providers[name]
+		if ok {
+			return nil, fmt.Errorf("duplicate provider '%s' found in portal '%s'", name, v.Name)
+		}
+		providers[name] = ap
 	}
 
 	return providers, nil
@@ -375,8 +396,8 @@ func (p *ConfigPortal) Parse(c *Config) error {
 	if p.Name == "" {
 		return errors.New("property 'name' is required")
 	}
-	if !portalNameRegex.MatchString(p.Name) {
-		return errors.New("property 'name' is invalid: must contain letters, numbers, or '-_.' only, must be between 3 and 40 characters, and must start with a letter")
+	if !portalProviderNameRegex.MatchString(p.Name) {
+		return portalProviderError
 	}
 	p.Name = strings.ToLower(p.Name)
 
@@ -405,11 +426,27 @@ func (p *ConfigPortal) Parse(c *Config) error {
 	return nil
 }
 
+func (v *ConfigPortalProvider) GetProviderMetadata() auth.ProviderMetadata {
+	return auth.ProviderMetadata{
+		Name:        v.Name,
+		DisplayName: v.DisplayName,
+		Icon:        v.Icon,
+	}
+}
+
 func (v *ConfigPortalProvider) Parse(c *Config) error {
-	// Sanitize the provider name
+	// Sanitize the provider type
 	v.Provider = strings.ReplaceAll(strings.ToLower(v.Provider), "-", "")
 	if v.Provider == "" {
 		return errors.New("property 'provider' is required")
+	}
+
+	// Sanitize the provider name if set
+	if v.Name != "" {
+		if !portalProviderNameRegex.MatchString(v.Name) {
+			return portalProviderError
+		}
+		v.Name = strings.ToLower(v.Name)
 	}
 
 	switch v.Provider {

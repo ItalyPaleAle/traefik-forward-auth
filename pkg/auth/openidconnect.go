@@ -74,8 +74,14 @@ func NewOpenIDConnect(ctx context.Context, opts NewOpenIDConnectOptions) (*OpenI
 		opts.RequestTimeout = 10 * time.Second
 	}
 
-	// Create the provider.
-	oauth2, err := NewOAuth2("openidconnect", NewOAuth2Options{
+	// Create the provider
+	const providerType = "openidconnect"
+	metadata := ProviderMetadata{
+		DisplayName: "OpenID Connect",
+		Name:        providerType,
+		Icon:        "openid",
+	}
+	oauth2, err := NewOAuth2(providerType, metadata, NewOAuth2Options{
 		Config: OAuth2Config{
 			ClientID:     opts.ClientID,
 			ClientSecret: opts.ClientSecret,
@@ -114,15 +120,15 @@ func NewOpenIDConnect(ctx context.Context, opts NewOpenIDConnectOptions) (*OpenI
 
 // newOpenIDConnectInternal returns a new OpenIDConnect provider.
 // It is meant to be used by structs that embed OpenIDConnect.
-func newOpenIDConnectInternal(providerName string, opts NewOpenIDConnectOptions, endpoints OAuth2Endpoints) (*OpenIDConnect, error) {
+func newOpenIDConnectInternal(providerType string, providerMetadata ProviderMetadata, opts NewOpenIDConnectOptions, endpoints OAuth2Endpoints) (*OpenIDConnect, error) {
 	if opts.ClientID == "" {
-		return nil, fmt.Errorf("value for clientId is required in config for auth with provider '%s'", providerName)
+		return nil, fmt.Errorf("value for clientId is required in config for auth with provider '%s'", providerType)
 	}
 	if opts.ClientSecret == "" && !opts.skipClientSecretValidation {
-		return nil, fmt.Errorf("value for clientSecret is required in config for auth with provider '%s'", providerName)
+		return nil, fmt.Errorf("value for clientSecret is required in config for auth with provider '%s'", providerType)
 	}
 
-	oauth2, err := NewOAuth2(providerName, NewOAuth2Options{
+	oauth2, err := NewOAuth2(providerType, providerMetadata, NewOAuth2Options{
 		Config: OAuth2Config{
 			ClientID:     opts.ClientID,
 			ClientSecret: opts.ClientSecret,

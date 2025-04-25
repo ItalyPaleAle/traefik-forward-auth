@@ -8,7 +8,6 @@ import (
 
 	"github.com/gin-gonic/gin"
 
-	"github.com/italypaleale/traefik-forward-auth/pkg/auth"
 	"github.com/italypaleale/traefik-forward-auth/pkg/buildinfo"
 	"github.com/italypaleale/traefik-forward-auth/pkg/config"
 	tfametrics "github.com/italypaleale/traefik-forward-auth/pkg/metrics"
@@ -80,15 +79,10 @@ func main() {
 	// Get the portals
 	portals := make(map[string]server.Portal, len(conf.Portals))
 	for _, p := range conf.Portals {
-		providersList, err := p.GetAuthProviders(ctx)
+		providers, err := p.GetAuthProviders(ctx)
 		if err != nil {
-			utils.FatalError(log, "Failed to get auth provider for portal "+p.Name, err)
+			utils.FatalError(log, "Failed to get auth providers for portal "+p.Name, err)
 			return
-		}
-
-		providers := make(map[string]auth.Provider, len(providersList))
-		for _, v := range providersList {
-			providers[v.GetProviderName()] = v
 		}
 
 		portals[p.Name] = server.Portal{

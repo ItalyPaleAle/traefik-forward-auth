@@ -24,6 +24,8 @@ const (
 
 // TailscaleWhois is a Provider for authenticating with Tailscale Whois, for requests that are coming over a Tailscale network.
 type TailscaleWhois struct {
+	baseProvider
+
 	requestTimeout time.Duration
 	allowedTailnet string
 	allowedUsers   []string
@@ -53,6 +55,13 @@ func NewTailscaleWhois(opts NewTailscaleWhoisOptions) (*TailscaleWhois, error) {
 	httpClient.Transport = otelhttp.NewTransport(httpClient.Transport)
 
 	a := &TailscaleWhois{
+		baseProvider: baseProvider{
+			metadata: ProviderMetadata{
+				DisplayName: "Tailscale Whois",
+				Name:        "tailscalewhois",
+				Icon:        "tailscale",
+			},
+		},
 		httpClient:     httpClient,
 		requestTimeout: reqTimeout,
 		allowedTailnet: opts.AllowedTailnet,
@@ -61,7 +70,7 @@ func NewTailscaleWhois(opts NewTailscaleWhoisOptions) (*TailscaleWhois, error) {
 	return a, nil
 }
 
-func (a *TailscaleWhois) GetProviderName() string {
+func (a *TailscaleWhois) GetProviderType() string {
 	return "tailscalewhois"
 }
 

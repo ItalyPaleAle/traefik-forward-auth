@@ -107,7 +107,7 @@ func (s *Server) MiddlewareLoadAuthCookie(c *gin.Context) {
 	profile, provider, err := s.getSessionCookie(c, portal.Name)
 	if err != nil {
 		s.deleteSessionCookie(c, portal.Name)
-		AbortWithError(c, fmt.Errorf("cookie error: %w", err))
+		AbortWithError(c, NewInvalidTokenErrorf("Session cookie is invalid: %v", err))
 		return
 	}
 

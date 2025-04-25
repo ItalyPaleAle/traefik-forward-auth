@@ -2,6 +2,7 @@ package auth
 
 import (
 	"context"
+	"encoding/json"
 	"net/http"
 	"time"
 
@@ -10,9 +11,9 @@ import (
 
 // Provider is the interface that represents an auth provider.
 type Provider interface {
-	// GetProviderName returns the name of the provider
-	GetProviderName() string
-	// UserIDFromProfile returns the user ID to include in the "X-Forwarded-User" header, picking the appropriate value from the profile
+	// GetProviderType returns the type of the provider
+	GetProviderType() string
+	// UserIDFromProfile returns the ID of the user, picking the appropriate value from the profile
 	UserIDFromProfile(profile *user.Profile) string
 	// ValidateRequestClaims validates that claims are valid for the incoming request from the client.
 	ValidateRequestClaims(r *http.Request, profile *user.Profile) error
@@ -20,6 +21,22 @@ type Provider interface {
 	PopulateAdditionalClaims(claims map[string]any, setClaimFn func(key, val string))
 	// UserAllowed checks if the user can authenticate based on allowlists and other rules.
 	UserAllowed(profile *user.Profile) error
+
+	// SetProviderMetadata sets the metadata for the provider.
+	SetProviderMetadata(m ProviderMetadata)
+	// GetProviderName returns the provider name.
+	GetProviderName() string
+	// GetProviderDisplayName returns the provider display name.
+	GetProviderDisplayName() string
+	// GetProviderIcon returns the provider icon.
+	GetProviderIcon() string
+}
+
+// ProviderMetadata includes metadata info for the auth provider.
+type ProviderMetadata struct {
+	Name        string
+	DisplayName string
+	Icon        string
 }
 
 // SeamlessProvider is the interface that represents an auth provider that performs authentication based on flows that do not require user action, such as network.
@@ -50,4 +67,11 @@ type OAuth2AccessToken struct {
 	IDToken      string
 	RefreshToken string
 	Scopes       []string
+}
+
+// AuthenticatedUserFromProfile returns the user information to include in the "X-Authenticated-User" header
+func AuthenticatedUserFromProfile(provider Provider, profile *user.Profile) string {
+	userID, _ := json.Marshal(provider.UserIDFromProfile(profile))
+	// The provider name is already guaranteed to not include characters that must be escaped as JSON
+	return `{"provider":"` + provider.GetProviderName() + `","user":` + string(userID) + `}`
 }

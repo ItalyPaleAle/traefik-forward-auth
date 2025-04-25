@@ -24,8 +24,10 @@ import (
 // oAuth2 is a Provider for authenticating with OAuth2.
 // This Provider cannot be used directly; instead, other providers can embed this struct and implement OAuth2RetrieveProfile.
 type oAuth2 struct {
+	baseProvider
+
 	config         OAuth2Config
-	providerName   string
+	providerType   string
 	endpoints      OAuth2Endpoints
 	tokenIssuer    string
 	scopes         string
@@ -80,15 +82,15 @@ type NewOAuth2Options struct {
 }
 
 // NewOAuth2 returns a new OAuth2 provider
-func NewOAuth2(providerName string, opts NewOAuth2Options) (p oAuth2, err error) {
+func NewOAuth2(providerType string, providerMetadata ProviderMetadata, opts NewOAuth2Options) (p oAuth2, err error) {
 	if opts.Config.ClientID == "" {
 		return p, errors.New("value for clientId is required in config for auth provider")
 	}
 	if opts.Config.ClientSecret == "" && !opts.skipClientSecretValidation {
 		return p, errors.New("value for clientSecret is required in config for auth provider")
 	}
-	if providerName == "" {
-		return p, errors.New("missing parameter providerName")
+	if providerType == "" {
+		return p, errors.New("missing parameter providerType")
 	}
 
 	scopes := opts.Scopes
@@ -122,8 +124,12 @@ func NewOAuth2(providerName string, opts NewOAuth2Options) (p oAuth2, err error)
 	}
 
 	p = oAuth2{
+		baseProvider: baseProvider{
+			metadata: providerMetadata,
+		},
+
 		config:         opts.Config,
-		providerName:   providerName,
+		providerType:   providerType,
 		tokenIssuer:    opts.TokenIssuer,
 		scopes:         scopes,
 		httpClient:     httpClient,
@@ -148,8 +154,8 @@ func (a *oAuth2) GetHTTPClient() *http.Client {
 	return a.httpClient
 }
 
-func (a *oAuth2) GetProviderName() string {
-	return a.providerName
+func (a *oAuth2) GetProviderType() string {
+	return a.providerType
 }
 
 func (a *oAuth2) OAuth2AuthorizeURL(state string, redirectURL string) (string, error) {
@@ -251,7 +257,7 @@ func (a *oAuth2) OAuth2ExchangeCode(ctx context.Context, state string, code stri
 	expires := time.Now().Add(time.Duration(tokenResponse.ExpiresIn) * time.Second)
 
 	return OAuth2AccessToken{
-		Provider:     a.providerName,
+		Provider:     a.providerType,
 		AccessToken:  tokenResponse.AccessToken,
 		Expires:      expires,
 		IDToken:      tokenResponse.IDToken,

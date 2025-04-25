@@ -187,6 +187,13 @@ portals:
     authenticationTimeout: 5m
     providers:
       - provider: github
+        # Default name is the provider type
+        name: ""
+        # Optional display name; if empty, uses the default value for the provider type
+        displayName: ""
+        # Optional icon; if empty, uses the default value for the provider type
+        icon: ""
+        # Provider configuration
         config:
           ## clientID (string)
           ## Description:
@@ -220,6 +227,13 @@ portals:
     authenticationTimeout: 5m
     providers:
       - provider: google
+        # Default name is the provider type
+        name: ""
+        # Optional display name; if empty, uses the default value for the provider type
+        displayName: ""
+        # Optional icon; if empty, uses the default value for the provider type
+        icon: ""
+        # Provider configuration
         config:
           ## clientID (string)
           ## Description:
@@ -267,6 +281,13 @@ portals:
     authenticationTimeout: 5m
     providers:
       - provider: microsoftentraid
+        # Default name is the provider type
+        name: ""
+        # Optional display name; if empty, uses the default value for the provider type
+        displayName: ""
+        # Optional icon; if empty, uses the default value for the provider type
+        icon: ""
+        # Provider configuration
         config:
           ## tenantID (string)
           ## Description:
@@ -323,6 +344,13 @@ portals:
     authenticationTimeout: 5m
     providers:
       - provider: openidconnect
+        # Default name is the provider type
+        name: ""
+        # Optional display name; if empty, uses the default value for the provider type
+        displayName: ""
+        # Optional icon; if empty, uses the default value for the provider type
+        icon: ""
+        # Provider configuration
         config:
           ## clientID (string)
           ## Description:
@@ -392,6 +420,13 @@ portals:
     authenticationTimeout: 5m
     providers:
       - provider: tailscalewhois
+        # Default name is the provider type
+        name: ""
+        # Optional display name; if empty, uses the default value for the provider type
+        displayName: ""
+        # Optional icon; if empty, uses the default value for the provider type
+        icon: ""
+        # Provider configuration
         config:
           ## allowedTailnet (string)
           ## Description:

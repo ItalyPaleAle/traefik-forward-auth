@@ -49,7 +49,13 @@ func NewGitHub(opts NewGitHubOptions) (*GitHub, error) {
 		return nil, errors.New("value for clientSecret is required in config for auth with provider 'github'")
 	}
 
-	oauth2, err := NewOAuth2("github", NewOAuth2Options{
+	const providerType = "github"
+	metadata := ProviderMetadata{
+		DisplayName: "GitHub",
+		Name:        providerType,
+		Icon:        "github",
+	}
+	oauth2, err := NewOAuth2(providerType, metadata, NewOAuth2Options{
 		Config: OAuth2Config{
 			ClientID:     opts.ClientID,
 			ClientSecret: opts.ClientSecret,
@@ -130,7 +136,7 @@ func (a *GitHub) OAuth2RetrieveProfile(ctx context.Context, at OAuth2AccessToken
 	}
 
 	profile := &user.Profile{
-		Provider: a.GetProviderName(),
+		Provider: a.GetProviderType(),
 		ID:       userData.Login,
 		Picture:  userData.AvatarUrl,
 		Name: user.ProfileName{
