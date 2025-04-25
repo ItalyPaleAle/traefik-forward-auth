@@ -4,4 +4,4 @@ set -euo pipefail
 
 # Build the CSS using Tailwind
 rm output.css || true
-npx tailwindcss -i input.css -o output.css
+npx tailwindcss --minify -i input.css -o output.css
