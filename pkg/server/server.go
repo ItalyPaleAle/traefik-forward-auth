@@ -26,6 +26,7 @@ import (
 	"golang.org/x/net/http2"
 	"golang.org/x/net/http2/h2c"
 
+	"github.com/italypaleale/traefik-forward-auth/client"
 	"github.com/italypaleale/traefik-forward-auth/pkg/auth"
 	"github.com/italypaleale/traefik-forward-auth/pkg/buildinfo"
 	"github.com/italypaleale/traefik-forward-auth/pkg/config"
@@ -193,6 +194,13 @@ func (s *Server) initAppServer(log *slog.Logger) (err error) {
 	if s.addTestRoutes != nil {
 		s.addTestRoutes(s)
 	}
+
+	// Static assets
+	imgFS, err := client.StaticImg()
+	if err != nil {
+		return fmt.Errorf("failed to open embedded static assets FS: %w", err)
+	}
+	s.appRouter.StaticFS("/img", newStaticFS(imgFS))
 
 	return nil
 }
