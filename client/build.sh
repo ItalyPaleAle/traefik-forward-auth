@@ -2,6 +2,9 @@
 
 set -euo pipefail
 
+# Create target directory
+rm -rvf dist/
+mkdir -p dist
+
 # Build the CSS using Tailwind
-rm output.css || true
-npx tailwindcss --minify -i input.css -o output.css
+npx tailwindcss --minify --cwd src -i input.css -o ../dist/style.css
