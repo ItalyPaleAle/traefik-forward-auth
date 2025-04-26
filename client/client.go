@@ -14,8 +14,8 @@ var (
 	icons embed.FS
 )
 
-// Dist contains the templates and compiled assets
-func Dist() (fs.FS, error) {
+// Assets contains the templates and compiled assets
+func Assets() (fs.FS, error) {
 	return fs.Sub(dist, "dist")
 }
 

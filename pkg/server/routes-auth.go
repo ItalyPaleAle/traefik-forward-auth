@@ -4,6 +4,7 @@ import (
 	"crypto/sha256"
 	"encoding/base64"
 	"fmt"
+	"html/template"
 	"net/http"
 	"net/url"
 	"strings"
@@ -92,11 +93,40 @@ func (s *Server) RouteGetAuthSignin(c *gin.Context) {
 		return
 	}
 
-	c.Header("Content-Type", "text/html")
-	for k, v := range portal.Providers {
-		providerURI := getPortalURI(c, portal.Name) + "/provider/" + k + "?state=" + stateCookieID + "~" + content.nonce
-		fmt.Fprintf(c.Writer, `%s <a href="%s">%s</a><br>`+"\n", v.GetProviderDisplayName(), providerURI, k)
+	// Render the template
+	s.renderSigninTemplate(c, portal, stateCookieID, content.nonce)
+}
+
+func (s *Server) renderSigninTemplate(c *gin.Context, portal Portal, stateCookieID string, nonce string) {
+	conf := config.Get()
+
+	type signingTemplateData_Provider struct {
+		Color       string
+		DisplayName string
+		Href        string
+		Svg         template.HTML
 	}
+
+	type signinTemplateData struct {
+		BaseUrl   string
+		Providers []signingTemplateData_Provider
+	}
+
+	data := signinTemplateData{
+		BaseUrl:   conf.Server.BasePath,
+		Providers: make([]signingTemplateData_Provider, 0, len(portal.Providers)),
+	}
+	for k, v := range portal.Providers {
+		providerURI := getPortalURI(c, portal.Name) + "/provider/" + k + "?state=" + stateCookieID + "~" + nonce
+		data.Providers = append(data.Providers, signingTemplateData_Provider{
+			Color:       "cyan-to-blue",
+			DisplayName: v.GetProviderDisplayName(),
+			Href:        providerURI,
+			//Svg:         template.HTML("<svg></svg>"),
+		})
+	}
+
+	c.HTML(http.StatusOK, "signin.html.tpl", data)
 }
 
 func (s *Server) parseStateParamPreAuth(c *gin.Context, portal Portal) (stateCookieContent, string, error) {

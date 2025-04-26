@@ -6,6 +6,7 @@ import (
 	"crypto/x509"
 	"errors"
 	"fmt"
+	"html/template"
 	"log/slog"
 	"net"
 	"net/http"
@@ -26,7 +27,6 @@ import (
 	"golang.org/x/net/http2"
 	"golang.org/x/net/http2/h2c"
 
-	"github.com/italypaleale/traefik-forward-auth/client"
 	"github.com/italypaleale/traefik-forward-auth/pkg/auth"
 	"github.com/italypaleale/traefik-forward-auth/pkg/buildinfo"
 	"github.com/italypaleale/traefik-forward-auth/pkg/config"
@@ -54,6 +54,13 @@ type Server struct {
 	running atomic.Bool
 	wg      sync.WaitGroup
 
+	// Templates and icons
+	templates *template.Template
+	icons     map[string][]byte
+
+	// Server start time, used for Last-Modified headers
+	startTime time.Time
+
 	// Listeners for the app and metrics servers
 	// These can be used for testing without having to start an actual TCP listener
 	appListener     net.Listener
@@ -79,8 +86,9 @@ type NewServerOpts struct {
 // NewServer creates a new Server object and initializes it
 func NewServer(opts NewServerOpts) (*Server, error) {
 	s := &Server{
-		metrics: opts.Metrics,
-		portals: opts.Portals,
+		metrics:   opts.Metrics,
+		portals:   opts.Portals,
+		startTime: time.Now().UTC(),
 
 		addTestRoutes: opts.addTestRoutes,
 	}
@@ -170,6 +178,16 @@ func (s *Server) initAppServer(log *slog.Logger) (err error) {
 	// Logger middleware that removes the auth code from the URL
 	codeFilterLogMw := s.MiddlewareLoggerMask(regexp.MustCompile(`(\?|&)(code|state|session_state)=([^&]*)`), "$1$2***")
 
+	// Add static routes & pages
+	err = s.addStaticRoutes(conf.Server.BasePath)
+	if err != nil {
+		return fmt.Errorf("failed to set up static routes: %w", err)
+	}
+	err = s.loadTemplates()
+	if err != nil {
+		return fmt.Errorf("failed to set up pages: %w", err)
+	}
+
 	// Healthz route
 	// This does not follow BasePath
 	s.appRouter.GET("/healthz", gin.WrapF(s.RouteHealthzHandler))
@@ -194,39 +212,6 @@ func (s *Server) initAppServer(log *slog.Logger) (err error) {
 	if s.addTestRoutes != nil {
 		s.addTestRoutes(s)
 	}
-
-	// Static assets
-	imgFS, err := client.StaticImg()
-	if err != nil {
-		return fmt.Errorf("failed to open embedded static assets FS: %w", err)
-	}
-	imgStaticFS := newStaticFS(imgFS)
-	imgHandler := http.StripPrefix("/img", http.FileServer(imgStaticFS))
-
-	// Go does not save the last modification time for embedded files
-	// As a workaround, we set the time the app started as modification time
-	modTime := time.Now().UTC()
-	lastModifiedHeader := modTime.Format(time.RFC1123)
-
-	// Use custom static file handler with cache control headers
-	s.appRouter.GET("/img/*filepath", func(c *gin.Context) {
-		// Check if there's an If-Modified-Since header
-		ims := c.Request.Header.Get("If-Modified-Since")
-		if ims != "" {
-			imsDate, err := time.Parse(time.RFC1123, ims)
-			// Ignore headers with invalid dates
-			if err == nil && imsDate.After(modTime) {
-				c.AbortWithStatus(http.StatusNotModified)
-				return
-			}
-		}
-
-		// Add cache-control header for static assets to cache for 24 hours
-		c.Header("Cache-Control", "public, max-age=86400")
-		c.Header("Last-Modified", lastModifiedHeader)
-
-		imgHandler.ServeHTTP(c.Writer, c.Request)
-	})
 
 	return nil
 }
