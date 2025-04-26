@@ -201,6 +201,7 @@ func (s *Server) initAppServer(log *slog.Logger) (err error) {
 	portalRoutes.GET("/oauth2/callback", codeFilterLogMw, s.RouteGetOAuth2Callback)
 	portalRoutes.GET("/signin", s.RouteGetAuthSignin)
 	portalRoutes.GET("/profile", s.MiddlewareLoadAuthCookie, s.RouteGetProfile)
+	portalRoutes.GET("/profile.json", s.MiddlewareLoadAuthCookie, s.RouteGetProfileJSON)
 	portalRoutes.GET("/logout", s.RouteGetLogout)
 
 	// API Routes

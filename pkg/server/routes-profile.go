@@ -23,6 +23,7 @@ func (s *Server) RouteGetProfile(c *gin.Context) {
 	c.Status(http.StatusOK)
 
 	fmt.Fprint(c.Writer, "Authenticated\n\n")
+	fmt.Fprint(c.Writer, "Provider: "+profile.Provider+"\n")
 	fmt.Fprint(c.Writer, "ID: "+profile.ID+"\n")
 	fmt.Fprint(c.Writer, "Name:\n")
 	fmt.Fprint(c.Writer, "   Full Name: "+profile.Name.FullName+"\n")
@@ -60,4 +61,65 @@ func (s *Server) RouteGetProfile(c *gin.Context) {
 			fmt.Fprint(c.Writer, "   "+k+": "+v+"\n")
 		}
 	}
+}
+
+// RouteGetProfileJSON is the handler for GET /profile.json
+// This handler serves the profile of authenticated users in JSON format
+func (s *Server) RouteGetProfileJSON(c *gin.Context) {
+	// Check if we have a session
+	profile, _ := s.getProfileFromContext(c)
+	if profile == nil {
+		AbortWithErrorJSON(c, NewResponseError(http.StatusUnauthorized, "Not authenticated"))
+		return
+	}
+
+	// If we are here, we have a valid session
+	// Return all claims in the token to the user
+	type responseDataName struct {
+		Full     string `json:"full"`
+		Nickname string `json:"nickname,omitempty"`
+		First    string `json:"first,omitempty"`
+		Middle   string `json:"middle,omitempty"`
+		Last     string `json:"last,omitempty"`
+	}
+	type responseDataEmail struct {
+		Address  string `json:"address"`
+		Verified bool   `json:"verified"`
+	}
+	type responseData struct {
+		Authenticated    bool               `json:"authenticated"`
+		Provider         string             `json:"provider"`
+		ID               string             `json:"id"`
+		Name             responseDataName   `json:"name"`
+		Email            *responseDataEmail `json:"email,omitempty"`
+		Picture          string             `json:"picture,omitempty"`
+		Locale           string             `json:"local,omitempty"`
+		Timezone         string             `json:"timezone,omitempty"`
+		AdditionalClaims map[string]string  `json:"additionalClaims,omitempty"`
+	}
+	res := responseData{
+		Authenticated: true,
+		Provider:      profile.Provider,
+		ID:            profile.ID,
+		Name: responseDataName{
+			Full:     profile.Name.FullName,
+			Nickname: profile.Name.Nickname,
+			First:    profile.Name.First,
+			Middle:   profile.Name.Middle,
+			Last:     profile.Name.Last,
+		},
+		Picture:  profile.Picture,
+		Locale:   profile.Locale,
+		Timezone: profile.Timezone,
+	}
+	if profile.Email != nil {
+		res.Email = &responseDataEmail{
+			Address:  profile.Email.Value,
+			Verified: profile.Email.Verified,
+		}
+	}
+	if len(profile.AdditionalClaims) > 0 {
+		res.AdditionalClaims = profile.AdditionalClaims
+	}
+	c.JSON(http.StatusOK, res)
 }
