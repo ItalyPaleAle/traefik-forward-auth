@@ -193,6 +193,9 @@ portals:
         displayName: ""
         # Optional icon; if empty, uses the default value for the provider type
         icon: ""
+        # Optional color scheme; if empty, uses the default value for the provider type
+        # Supported values: "purple-to-blue", "cyan-to-blue", "green-to-blue", "purple-to-pink", "pink-to-orange", "teal-to-lime", "red-to-yellow"
+        color: ""
         # Provider configuration
         config:
           ## clientID (string)
@@ -233,6 +236,9 @@ portals:
         displayName: ""
         # Optional icon; if empty, uses the default value for the provider type
         icon: ""
+        # Optional color scheme; if empty, uses the default value for the provider type
+        # Supported values: "purple-to-blue", "cyan-to-blue", "green-to-blue", "purple-to-pink", "pink-to-orange", "teal-to-lime", "red-to-yellow"
+        color: ""
         # Provider configuration
         config:
           ## clientID (string)
@@ -287,6 +293,9 @@ portals:
         displayName: ""
         # Optional icon; if empty, uses the default value for the provider type
         icon: ""
+        # Optional color scheme; if empty, uses the default value for the provider type
+        # Supported values: "purple-to-blue", "cyan-to-blue", "green-to-blue", "purple-to-pink", "pink-to-orange", "teal-to-lime", "red-to-yellow"
+        color: ""
         # Provider configuration
         config:
           ## tenantID (string)
@@ -350,6 +359,9 @@ portals:
         displayName: ""
         # Optional icon; if empty, uses the default value for the provider type
         icon: ""
+        # Optional color scheme; if empty, uses the default value for the provider type
+        # Supported values: "purple-to-blue", "cyan-to-blue", "green-to-blue", "purple-to-pink", "pink-to-orange", "teal-to-lime", "red-to-yellow"
+        color: ""
         # Provider configuration
         config:
           ## clientID (string)
@@ -426,6 +438,9 @@ portals:
         displayName: ""
         # Optional icon; if empty, uses the default value for the provider type
         icon: ""
+        # Optional color scheme; if empty, uses the default value for the provider type
+        # Supported values: "purple-to-blue", "cyan-to-blue", "green-to-blue", "purple-to-pink", "pink-to-orange", "teal-to-lime", "red-to-yellow"
+        color: ""
         # Provider configuration
         config:
           ## allowedTailnet (string)

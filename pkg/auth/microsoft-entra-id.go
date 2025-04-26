@@ -96,6 +96,7 @@ func NewMicrosoftEntraID(opts NewMicrosoftEntraIDOptions) (*MicrosoftEntraID, er
 		DisplayName: "Microsoft Entra ID",
 		Name:        providerType,
 		Icon:        "microsoft",
+		Color:       "teal-to-lime",
 	}
 	oidc, err := newOpenIDConnectInternal(providerType, metadata, oidcOpts, OAuth2Endpoints{
 		Authorization: "https://login.microsoftonline.com/" + opts.TenantID + "/oauth2/v2.0/authorize",

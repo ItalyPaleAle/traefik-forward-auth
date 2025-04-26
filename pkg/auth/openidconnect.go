@@ -80,6 +80,7 @@ func NewOpenIDConnect(ctx context.Context, opts NewOpenIDConnectOptions) (*OpenI
 		DisplayName: "OpenID Connect",
 		Name:        providerType,
 		Icon:        "openid",
+		Color:       "purple-to-pink",
 	}
 	oauth2, err := NewOAuth2(providerType, metadata, NewOAuth2Options{
 		Config: OAuth2Config{

@@ -108,11 +108,13 @@ func (s *Server) renderSigninTemplate(c *gin.Context, portal Portal, stateCookie
 	}
 
 	type signinTemplateData struct {
+		Title     string
 		BaseUrl   string
 		Providers []signingTemplateData_Provider
 	}
 
 	data := signinTemplateData{
+		Title:     portal.DisplayName,
 		BaseUrl:   conf.Server.BasePath,
 		Providers: make([]signingTemplateData_Provider, 0, len(portal.Providers)),
 	}

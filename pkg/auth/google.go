@@ -50,6 +50,7 @@ func NewGoogle(opts NewGoogleOptions) (*Google, error) {
 		DisplayName: "Google",
 		Name:        providerType,
 		Icon:        "google",
+		Color:       "red-to-yellow",
 	}
 	oidc, err := newOpenIDConnectInternal(providerType, metadata, opts.ToNewOpenIDConnectOptions(), OAuth2Endpoints{
 		Authorization: "https://accounts.google.com/o/oauth2/v2/auth",

@@ -60,6 +60,7 @@ func NewTailscaleWhois(opts NewTailscaleWhoisOptions) (*TailscaleWhois, error) {
 				DisplayName: "Tailscale Whois",
 				Name:        "tailscalewhois",
 				Icon:        "tailscale",
+				Color:       "cyan-to-blue",
 			},
 		},
 		httpClient:     httpClient,

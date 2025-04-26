@@ -12,6 +12,7 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
+	"slices"
 	"strconv"
 	"strings"
 )
@@ -299,6 +300,7 @@ func generatePortalExamples(outYAML io.Writer, providerFilePath string) error {
 		providerType string
 		doc          string
 	})
+	providerNames := make([]string, 0)
 
 	// First pass: collect all provider struct types
 	ast.Inspect(node, func(n ast.Node) bool {
@@ -324,6 +326,7 @@ func generatePortalExamples(outYAML io.Writer, providerFilePath string) error {
 			}
 
 			// Add to our collection
+			providerNames = append(providerNames, typeName)
 			providerTypes[typeName] = &struct {
 				structType   *ast.StructType
 				displayName  string
@@ -340,7 +343,9 @@ func generatePortalExamples(outYAML io.Writer, providerFilePath string) error {
 	})
 
 	// Generate example for each provider type
-	for _, provider := range providerTypes {
+	slices.Sort(providerNames)
+	for _, k := range providerNames {
+		provider := providerTypes[k]
 		generateProviderExample(outYAML, provider.structType, provider.providerType, provider.displayName)
 	}
 
@@ -400,6 +405,9 @@ func generateProviderExample(outYAML io.Writer, structType *ast.StructType, prov
 	fmt.Fprintf(outYAML, "        displayName: \"\"\n")
 	fmt.Fprintf(outYAML, "        # Optional icon; if empty, uses the default value for the provider type\n")
 	fmt.Fprintf(outYAML, "        icon: \"\"\n")
+	fmt.Fprintf(outYAML, "        # Optional color scheme; if empty, uses the default value for the provider type\n")
+	fmt.Fprintf(outYAML, `        # Supported values: "purple-to-blue", "cyan-to-blue", "green-to-blue", "purple-to-pink", "pink-to-orange", "teal-to-lime", "red-to-yellow"`+"\n")
+	fmt.Fprintf(outYAML, "        color: \"\"\n")
 	fmt.Fprintf(outYAML, "        # Provider configuration\n")
 	fmt.Fprintf(outYAML, "        config:\n")
 
