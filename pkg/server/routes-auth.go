@@ -25,51 +25,57 @@ func (s *Server) RouteGetAuthRoot(c *gin.Context) {
 		return
 	}
 
-	// Check if we have a session
+	// Check if we have a session already
 	profile, provider := s.getProfileFromContext(c)
-	if profile == nil || provider == nil {
-		// We don't have a session, so redirect to the sign-in page
-		s.metrics.RecordAuthentication(false)
-
-		// Get the return URL
-		returnURL := getReturnURL(c, portal.Name)
-
-		// Each state cookie is unique per return URL
-		// This avoids issues when there's more than one browser tab that's trying to authenticate, for example because of some background refresh
-		stateCookieID := getStateCookieID(returnURL)
-
-		// Check if there's already a state cookie that's recent, so we can re-use the same nonce
-		content, _ := s.getStateCookie(c, portal, stateCookieID)
-
-		// If there's no nonce, generate a new one
-		nonce := content.nonce
-		if content.nonce == "" {
-			nonce, err = s.generateNonce()
-			if err != nil {
-				AbortWithError(c, fmt.Errorf("failed to generate nonce: %w", err))
-				return
-			}
-		}
-
-		// Create a new state and set the cookie
-		err = s.setStateCookie(c, portal, nonce, returnURL, stateCookieID)
-		if err != nil {
-			AbortWithError(c, fmt.Errorf("failed to set state cookie: %w", err))
-			return
-		}
-
-		// Redirect the user
-		signInURL := getPortalURI(c, portal.Name) + "/signin?state=" + stateCookieID + "~" + nonce
-		c.Header("Location", signInURL)
-		c.Header("Content-Type", "text/plain; charset=utf-8")
-		c.Writer.WriteHeader(http.StatusSeeOther)
-		_, _ = c.Writer.WriteString(`Redirecting to sign-in page: ` + signInURL)
+	if profile != nil && provider != nil {
+		// If we are here, we have a valid session, so respond with a 200 status code
+		// Include the user name in the response body in case a visitor is hitting the auth server directly
+		s.metrics.RecordAuthentication(true)
+		s.displayAuthenticatedSession(c, profile, provider)
 		return
 	}
 
-	// If we are here, we have a valid session, so respond with a 200 status code
+	// We don't have a session, so redirect to the sign-in page
+	s.metrics.RecordAuthentication(false)
+
+	// Get the return URL
+	returnURL := getReturnURL(c, portal.Name)
+
+	// Each state cookie is unique per return URL
+	// This avoids issues when there's more than one browser tab that's trying to authenticate, for example because of some background refresh
+	stateCookieID := getStateCookieID(returnURL)
+
+	// Check if there's already a state cookie that's recent, so we can re-use the same nonce
+	content, _ := s.getStateCookie(c, portal, stateCookieID)
+
+	// If there's no nonce, generate a new one
+	nonce := content.nonce
+	if content.nonce == "" {
+		nonce, err = s.generateNonce()
+		if err != nil {
+			AbortWithError(c, fmt.Errorf("failed to generate nonce: %w", err))
+			return
+		}
+	}
+
+	// Create a new state and set the cookie
+	err = s.setStateCookie(c, portal, nonce, returnURL, stateCookieID)
+	if err != nil {
+		AbortWithError(c, fmt.Errorf("failed to set state cookie: %w", err))
+		return
+	}
+
+	// Redirect the user
+	signInURL := getPortalURI(c, portal.Name) + "/signin?state=" + stateCookieID + "~" + nonce
+	c.Header("Location", signInURL)
+	c.Header("Content-Type", "text/plain; charset=utf-8")
+	c.Writer.WriteHeader(http.StatusSeeOther)
+	_, _ = c.Writer.WriteString(`Redirecting to sign-in page: ` + signInURL)
+	return
+}
+
+func (s *Server) displayAuthenticatedSession(c *gin.Context, profile *user.Profile, provider auth.Provider) {
 	// Include the user name in the response body in case a visitor is hitting the auth server directly
-	s.metrics.RecordAuthentication(true)
 	userID := provider.UserIDFromProfile(profile)
 	c.Header("X-Forwarded-User", userID)
 	c.Header("X-Authenticated-User", auth.AuthenticatedUserFromProfile(provider, profile))
@@ -89,7 +95,15 @@ func (s *Server) RouteGetAuthSignin(c *gin.Context) {
 	// Ensure we have a state parameter
 	content, stateCookieID, err := s.parseStateParamPreAuth(c, portal)
 	if err != nil {
-		AbortWithError(c, err)
+		// In the signin page, if there's an error, it's probably due to something wrong with the cookie
+		// For the best user experience, we redirect the user back to the portal's main page (after deleting the state cookie) so a new cookie can be set
+		s.deleteStateCookies(c, portal.Name)
+
+		redirectURL := getPortalURI(c, portal.Name)
+		c.Header("Location", redirectURL)
+		c.Header("Content-Type", "text/plain; charset=utf-8")
+		c.Writer.WriteHeader(http.StatusSeeOther)
+		_, _ = c.Writer.WriteString(`Redirecting to auth portal: ` + redirectURL)
 		return
 	}
 
