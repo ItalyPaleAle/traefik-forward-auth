@@ -30,6 +30,8 @@ type Provider interface {
 	GetProviderDisplayName() string
 	// GetProviderIcon returns the provider icon.
 	GetProviderIcon() string
+	// GetProviderColor returns the provider color.
+	GetProviderColor() string
 }
 
 // ProviderMetadata includes metadata info for the auth provider.
@@ -37,6 +39,7 @@ type ProviderMetadata struct {
 	Name        string
 	DisplayName string
 	Icon        string
+	Color       string
 }
 
 // SeamlessProvider is the interface that represents an auth provider that performs authentication based on flows that do not require user action, such as network.

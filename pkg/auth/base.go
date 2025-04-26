@@ -14,6 +14,9 @@ func (b *baseProvider) SetProviderMetadata(m ProviderMetadata) {
 	if m.Icon != "" {
 		b.metadata.Icon = m.Icon
 	}
+	if m.Color != "" {
+		b.metadata.Color = m.Color
+	}
 }
 
 func (b *baseProvider) GetProviderName() string {
@@ -26,4 +29,8 @@ func (b *baseProvider) GetProviderDisplayName() string {
 
 func (b *baseProvider) GetProviderIcon() string {
 	return b.metadata.Icon
+}
+
+func (b *baseProvider) GetProviderColor() string {
+	return b.metadata.Color
 }

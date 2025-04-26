@@ -488,5 +488,6 @@ type Portal struct {
 	Name                  string
 	DisplayName           string
 	Providers             map[string]auth.Provider
+	ProvidersList         []string
 	AuthenticationTimeout time.Duration
 }

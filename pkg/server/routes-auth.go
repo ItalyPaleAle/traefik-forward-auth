@@ -116,11 +116,12 @@ func (s *Server) renderSigninTemplate(c *gin.Context, portal Portal, stateCookie
 		BaseUrl:   conf.Server.BasePath,
 		Providers: make([]signingTemplateData_Provider, 0, len(portal.Providers)),
 	}
-	for k, v := range portal.Providers {
-		providerURI := getPortalURI(c, portal.Name) + "/provider/" + k + "?state=" + stateCookieID + "~" + nonce
+	for _, name := range portal.ProvidersList {
+		provider := portal.Providers[name]
+		providerURI := getPortalURI(c, portal.Name) + "/provider/" + name + "?state=" + stateCookieID + "~" + nonce
 		data.Providers = append(data.Providers, signingTemplateData_Provider{
-			Color:       "cyan-to-blue",
-			DisplayName: v.GetProviderDisplayName(),
+			Color:       provider.GetProviderColor(),
+			DisplayName: provider.GetProviderDisplayName(),
 			Href:        providerURI,
 			//Svg:         template.HTML("<svg></svg>"),
 		})

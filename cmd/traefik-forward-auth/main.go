@@ -8,6 +8,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 
+	"github.com/italypaleale/traefik-forward-auth/pkg/auth"
 	"github.com/italypaleale/traefik-forward-auth/pkg/buildinfo"
 	"github.com/italypaleale/traefik-forward-auth/pkg/config"
 	tfametrics "github.com/italypaleale/traefik-forward-auth/pkg/metrics"
@@ -85,12 +86,20 @@ func main() {
 			return
 		}
 
-		portals[p.Name] = server.Portal{
+		portal := server.Portal{
 			Name:                  p.Name,
 			DisplayName:           p.DisplayName,
-			Providers:             providers,
+			Providers:             make(map[string]auth.Provider, len(providers)),
+			ProvidersList:         make([]string, len(providers)),
 			AuthenticationTimeout: p.AuthenticationTimeout,
 		}
+		for i, p := range providers {
+			name := p.GetProviderName()
+			portal.Providers[name] = p
+			portal.ProvidersList[i] = name
+		}
+
+		portals[p.Name] = portal
 	}
 
 	// Get the trace traceExporter if tracing is enabled

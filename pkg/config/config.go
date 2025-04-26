@@ -234,6 +234,10 @@ type ConfigPortalProvider struct {
 	// +default default icon for the provider
 	Icon string `yaml:"icon"`
 
+	// Optional color for the provider
+	// +default default color for the provider
+	Color string `yaml:"color"`
+
 	// Configuration for the provider.
 	// The properties depend on the provider type.
 	Config map[string]any `yaml:"config"`
@@ -368,8 +372,9 @@ func (c *Config) Validate(logger *slog.Logger) error {
 var portalProviderNameRegex = regexp.MustCompile(`^[a-zA-Z][a-zA-Z0-9-_\.]{1,39}$`)
 var portalProviderError = errors.New("property 'name' is invalid: must contain letters, numbers, or '-_.' only, must be between 2 and 40 characters, and must start with a letter")
 
-func (p *ConfigPortal) GetAuthProviders(ctx context.Context) (map[string]auth.Provider, error) {
-	providers := make(map[string]auth.Provider, len(p.Providers))
+func (p *ConfigPortal) GetAuthProviders(ctx context.Context) ([]auth.Provider, error) {
+	providers := make([]auth.Provider, len(p.Providers))
+	providerNames := make(map[string]struct{}, len(p.Providers))
 	for i, v := range p.Providers {
 		if v.configParsed == nil {
 			return nil, fmt.Errorf("method Parse was not called on portal configuration object %d", i)
@@ -381,11 +386,12 @@ func (p *ConfigPortal) GetAuthProviders(ctx context.Context) (map[string]auth.Pr
 		ap.SetProviderMetadata(v.GetProviderMetadata())
 
 		name := ap.GetProviderName()
-		_, ok := providers[name]
+		_, ok := providerNames[name]
 		if ok {
 			return nil, fmt.Errorf("duplicate provider '%s' found in portal '%s'", name, v.Name)
 		}
-		providers[name] = ap
+		providers[i] = ap
+		providerNames[name] = struct{}{}
 	}
 
 	return providers, nil
@@ -431,6 +437,7 @@ func (v *ConfigPortalProvider) GetProviderMetadata() auth.ProviderMetadata {
 		Name:        v.Name,
 		DisplayName: v.DisplayName,
 		Icon:        v.Icon,
+		Color:       v.Color,
 	}
 }
 
