@@ -31,7 +31,7 @@ func (s *Server) RouteGetAuthRoot(c *gin.Context) {
 		// If we are here, we have a valid session, so respond with a 200 status code
 		// Include the user name in the response body in case a visitor is hitting the auth server directly
 		s.metrics.RecordAuthentication(true)
-		s.displayAuthenticatedSession(c, profile, provider)
+		s.renderAuthenticatedTemplate(c, portal, profile, provider)
 		return
 	}
 
@@ -74,13 +74,31 @@ func (s *Server) RouteGetAuthRoot(c *gin.Context) {
 	return
 }
 
-func (s *Server) displayAuthenticatedSession(c *gin.Context, profile *user.Profile, provider auth.Provider) {
-	// Include the user name in the response body in case a visitor is hitting the auth server directly
+func (s *Server) renderAuthenticatedTemplate(c *gin.Context, portal Portal, profile *user.Profile, provider auth.Provider) {
+	conf := config.Get()
+
+	// Set the X-Forwarded-User and X-Authenticated-User headers
 	userID := provider.UserIDFromProfile(profile)
 	c.Header("X-Forwarded-User", userID)
 	c.Header("X-Authenticated-User", auth.AuthenticatedUserFromProfile(provider, profile))
-	c.Header("Content-Type", "text/plain; charset=utf-8")
-	_, _ = c.Writer.WriteString("You're authenticated with provider '" + provider.GetProviderName() + "' as '" + userID + "'")
+
+	// Respond with 200, indicating Traefik that the user is successfully-authenticated
+	// Display a nice-looking body in case a visitor is hitting the auth server directly
+	type authenticatedTemplateData struct {
+		Title     string
+		BaseUrl   string
+		Provider  string
+		User      string
+		LogoutUrl string
+	}
+
+	c.HTML(http.StatusOK, "authenticated.html.tpl", authenticatedTemplateData{
+		Title:     portal.DisplayName,
+		BaseUrl:   conf.Server.BasePath,
+		Provider:  provider.GetProviderDisplayName(),
+		User:      userID,
+		LogoutUrl: getPortalURI(c, portal.Name) + "/logout",
+	})
 }
 
 // RouteGetAuthSignin is the handler for GET /portals/:portal/signin
