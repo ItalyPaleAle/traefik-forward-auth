@@ -118,13 +118,22 @@ func (s *Server) renderSigninTemplate(c *gin.Context, portal Portal, stateCookie
 	}
 	for _, name := range portal.ProvidersList {
 		provider := portal.Providers[name]
-		providerURI := getPortalURI(c, portal.Name) + "/provider/" + name + "?state=" + stateCookieID + "~" + nonce
-		data.Providers = append(data.Providers, signingTemplateData_Provider{
+
+		pd := signingTemplateData_Provider{
 			Color:       provider.GetProviderColor(),
 			DisplayName: provider.GetProviderDisplayName(),
-			Href:        providerURI,
-			//Svg:         template.HTML("<svg></svg>"),
-		})
+			Href:        getPortalURI(c, portal.Name) + "/provider/" + name + "?state=" + stateCookieID + "~" + nonce,
+		}
+
+		iconStr, ok := s.icons[provider.GetProviderIcon()]
+		if ok && iconStr != "" {
+			pd.Svg = template.HTML(iconStr)
+		} else {
+			// Default is to add an empty svg, to ensure elements are aligned
+			pd.Svg = template.HTML(`<svg class="provider-icon" aria-hidden="true"></svg>`)
+		}
+
+		data.Providers = append(data.Providers, pd)
 	}
 
 	c.HTML(http.StatusOK, "signin.html.tpl", data)

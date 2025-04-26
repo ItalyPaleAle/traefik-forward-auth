@@ -56,7 +56,7 @@ type Server struct {
 
 	// Templates and icons
 	templates *template.Template
-	icons     map[string][]byte
+	icons     map[string]string
 
 	// Server start time, used for Last-Modified headers
 	startTime time.Time
@@ -183,7 +183,7 @@ func (s *Server) initAppServer(log *slog.Logger) (err error) {
 	if err != nil {
 		return fmt.Errorf("failed to set up static routes: %w", err)
 	}
-	err = s.loadTemplates()
+	err = s.loadTemplates(s.appRouter)
 	if err != nil {
 		return fmt.Errorf("failed to set up pages: %w", err)
 	}

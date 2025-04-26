@@ -25,6 +25,6 @@ func StaticImg() (fs.FS, error) {
 }
 
 // Icons contains all SVG icons
-func Icons() (fs.FS, error) {
-	return fs.Sub(icons, "icons")
+func Icons() embed.FS {
+	return icons
 }

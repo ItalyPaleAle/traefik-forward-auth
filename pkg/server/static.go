@@ -107,7 +107,7 @@ func replaceRequestPath(c *gin.Context, path string) *http.Request {
 	return r
 }
 
-func (s *Server) loadTemplates() error {
+func (s *Server) loadTemplates(router *gin.Engine) error {
 	// Templates
 	assetsFS, err := client.Assets()
 	if err != nil {
@@ -119,14 +119,34 @@ func (s *Server) loadTemplates() error {
 	if err != nil {
 		return fmt.Errorf("failed to parse templates: %w", err)
 	}
-	s.appRouter.SetHTMLTemplate(s.templates)
+	router.SetHTMLTemplate(s.templates)
 
-	// Icons
-	iconsFS, err := client.Icons()
+	// Read all icons
+	iconsFS := client.Icons()
+	entries, err := iconsFS.ReadDir("icons")
 	if err != nil {
-		return fmt.Errorf("failed to open embedded icons FS: %w", err)
+		return fmt.Errorf("failed to read embedded icons directory: %w", err)
 	}
-	_ = iconsFS
+	s.icons = make(map[string]string, len(entries))
+	for _, e := range entries {
+		if e.IsDir() {
+			// There shouldn't be any directory
+			continue
+		}
+		name := e.Name()
+		ext := filepath.Ext(name)
+		if ext != ".svg" {
+			// All files should be SVGs
+			continue
+		}
+		iconName := name[0 : len(name)-4]
+		var iconData []byte
+		iconData, err = iconsFS.ReadFile("icons/" + name)
+		if err != nil {
+			return fmt.Errorf("failed to read embedded icon '%s': %w", name, err)
+		}
+		s.icons[iconName] = string(iconData)
+	}
 
 	return nil
 }
