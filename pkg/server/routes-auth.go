@@ -14,6 +14,7 @@ import (
 	"github.com/italypaleale/traefik-forward-auth/pkg/auth"
 	"github.com/italypaleale/traefik-forward-auth/pkg/config"
 	"github.com/italypaleale/traefik-forward-auth/pkg/user"
+	"github.com/italypaleale/traefik-forward-auth/pkg/utils"
 )
 
 // RouteGetAuthRoot is the handler for GET /portals/:portal
@@ -67,6 +68,11 @@ func (s *Server) RouteGetAuthRoot(c *gin.Context) {
 
 	// Redirect the user
 	signInURL := getPortalURI(c, portal.Name) + "/signin?state=" + stateCookieID + "~" + nonce
+	if utils.IsTruthy(c.Query("logout")) {
+		// Check if the user has just logged out and forward the query string parameter to the signin page for the banner to be shown
+		signInURL += "&logout=1"
+	}
+
 	c.Header("Location", signInURL)
 	c.Header("Content-Type", "text/plain; charset=utf-8")
 	c.Writer.WriteHeader(http.StatusSeeOther)
@@ -115,6 +121,8 @@ func (s *Server) RouteGetAuthSignin(c *gin.Context) {
 	if err != nil {
 		// In the signin page, if there's an error, it's probably due to something wrong with the cookie
 		// For the best user experience, we redirect the user back to the portal's main page (after deleting the state cookie) so a new cookie can be set
+		_ = c.Error(err)
+
 		s.deleteStateCookies(c, portal.Name)
 
 		redirectURL := getPortalURI(c, portal.Name)
@@ -132,6 +140,9 @@ func (s *Server) RouteGetAuthSignin(c *gin.Context) {
 func (s *Server) renderSigninTemplate(c *gin.Context, portal Portal, stateCookieID string, nonce string) {
 	conf := config.Get()
 
+	// Check if the user has just logged out, and if so, display the logged out banner
+	logoutBanner := utils.IsTruthy(c.Query("logout"))
+
 	type signingTemplateData_Provider struct {
 		Color       string
 		DisplayName string
@@ -140,15 +151,17 @@ func (s *Server) renderSigninTemplate(c *gin.Context, portal Portal, stateCookie
 	}
 
 	type signinTemplateData struct {
-		Title     string
-		BaseUrl   string
-		Providers []signingTemplateData_Provider
+		Title        string
+		BaseUrl      string
+		Providers    []signingTemplateData_Provider
+		LogoutBanner bool
 	}
 
 	data := signinTemplateData{
-		Title:     portal.DisplayName,
-		BaseUrl:   conf.Server.BasePath,
-		Providers: make([]signingTemplateData_Provider, 0, len(portal.Providers)),
+		Title:        portal.DisplayName,
+		BaseUrl:      conf.Server.BasePath,
+		Providers:    make([]signingTemplateData_Provider, 0, len(portal.Providers)),
+		LogoutBanner: logoutBanner,
 	}
 	for _, name := range portal.ProvidersList {
 		provider := portal.Providers[name]
@@ -397,8 +410,11 @@ func (s *Server) RouteGetLogout(c *gin.Context) {
 	s.deleteStateCookies(c, portal.Name)
 
 	// Respond with a success message
+	portalURL := getPortalURI(c, portal.Name) + "?logout=1"
+	c.Header("Location", portalURL)
 	c.Header("Content-Type", "text/plain; charset=utf-8")
-	_, _ = c.Writer.WriteString("You've logged out")
+	c.Writer.WriteHeader(http.StatusSeeOther)
+	_, _ = c.Writer.WriteString(`You've been logged out. Redirecting to portal: ` + portalURL)
 }
 
 func (s *Server) getProfileFromContext(c *gin.Context) (*user.Profile, auth.Provider) {
