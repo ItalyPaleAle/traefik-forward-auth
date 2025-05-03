@@ -32,7 +32,17 @@ func (s *Server) RouteGetAuthRoot(c *gin.Context) {
 		// If we are here, we have a valid session, so respond with a 200 status code
 		// Include the user name in the response body in case a visitor is hitting the auth server directly
 		s.metrics.RecordAuthentication(true)
-		s.renderAuthenticatedTemplate(c, portal, profile, provider)
+
+		// Set the X-Forwarded-User and X-Authenticated-User headers
+		userID := provider.UserIDFromProfile(profile)
+		c.Header("X-Forwarded-User", userID)
+		c.Header("X-Authenticated-User", auth.AuthenticatedUserFromProfile(provider, profile))
+
+		if utils.IsTruthy(c.Query("html")) {
+			s.renderAuthenticatedTemplate(c, portal, userID, provider)
+		} else {
+			_, _ = fmt.Fprintf(c.Writer, `You are authenticated with provider '%s' as '%s'`, provider.GetProviderDisplayName(), userID)
+		}
 		return
 	}
 
@@ -80,13 +90,8 @@ func (s *Server) RouteGetAuthRoot(c *gin.Context) {
 	return
 }
 
-func (s *Server) renderAuthenticatedTemplate(c *gin.Context, portal Portal, profile *user.Profile, provider auth.Provider) {
+func (s *Server) renderAuthenticatedTemplate(c *gin.Context, portal Portal, userID string, provider auth.Provider) {
 	conf := config.Get()
-
-	// Set the X-Forwarded-User and X-Authenticated-User headers
-	userID := provider.UserIDFromProfile(profile)
-	c.Header("X-Forwarded-User", userID)
-	c.Header("X-Authenticated-User", auth.AuthenticatedUserFromProfile(provider, profile))
 
 	// Respond with 200, indicating Traefik that the user is successfully-authenticated
 	// Display a nice-looking body in case a visitor is hitting the auth server directly
