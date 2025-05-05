@@ -87,7 +87,6 @@ func (s *Server) RouteGetAuthRoot(c *gin.Context) {
 	c.Header("Content-Type", "text/plain; charset=utf-8")
 	c.Writer.WriteHeader(http.StatusSeeOther)
 	_, _ = c.Writer.WriteString(`Redirecting to sign-in page: ` + signInURL)
-	return
 }
 
 func (s *Server) renderAuthenticatedTemplate(c *gin.Context, portal Portal, userID string, provider auth.Provider) {
@@ -148,6 +147,7 @@ func (s *Server) renderSigninTemplate(c *gin.Context, portal Portal, stateCookie
 	// Check if the user has just logged out, and if so, display the logged out banner
 	logoutBanner := utils.IsTruthy(c.Query("logout"))
 
+	//nolint:revive
 	type signingTemplateData_Provider struct {
 		Color       string
 		DisplayName string
@@ -179,9 +179,11 @@ func (s *Server) renderSigninTemplate(c *gin.Context, portal Portal, stateCookie
 
 		iconStr, ok := s.icons[provider.GetProviderIcon()]
 		if ok && iconStr != "" {
+			//nolint:gosec
 			pd.Svg = template.HTML(iconStr)
 		} else {
 			// Default is to add an empty svg, to ensure elements are aligned
+			//nolint:gosec
 			pd.Svg = template.HTML(`<svg class="provider-icon" aria-hidden="true"></svg>`)
 		}
 

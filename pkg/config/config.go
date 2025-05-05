@@ -369,8 +369,10 @@ func (c *Config) Validate(logger *slog.Logger) error {
 	return nil
 }
 
-var portalProviderNameRegex = regexp.MustCompile(`^[a-zA-Z][a-zA-Z0-9-_\.]{1,39}$`)
-var portalProviderError = errors.New("property 'name' is invalid: must contain letters, numbers, or '-_.' only, must be between 2 and 40 characters, and must start with a letter")
+var (
+	portalProviderNameRegex = regexp.MustCompile(`^[a-zA-Z][a-zA-Z0-9-_\.]{1,39}$`)
+	errPortalProvider       = errors.New("property 'name' is invalid: must contain letters, numbers, or '-_.' only, must be between 2 and 40 characters, and must start with a letter")
+)
 
 func (p *ConfigPortal) GetAuthProviders(ctx context.Context) ([]auth.Provider, error) {
 	providers := make([]auth.Provider, len(p.Providers))
@@ -403,7 +405,7 @@ func (p *ConfigPortal) Parse(c *Config) error {
 		return errors.New("property 'name' is required")
 	}
 	if !portalProviderNameRegex.MatchString(p.Name) {
-		return portalProviderError
+		return errPortalProvider
 	}
 	p.Name = strings.ToLower(p.Name)
 
@@ -451,7 +453,7 @@ func (v *ConfigPortalProvider) Parse(c *Config) error {
 	// Sanitize the provider name if set
 	if v.Name != "" {
 		if !portalProviderNameRegex.MatchString(v.Name) {
-			return portalProviderError
+			return errPortalProvider
 		}
 		v.Name = strings.ToLower(v.Name)
 	}

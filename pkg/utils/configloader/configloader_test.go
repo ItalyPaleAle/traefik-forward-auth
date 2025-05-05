@@ -44,7 +44,7 @@ func TestConfigLoader(t *testing.T) {
 			},
 		}
 
-		assert.EqualValues(t, expect, cfg)
+		assert.Equal(t, expect, cfg)
 	})
 
 	t.Run("override from env", func(t *testing.T) {
@@ -76,7 +76,7 @@ func TestConfigLoader(t *testing.T) {
 			},
 		}
 
-		assert.EqualValues(t, expect, cfg)
+		assert.Equal(t, expect, cfg)
 	})
 
 	t.Run("override default values", func(t *testing.T) {
@@ -108,6 +108,6 @@ func TestConfigLoader(t *testing.T) {
 			},
 		}
 
-		assert.EqualValues(t, expect, cfg)
+		assert.Equal(t, expect, cfg)
 	})
 }

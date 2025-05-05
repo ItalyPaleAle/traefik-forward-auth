@@ -22,17 +22,6 @@ const (
 	envPrefix    = "TFA_"
 )
 
-// Struct to hold information about a field
-type fieldInfo struct {
-	yamlTag     string
-	envTag      string
-	typ         string
-	doc         string
-	defaultText string
-	required    bool
-	recommended bool
-}
-
 func generateFromStruct(filePath string) error {
 	fset := token.NewFileSet()
 	node, err := parser.ParseFile(fset, filePath, nil, parser.ParseComments)
@@ -498,7 +487,7 @@ func generateProviderExample(outYAML io.Writer, structType *ast.StructType, prov
 			}
 		}
 	}
-	//fmt.Fprintf(outYAML, "\n")
+	// fmt.Fprintf(outYAML, "\n")
 }
 
 // generateExampleValue creates an appropriate example value based on field type
@@ -551,14 +540,16 @@ func generateExampleValue(fieldType ast.Expr, fieldName string, providerType str
 	case "[]string":
 		switch fieldName {
 		case "allowedUsers":
-			if providerType == "github" {
+			switch providerType {
+			case "github":
 				return "\n" + fieldPrefix + "  - \"githubuser1\"\n" + fieldPrefix + "  - \"githubuser2\""
-			} else if providerType == "microsoftentraid" {
+			case "microsoftentraid":
 				return "\n" + fieldPrefix + "  - \"user-object-id\""
-			} else if providerType == "tailscalewhois" {
+			case "tailscalewhois":
 				return "\n" + fieldPrefix + "  - \"user@example.com\""
+			default:
+				return "\n" + fieldPrefix + "  - \"user1\"\n" + fieldPrefix + "  - \"user2\""
 			}
-			return "\n" + fieldPrefix + "  - \"user1\"\n" + fieldPrefix + "  - \"user2\""
 		case "allowedEmails":
 			return "\n" + fieldPrefix + "  - \"user@example.com\""
 		case "allowedDomains":
@@ -587,11 +578,12 @@ func fieldTypeName(field *ast.Field) string {
 	case "float64", "float32":
 		return "float"
 	default:
-		if strings.HasPrefix(ft, "[]") {
+		switch {
+		case strings.HasPrefix(ft, "[]"):
 			return "list"
-		} else if strings.HasPrefix(ft, "map[") {
+		case strings.HasPrefix(ft, "map["):
 			return "map"
-		} else {
+		default:
 			return ft
 		}
 	}
