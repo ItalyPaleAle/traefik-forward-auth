@@ -12,7 +12,7 @@ import (
 
 	"github.com/lestrrat-go/jwx/v3/jwt"
 	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
-	"tailscale.com/client/tailscale"
+	tailscale "tailscale.com/client/local"
 
 	"github.com/italypaleale/traefik-forward-auth/pkg/user"
 )
@@ -88,7 +88,7 @@ func (a *TailscaleWhois) SeamlessAuth(r *http.Request) (*user.Profile, error) {
 	}
 
 	// Use the Tailscale client to authenticate the user
-	client := &tailscale.LocalClient{}
+	client := &tailscale.Client{}
 	reqCtx, cancel := context.WithTimeout(r.Context(), a.requestTimeout)
 	defer cancel()
 	info, err := client.WhoIs(reqCtx, sourceIP.String())
