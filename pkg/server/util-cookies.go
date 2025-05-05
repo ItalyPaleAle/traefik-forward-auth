@@ -55,7 +55,12 @@ func (s *Server) getSessionCookie(c *gin.Context, portalName string) (profile *u
 	}
 
 	// Get the user profile from the claim
-	profile, err = user.NewProfileFromOpenIDToken(token)
+	var providerName string
+	_ = token.Get(user.ProviderNameClaim, &providerName)
+	if providerName == "" {
+		return nil, nil, fmt.Errorf("claim %s is missing or empty", user.ProviderNameClaim)
+	}
+	profile, err = user.NewProfileFromOpenIDToken(token, providerName)
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to parse claims from session token JWT: %w", err)
 	}

@@ -117,7 +117,7 @@ func TestNewProfileFromOpenIDToken(t *testing.T) {
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			token := tc.setupToken()
-			profile, err := NewProfileFromOpenIDToken(token)
+			profile, err := NewProfileFromOpenIDToken(token, "")
 
 			if tc.expectedError {
 				assert.Error(t, err)

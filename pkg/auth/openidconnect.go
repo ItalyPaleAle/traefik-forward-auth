@@ -180,8 +180,7 @@ func (a *OpenIDConnect) OAuth2RetrieveProfile(ctx context.Context, at OAuth2Acce
 			return nil, errors.New("failed to parse ID token: included claims cannot be cast to openid.Token")
 		}
 
-		profile, err = user.NewProfileFromOpenIDToken(oidToken)
-		profile.Provider = a.GetProviderName()
+		profile, err = user.NewProfileFromOpenIDToken(oidToken, a.GetProviderName())
 		if err != nil {
 			return nil, fmt.Errorf("invalid claims in token: %w", err)
 		}
@@ -221,9 +220,7 @@ func (a *OpenIDConnect) OAuth2RetrieveProfile(ctx context.Context, at OAuth2Acce
 		return nil, fmt.Errorf("invalid response body: %w", err)
 	}
 
-	claims[user.ProviderNameClaim] = a.GetProviderName()
-
-	profile, err = user.NewProfileFromClaims(claims)
+	profile, err = user.NewProfileFromClaims(claims, a.GetProviderName())
 	if err != nil {
 		return nil, fmt.Errorf("invalid claims in token: %w", err)
 	}

@@ -2,7 +2,6 @@ package user
 
 import (
 	"errors"
-	"fmt"
 	"strings"
 
 	"github.com/lestrrat-go/jwx/v3/jwt"
@@ -57,8 +56,9 @@ type ProfileEmail struct {
 }
 
 // NewProfileFromOpenIDToken returns a new Profile with values from an openid.Token object
-func NewProfileFromOpenIDToken(token openid.Token) (*Profile, error) {
+func NewProfileFromOpenIDToken(token openid.Token, provider string) (*Profile, error) {
 	profile := Profile{
+		Provider: provider,
 		Picture:  stringOrEmpty(token.Picture()),
 		Locale:   stringOrEmpty(token.Locale()),
 		Timezone: stringOrEmpty(token.Zoneinfo()),
@@ -105,12 +105,7 @@ func NewProfileFromOpenIDToken(token openid.Token) (*Profile, error) {
 }
 
 // NewProfileFromClaims returns a new Profile with values from a claim map
-func NewProfileFromClaims(claims map[string]any) (*Profile, error) {
-	provider := cast.ToString(claims[ProviderNameClaim])
-	if provider == "" {
-		return nil, fmt.Errorf("claim %s is missing or empty", ProviderNameClaim)
-	}
-
+func NewProfileFromClaims(claims map[string]any, provider string) (*Profile, error) {
 	profile := &Profile{
 		Provider: provider,
 		Picture:  cast.ToString(claims["picture"]),
