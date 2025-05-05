@@ -6,6 +6,8 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/lestrrat-go/jwx/v3/jwt"
+
 	"github.com/italypaleale/traefik-forward-auth/pkg/user"
 )
 
@@ -18,7 +20,7 @@ type Provider interface {
 	// ValidateRequestClaims validates that claims are valid for the incoming request from the client.
 	ValidateRequestClaims(r *http.Request, profile *user.Profile) error
 	// PopulateAdditionalClaims allows a provider to populate the AdditionalClaims property of a Profile object.
-	PopulateAdditionalClaims(claims map[string]any, setClaimFn func(key, val string))
+	PopulateAdditionalClaims(token jwt.Token, setClaimFn func(key, val string))
 	// UserAllowed checks if the user can authenticate based on allowlists and other rules.
 	UserAllowed(profile *user.Profile) error
 

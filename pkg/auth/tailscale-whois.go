@@ -10,7 +10,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/spf13/cast"
+	"github.com/lestrrat-go/jwx/v3/jwt"
 	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
 	"tailscale.com/client/tailscale"
 
@@ -179,12 +179,14 @@ func (a *TailscaleWhois) UserIDFromProfile(profile *user.Profile) string {
 	return profile.ID
 }
 
-func (a *TailscaleWhois) PopulateAdditionalClaims(claims map[string]any, setClaimFn func(key, val string)) {
-	if v := cast.ToString(claims[tailscaleWhoisClaimIP]); v != "" {
-		setClaimFn(tailscaleWhoisClaimIP, v)
+func (a *TailscaleWhois) PopulateAdditionalClaims(token jwt.Token, setClaimFn func(key, val string)) {
+	var val string
+
+	if token.Get(tailscaleWhoisClaimIP, &val) == nil && val != "" {
+		setClaimFn(tailscaleWhoisClaimIP, val)
 	}
-	if v := cast.ToString(claims[tailscaleWhoisClaimTailnet]); v != "" {
-		setClaimFn(tailscaleWhoisClaimTailnet, v)
+	if token.Get(tailscaleWhoisClaimTailnet, &val) == nil && val != "" {
+		setClaimFn(tailscaleWhoisClaimTailnet, val)
 	}
 }
 

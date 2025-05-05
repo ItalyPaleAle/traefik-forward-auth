@@ -13,8 +13,9 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
-	"github.com/lestrrat-go/jwx/v2/jwa"
-	"github.com/lestrrat-go/jwx/v2/jwt"
+	"github.com/lestrrat-go/jwx/v3/jwa"
+	"github.com/lestrrat-go/jwx/v3/jwt"
+	"github.com/lestrrat-go/jwx/v3/jwt/openid"
 	"golang.org/x/text/unicode/norm"
 
 	"github.com/italypaleale/traefik-forward-auth/pkg/auth"
@@ -54,11 +55,7 @@ func (s *Server) getSessionCookie(c *gin.Context, portalName string) (profile *u
 	}
 
 	// Get the user profile from the claim
-	claims, err := token.AsMap(c.Request.Context())
-	if err != nil {
-		return nil, nil, fmt.Errorf("failed to get claims from session token JWT: %w", err)
-	}
-	profile, err = user.NewProfileFromClaims(claims)
+	profile, err = user.NewProfileFromOpenIDToken(token)
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to parse claims from session token JWT: %w", err)
 	}
@@ -69,25 +66,29 @@ func (s *Server) getSessionCookie(c *gin.Context, portalName string) (profile *u
 	}
 
 	// Populate additional claims if any
-	if len(claims) > 0 {
-		provider.PopulateAdditionalClaims(claims, profile.SetAdditionalClaim)
-	}
+	provider.PopulateAdditionalClaims(token, profile.SetAdditionalClaim)
 
 	return profile, provider, nil
 }
 
-func (s *Server) parseSessionToken(val string, portalName string) (jwt.Token, error) {
+func (s *Server) parseSessionToken(val string, portalName string) (openid.Token, error) {
 	cfg := config.Get()
 	token, err := jwt.Parse([]byte(val),
 		jwt.WithAcceptableSkew(acceptableClockSkew),
 		jwt.WithIssuer(jwtIssuer+":"+cfg.Server.Hostname+cfg.Server.BasePath+":"+portalName),
 		jwt.WithAudience(cfg.Server.Hostname+cfg.Server.BasePath),
-		jwt.WithKey(jwa.HS256, cfg.GetTokenSigningKey()),
+		jwt.WithKey(jwa.HS256(), cfg.GetTokenSigningKey()),
+		jwt.WithToken(openid.New()),
 	)
 	if err != nil {
 		return nil, fmt.Errorf("failed to parse session token JWT: %w", err)
 	}
-	return token, nil
+	oidcToken, ok := token.(openid.Token)
+	if !ok {
+		// Should never happen
+		return nil, errors.New("returned token is not of type openid.Token")
+	}
+	return oidcToken, nil
 }
 
 func (s *Server) setSessionCookie(c *gin.Context, portalName string, profile *user.Profile) error {
@@ -112,7 +113,7 @@ func (s *Server) setSessionCookie(c *gin.Context, portalName string, profile *us
 
 	// Generate the JWT
 	cookieValue, err := jwt.NewSerializer().
-		Sign(jwt.WithKey(jwa.HS256, cfg.GetTokenSigningKey())).
+		Sign(jwt.WithKey(jwa.HS256(), cfg.GetTokenSigningKey())).
 		Serialize(token)
 	if err != nil {
 		return fmt.Errorf("failed to serialize token: %w", err)
@@ -164,15 +165,14 @@ func (s *Server) getStateCookie(c *gin.Context, portal Portal, stateCookieID str
 		jwt.WithAcceptableSkew(acceptableClockSkew),
 		jwt.WithIssuer(jwtIssuer+":"+cfg.Server.Hostname+cfg.Server.BasePath+":"+portal.Name),
 		jwt.WithAudience(cfg.Server.Hostname+cfg.Server.BasePath),
-		jwt.WithKey(jwa.HS256, cfg.GetTokenSigningKey()),
+		jwt.WithKey(jwa.HS256(), cfg.GetTokenSigningKey()),
 	)
 	if err != nil {
 		return stateCookieContent{}, fmt.Errorf("failed to parse JWT: %w", err)
 	}
 
 	// Get the portal name
-	portalAny, _ := token.Get(portalNameClaim)
-	content.portal, _ = portalAny.(string)
+	_ = token.Get(portalNameClaim, &content.portal)
 	if content.portal == "" {
 		return stateCookieContent{}, fmt.Errorf("claim '%s' not found in JWT", portalNameClaim)
 	} else if content.portal != portal.Name {
@@ -180,8 +180,7 @@ func (s *Server) getStateCookie(c *gin.Context, portal Portal, stateCookieID str
 	}
 
 	// Get the nonce
-	nonceAny, _ := token.Get(nonceClaim)
-	content.nonce, _ = nonceAny.(string)
+	_ = token.Get(nonceClaim, &content.nonce)
 	if content.nonce == "" {
 		return stateCookieContent{}, fmt.Errorf("claim '%s' not found in JWT", nonceClaim)
 	}
@@ -191,20 +190,18 @@ func (s *Server) getStateCookie(c *gin.Context, portal Portal, stateCookieID str
 	}
 
 	// Get the return URL
-	returnURLAny, _ := token.Get(returnURLClaim)
-	content.returnURL, _ = returnURLAny.(string)
+	_ = token.Get(returnURLClaim, &content.returnURL)
 	if content.returnURL == "" {
 		return stateCookieContent{}, fmt.Errorf("claim '%s' not found in JWT", returnURLClaim)
 	}
 
 	// Validate the signature inside the token
+	var sig string
 	expectSig := stateCookieSig(c, stateCookieID, content.portal, nonceBytes)
-	sigAny, _ := token.Get(sigClaim)
-	sig, _ := sigAny.(string)
+	_ = token.Get(sigClaim, &sig)
 	if sig == "" {
 		return stateCookieContent{}, fmt.Errorf("claim '%s' not found in JWT", sigClaim)
-	}
-	if sig != expectSig {
+	} else if sig != expectSig {
 		return stateCookieContent{}, fmt.Errorf("claim '%s' invalid in JWT", sigClaim)
 	}
 
@@ -251,7 +248,7 @@ func (s *Server) setStateCookie(c *gin.Context, portal Portal, nonce string, ret
 
 	// Generate the JWT
 	cookieValue, err := jwt.NewSerializer().
-		Sign(jwt.WithKey(jwa.HS256, cfg.GetTokenSigningKey())).
+		Sign(jwt.WithKey(jwa.HS256(), cfg.GetTokenSigningKey())).
 		Serialize(token)
 	if err != nil {
 		return fmt.Errorf("failed to serialize token: %w", err)

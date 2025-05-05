@@ -16,6 +16,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/lestrrat-go/jwx/v3/jwt"
 	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
 
 	"github.com/italypaleale/traefik-forward-auth/pkg/user"
@@ -289,7 +290,7 @@ func (a *oAuth2) UserIDFromProfile(profile *user.Profile) string {
 	return profile.ID
 }
 
-func (a *oAuth2) PopulateAdditionalClaims(claims map[string]any, setClaimFn func(key, val string)) {
+func (a *oAuth2) PopulateAdditionalClaims(token jwt.Token, setClaimFn func(key, val string)) {
 	// Nop in this implementation
 }
 

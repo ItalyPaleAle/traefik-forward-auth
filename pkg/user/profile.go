@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/lestrrat-go/jwx/v2/jwt"
-	"github.com/lestrrat-go/jwx/v2/jwt/openid"
+	"github.com/lestrrat-go/jwx/v3/jwt"
+	"github.com/lestrrat-go/jwx/v3/jwt/openid"
 	"github.com/spf13/cast"
 )
 
@@ -59,21 +59,15 @@ type ProfileEmail struct {
 // NewProfileFromOpenIDToken returns a new Profile with values from an openid.Token object
 func NewProfileFromOpenIDToken(token openid.Token) (*Profile, error) {
 	profile := Profile{
-		Picture:  token.Picture(),
-		Locale:   token.Locale(),
-		Timezone: token.Zoneinfo(),
+		Picture:  stringOrEmpty(token.Picture()),
+		Locale:   stringOrEmpty(token.Locale()),
+		Timezone: stringOrEmpty(token.Zoneinfo()),
 	}
 
 	// At least one of sub or id are required
-	profile.ID = token.Subject()
+	profile.ID, _ = token.Subject()
 	if profile.ID == "" {
-		idAny, ok := token.Get("id")
-		if ok {
-			id := cast.ToString(idAny)
-			if id != "" {
-				profile.ID = id
-			}
-		}
+		_ = token.Get("id", &profile.ID)
 	}
 	if profile.ID == "" {
 		return nil, errors.New("at least one of sub or id must be present")
@@ -81,22 +75,23 @@ func NewProfileFromOpenIDToken(token openid.Token) (*Profile, error) {
 
 	// Name
 	profile.Name = ProfileName{
-		FullName: token.Name(),
-		First:    token.GivenName(),
-		Middle:   token.MiddleName(),
-		Last:     token.FamilyName(),
-		Nickname: token.Nickname(),
+		FullName: stringOrEmpty(token.Name()),
+		First:    stringOrEmpty(token.GivenName()),
+		Middle:   stringOrEmpty(token.MiddleName()),
+		Last:     stringOrEmpty(token.FamilyName()),
+		Nickname: stringOrEmpty(token.Nickname()),
 	}
 
 	profile.Name.PopulateFullName()
 
-	email := token.Email()
+	email, _ := token.Email()
 	if email != "" {
-		verified := token.EmailVerified()
+		verified, _ := token.EmailVerified()
 		if !verified {
-			v, _ := token.Get("verified_email")
-			if v != "" {
-				verified = cast.ToBool(v)
+			// Non-standard verified_email claim
+			var v bool
+			if token.Get("verified_email", &v) == nil && v {
+				verified = true
 			}
 		}
 
@@ -238,4 +233,8 @@ func (n *ProfileName) PopulateFullName() {
 	if len(parts) > 0 {
 		n.FullName = strings.Join(parts, " ")
 	}
+}
+
+func stringOrEmpty(val string, _ bool) string {
+	return val
 }

@@ -5,7 +5,7 @@ import (
 	"strings"
 
 	"github.com/gin-gonic/gin"
-	"github.com/spf13/cast"
+	"github.com/lestrrat-go/jwx/v3/jwt"
 
 	"github.com/italypaleale/traefik-forward-auth/pkg/user"
 )
@@ -40,9 +40,11 @@ func (s *Server) RouteGetAPIVerify(c *gin.Context) {
 		AbortWithErrorJSON(c, NewInvalidTokenErrorf("Access token is invalid: %v", err))
 		return
 	}
-	claims, err := token.AsMap(c.Request.Context())
+
+	var provider string
+	err = token.Get(user.ProviderNameClaim, &provider)
 	if err != nil {
-		AbortWithErrorJSON(c, NewInvalidTokenErrorf("failed to get claims from token: %v", err))
+		AbortWithErrorJSON(c, NewInvalidTokenErrorf("failed to get '%s' claim from token: %v", user.ProviderNameClaim, err))
 		return
 	}
 
@@ -51,15 +53,15 @@ func (s *Server) RouteGetAPIVerify(c *gin.Context) {
 	c.JSON(http.StatusOK, GetAPIVerifyResponse{
 		Valid:    true,
 		Portal:   portal.Name,
-		Provider: cast.ToString(claims[user.ProviderNameClaim]),
-		Claims:   claims,
+		Provider: provider,
+		Claims:   token,
 	})
 }
 
 // GetAPIVerifyResponse is the response from RouteGetAPIVerify
 type GetAPIVerifyResponse struct {
-	Valid    bool           `json:"valid"`
-	Portal   string         `json:"portal"`
-	Provider string         `json:"provider"`
-	Claims   map[string]any `json:"claims"`
+	Valid    bool      `json:"valid"`
+	Portal   string    `json:"portal"`
+	Provider string    `json:"provider"`
+	Claims   jwt.Token `json:"claims"`
 }

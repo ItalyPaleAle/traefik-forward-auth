@@ -7,6 +7,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/lestrrat-go/jwx/v3/jwk"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -143,7 +144,7 @@ func TestSetTokenSigningKey(t *testing.T) {
 
 		tsk := config.GetTokenSigningKey()
 		var tskRaw []byte
-		err = tsk.Raw(&tskRaw)
+		err = jwk.Export(tsk, &tskRaw)
 		require.NoError(t, err)
 		assert.Equal(t, "b0c4b5e9cd81511ee72e7ecfcaee8fae84de71bc02e575960928cc606f6622fb", hex.EncodeToString(tskRaw))
 	})
@@ -157,7 +158,7 @@ func TestSetTokenSigningKey(t *testing.T) {
 		require.NoError(t, err)
 		tsk1 := config.GetTokenSigningKey()
 		var tsk1Raw []byte
-		err = tsk1.Raw(&tsk1Raw)
+		err = jwk.Export(tsk1, &tsk1Raw)
 		require.NoError(t, err)
 		require.Len(t, tsk1Raw, 32)
 
@@ -170,7 +171,7 @@ func TestSetTokenSigningKey(t *testing.T) {
 
 		tsk2 := config.GetTokenSigningKey()
 		var tsk2Raw []byte
-		err = tsk2.Raw(&tsk2Raw)
+		err = jwk.Export(tsk2, &tsk2Raw)
 		require.NoError(t, err)
 		assert.NotEqual(t, tsk1Raw, tsk2Raw)
 	})
