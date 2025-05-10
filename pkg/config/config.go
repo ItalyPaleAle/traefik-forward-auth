@@ -436,6 +436,7 @@ func (c *Config) GetAuthProvider() (auth.Provider, error) {
 			ClientSecret:           c.AuthMicrosoftEntraIDClientSecret,
 			AzureFederatedIdentity: c.AuthMicrosoftEntraIDAzureFederatedIdentity,
 			AllowedUsers:           c.AuthMicrosoftEntraIDAllowedUsers,
+			AllowedEmails:          c.AuthMicrosoftEntraIDAllowedEmails,
 			RequestTimeout:         c.AuthMicrosoftEntraIDRequestTimeout,
 			PKCEKey:                c.internal.pkceKey,
 		})
