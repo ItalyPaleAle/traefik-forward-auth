@@ -38,12 +38,6 @@ type Config struct {
 	// Logs configuration
 	Logs ConfigLogs `yaml:"logs"`
 
-	// Metrics configuration
-	Metrics ConfigMetrics `yaml:"metrics"`
-
-	// Tracing configuration
-	Tracing ConfigTracing `yaml:"tracing"`
-
 	// List of portals
 	Portals []ConfigPortal `yaml:"portals"`
 
@@ -140,42 +134,6 @@ type ConfigLogs struct {
 	// If true, emits logs formatted as JSON, otherwise uses a text-based structured log format.
 	// +default false if a TTY is attached (e.g. in development); true otherwise.
 	JSON bool `env:"LOGS_JSON" yaml:"json"`
-
-	// OpenTelemetry Collector endpoint for sending logs, for example: `<http(s)>://<otel-collector-address>:<otel-collector-port>/v1/logs`.
-	// If configured,logs are sent to the collector at the given address.
-	// This value can also be set using the environmental variables `OTEL_EXPORTER_OTLP_LOGS_ENDPOINT` or `OTEL_EXPORTER_OTLP_ENDPOINT` ("/v1/logs" is appended for HTTP), and optionally `OTEL_EXPORTER_OTLP_PROTOCOL` ("http/protobuf", the default, or "grpc").
-	OtelCollectorEndpoint string `env:"LOGS_OTELCOLLECTORENDPOINT" yaml:"otelCollectorEndpoint"`
-}
-
-type ConfigMetrics struct {
-	// Enable the metrics server, which exposes a Prometheus-compatible endpoint `/metrics`.
-	// +default false
-	ServerEnabled bool `env:"METRICS_SERVERENABLED" yaml:"serverEnabled"`
-
-	// Port for the metrics server to bind to.
-	// +default 2112
-	ServerPort int `env:"METRICS_SERVERPORT" yaml:"serverPort"`
-
-	// Address/interface for the metrics server to bind to.
-	// +default "0.0.0.0"
-	ServerBind string `env:"METRICS_SERVERBIND" yaml:"serverBind"`
-
-	// OpenTelemetry Collector endpoint for sending metrics, for example: `<http(s)-or-grpc(s)>://<otel-collector-address>:<otel-collector-port>/v1/metrics`
-	// If metrics are enabled and `metricsOtelCollectorEndpoint` is set, metrics are sent to the collector
-	// This value can also be set using the environmental variables `OTEL_EXPORTER_OTLP_METRICS_ENDPOINT` or `OTEL_EXPORTER_OTLP_ENDPOINT` ("/v1/metrics" is appended for HTTP), and optionally `OTEL_EXPORTER_OTLP_PROTOCOL` ("http/protobuf", the default, or "grpc")
-	OtelCollectorEndpoint string `env:"METRICS_OTELCOLLECTORENDPOINT" yaml:"otelCollectorEndpoint"`
-}
-
-type ConfigTracing struct {
-	// Sampling rate for traces, as a float.
-	// The default value is 1, sampling all requests.
-	// +default 1
-	Sampling float64 `env:"TRACING_SAMPLING" yaml:"sampling"`
-
-	// OpenTelemetry Collector endpoint for sending traces, for example: `<http(s)-or-grpc(s)>://<otel-collector-address>:<otel-collector-port>/v1/traces`.
-	// If `tracingOtelCollectorEndpoint` is set, tracing is enabled and sent to the collector.
-	// This value can also be set using the environmental variables `OTEL_EXPORTER_OTLP_TRACES_ENDPOINT` or `OTEL_EXPORTER_OTLP_ENDPOINT` ("/v1/traces" is appended for HTTP), and optionally `OTEL_EXPORTER_OTLP_PROTOCOL` ("http/protobuf", the default, or "grpc").
-	OtelCollectorEndpoint string `env:"TRACING_OTELCOLLECTORENDPOINT" yaml:"otelCollectorEndpoint"`
 }
 
 type ConfigTokens struct {
@@ -287,11 +245,6 @@ func (c *Config) GetInstanceID() string {
 
 // Validates the configuration and performs some sanitization
 func (c *Config) Validate(logger *slog.Logger) error {
-	// Validate tracing config
-	if c.Tracing.Sampling < 0 || c.Tracing.Sampling > 1 {
-		return errors.New("config key 'tracing.sampling' is invalid: must be between 0 and 1 (inclusive)")
-	}
-
 	// Hostname can have an optional port
 	if c.Server.Hostname == "" {
 		return errors.New("property 'server.hostname' is required and must be a valid hostname or IP")

@@ -41,8 +41,7 @@ type Server struct {
 	portals   map[string]Portal
 
 	// Servers
-	appSrv     *http.Server
-	metricsSrv *http.Server
+	appSrv *http.Server
 
 	// Method that forces a reload of TLS certificates from disk
 	tlsCertWatchFn tlsCertWatchFn
@@ -61,10 +60,9 @@ type Server struct {
 	// Server start time, used for Last-Modified headers
 	startTime time.Time
 
-	// Listeners for the app and metrics servers
-	// These can be used for testing without having to start an actual TCP listener
-	appListener     net.Listener
-	metricsListener net.Listener
+	// Listener for the app
+	// This can be used for testing without having to start an actual TCP listener
+	appListener net.Listener
 
 	// Optional function to add test routes
 	// This is used in testing
@@ -127,23 +125,13 @@ func (s *Server) initTracer(exporter sdkTrace.SpanExporter) error {
 		return nil
 	}
 
-	// Init the trace provider
-	var sampler sdkTrace.Sampler
-	switch {
-	case cfg.Tracing.Sampling == 1:
-		sampler = sdkTrace.ParentBased(sdkTrace.AlwaysSample())
-	case cfg.Tracing.Sampling == 0:
-		sampler = sdkTrace.NeverSample()
-	case cfg.Tracing.Sampling < 0, cfg.Tracing.Sampling > 1:
-		// Should never happen
-		return errors.New("invalid tracing sampling: must be between 0 and 1")
-	default:
-		sampler = sdkTrace.ParentBased(sdkTrace.TraceIDRatioBased(cfg.Tracing.Sampling))
+	resource, err := cfg.GetOtelResource(buildinfo.AppName)
+	if err != nil {
+		return fmt.Errorf("failed to get OpenTelemetry resource: %w", err)
 	}
 
 	s.tracer = sdkTrace.NewTracerProvider(
-		sdkTrace.WithResource(cfg.GetOtelResource(buildinfo.AppName)),
-		sdkTrace.WithSampler(sampler),
+		sdkTrace.WithResource(resource),
 		sdkTrace.WithBatcher(exporter),
 	)
 	otel.SetTracerProvider(s.tracer)
@@ -226,8 +214,6 @@ func (s *Server) Run(ctx context.Context) error {
 	defer s.running.Store(false)
 	defer s.wg.Wait()
 
-	cfg := config.Get()
-
 	// App server
 	s.wg.Add(1)
 	err := s.startAppServer(ctx)
@@ -248,29 +234,6 @@ func (s *Server) Run(ctx context.Context) error {
 			)
 		}
 	}()
-
-	// Metrics server
-	if cfg.Metrics.ServerEnabled {
-		s.wg.Add(1)
-		err = s.startMetricsServer(ctx)
-		if err != nil {
-			return fmt.Errorf("failed to start metrics server: %w", err)
-		}
-		defer func() {
-			// Handle graceful shutdown
-			defer s.wg.Done()
-			shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), 500*time.Millisecond)
-			err := s.metricsSrv.Shutdown(shutdownCtx)
-			shutdownCancel()
-			if err != nil {
-				// Log the error only (could be context canceled)
-				utils.LogFromContext(ctx).WarnContext(ctx,
-					"Metrics server shutdown error",
-					slog.Any("error", err),
-				)
-			}
-		}()
-	}
 
 	// If we have a tlsCertWatchFn, invoke that
 	if s.tlsCertWatchFn != nil {
@@ -335,50 +298,6 @@ func (s *Server) startAppServer(ctx context.Context) error {
 		}
 		if srvErr != http.ErrServerClosed {
 			utils.FatalError(log, "Error starting app server", srvErr)
-		}
-	}()
-
-	return nil
-}
-
-func (s *Server) startMetricsServer(ctx context.Context) error {
-	cfg := config.Get()
-	log := utils.LogFromContext(ctx)
-
-	// Handler
-	mux := http.NewServeMux()
-	mux.HandleFunc("/healthz", s.RouteHealthzHandler)
-	mux.Handle("/metrics", s.metrics.HTTPHandler())
-
-	// Create the HTTP server
-	s.metricsSrv = &http.Server{
-		Addr:              net.JoinHostPort(cfg.Metrics.ServerBind, strconv.Itoa(cfg.Metrics.ServerPort)),
-		Handler:           mux,
-		MaxHeaderBytes:    1 << 20,
-		ReadHeaderTimeout: 10 * time.Second,
-	}
-
-	// Create the listener if we don't have one already
-	if s.metricsListener == nil {
-		var err error
-		s.metricsListener, err = net.Listen("tcp", s.metricsSrv.Addr)
-		if err != nil {
-			return fmt.Errorf("failed to create TCP listener: %w", err)
-		}
-	}
-
-	// Start the HTTP server in a background goroutine
-	log.InfoContext(ctx, "Metrics server started",
-		slog.String("bind", cfg.Metrics.ServerBind),
-		slog.Int("port", cfg.Metrics.ServerPort),
-	)
-	go func() {
-		defer s.metricsListener.Close()
-
-		// Next call blocks until the server is shut down
-		srvErr := s.metricsSrv.Serve(s.metricsListener)
-		if srvErr != http.ErrServerClosed {
-			utils.FatalError(log, "Error starting metrics server", srvErr)
 		}
 	}()
 

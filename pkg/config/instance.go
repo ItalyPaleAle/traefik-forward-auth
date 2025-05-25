@@ -49,11 +49,6 @@ func GetDefaultConfig() *Config {
 			Level:            "info",
 			OmitHealthChecks: true,
 		},
-		Metrics: ConfigMetrics{
-			ServerEnabled: false,
-			ServerPort:    2112,
-			ServerBind:    "0.0.0.0",
-		},
 	}
 }
 

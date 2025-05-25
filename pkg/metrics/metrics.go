@@ -4,17 +4,16 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
-	"net/http"
+	"os"
 	"time"
 
 	"github.com/italypaleale/traefik-forward-auth/pkg/buildinfo"
 	"github.com/italypaleale/traefik-forward-auth/pkg/config"
 	prom "github.com/prometheus/client_golang/prometheus"
-	"github.com/prometheus/client_golang/prometheus/promhttp"
+	"go.opentelemetry.io/contrib/exporters/autoexport"
 	"go.opentelemetry.io/otel/attribute"
-	"go.opentelemetry.io/otel/exporters/prometheus"
 	api "go.opentelemetry.io/otel/metric"
-	metricSdk "go.opentelemetry.io/otel/sdk/metric"
+	"go.opentelemetry.io/otel/sdk/metric"
 )
 
 const prefix = "tfa"
@@ -28,41 +27,28 @@ type TFAMetrics struct {
 
 func NewTFAMetrics(ctx context.Context, log *slog.Logger) (m *TFAMetrics, shutdownFn func(ctx context.Context) error, err error) {
 	cfg := config.Get()
-
 	m = &TFAMetrics{}
-	providerOpts := make([]metricSdk.Option, 0, 2)
 
-	// If we have an OpenTelemetry Collector for metrics, add that
-	exporter, err := cfg.Metrics.GetMetricsExporter(ctx, log)
+	resource, err := cfg.GetOtelResource(buildinfo.AppName)
 	if err != nil {
-		return nil, nil, fmt.Errorf("failed to init metrics: %w", err)
-	}
-	if exporter != nil {
-		providerOpts = append(providerOpts,
-			metricSdk.WithReader(metricSdk.NewPeriodicReader(exporter)),
-			metricSdk.WithResource(cfg.GetOtelResource(buildinfo.AppName)),
-		)
+		return nil, nil, fmt.Errorf("failed to get OpenTelemetry resource: %w", err)
 	}
 
-	// If the metrics server is enabled, create a Prometheus exporter
-	if cfg.Metrics.ServerEnabled {
-		m.prometheusRegisterer = prom.NewRegistry()
-		promExporter, err := prometheus.New(
-			prometheus.WithRegisterer(m.prometheusRegisterer),
-		)
-		if err != nil {
-			return nil, nil, fmt.Errorf("failed to create Prometheus exporter: %w", err)
-		}
-		providerOpts = append(providerOpts, metricSdk.WithReader(promExporter))
+	// Get the metric reader
+	// If the env var OTEL_METRICS_EXPORTER is empty, we set it to "none"
+	if os.Getenv("OTEL_METRICS_EXPORTER") == "" {
+		os.Setenv("OTEL_METRICS_EXPORTER", "none")
+	}
+	mr, err := autoexport.NewMetricReader(ctx)
+	if err != nil {
+		return nil, nil, fmt.Errorf("failed to initialize OpenTelemetry metric reader: %w", err)
 	}
 
-	// If there's no exporter configured, stop here
-	if len(providerOpts) == 0 {
-		return nil, nil, nil
-	}
-
-	provider := metricSdk.NewMeterProvider(providerOpts...)
-	meter := provider.Meter(prefix)
+	mp := metric.NewMeterProvider(
+		metric.WithResource(resource),
+		metric.WithReader(mr),
+	)
+	meter := mp.Meter(prefix)
 
 	m.serverRequests, err = meter.Float64Histogram(
 		prefix+"_server_requests",
@@ -82,25 +68,7 @@ func NewTFAMetrics(ctx context.Context, log *slog.Logger) (m *TFAMetrics, shutdo
 		return nil, nil, fmt.Errorf("failed to create "+prefix+"_authentications meter: %w", err)
 	}
 
-	return m, provider.Shutdown, nil
-}
-
-func (m *TFAMetrics) HTTPHandler() http.Handler {
-	if m.prometheusRegisterer == nil {
-		// This indicates a development-time error
-		panic("called HTTPHandler when metrics server is disabled")
-	}
-
-	return promhttp.InstrumentMetricHandler(
-		m.prometheusRegisterer,
-		promhttp.HandlerFor(
-			prom.Gatherers{
-				m.prometheusRegisterer,
-				prom.DefaultGatherer,
-			},
-			promhttp.HandlerOpts{},
-		),
-	)
+	return m, mp.Shutdown, nil
 }
 
 // RecordServerRequest records a request processed by the server.

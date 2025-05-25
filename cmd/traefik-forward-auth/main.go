@@ -4,9 +4,11 @@ import (
 	"context"
 	"errors"
 	"log/slog"
+	"os"
 	"time"
 
 	"github.com/gin-gonic/gin"
+	"go.opentelemetry.io/contrib/exporters/autoexport"
 
 	"github.com/italypaleale/traefik-forward-auth/pkg/auth"
 	"github.com/italypaleale/traefik-forward-auth/pkg/buildinfo"
@@ -43,7 +45,7 @@ func main() {
 	shutdownFns := make([]utils.Service, 0, 3)
 
 	// Get the logger and set it in the context
-	log, loggerShutdownFn, err := getLogger(conf)
+	log, loggerShutdownFn, err := getLogger(context.Background(), conf)
 	if err != nil {
 		utils.FatalError(initLogger, "Failed to create logger", err)
 		return
@@ -102,16 +104,17 @@ func main() {
 		portals[p.Name] = portal
 	}
 
-	// Get the trace traceExporter if tracing is enabled
-	traceExporter, err := conf.Tracing.GetTraceExporter(ctx, log)
+	// Get the trace exporter
+	// If the env var OTEL_TRACES_EXPORTER is empty, we set it to "none"
+	if os.Getenv("OTEL_TRACES_EXPORTER") == "" {
+		os.Setenv("OTEL_TRACES_EXPORTER", "none")
+	}
+	traceExporter, err := autoexport.NewSpanExporter(ctx)
 	if err != nil {
 		utils.FatalError(log, "Failed to init trace exporter", err)
 		return
 	}
-
-	if traceExporter != nil {
-		shutdownFns = append(shutdownFns, traceExporter.Shutdown)
-	}
+	shutdownFns = append(shutdownFns, traceExporter.Shutdown)
 
 	// Create the Server object
 	srv, err := server.NewServer(server.NewServerOpts{

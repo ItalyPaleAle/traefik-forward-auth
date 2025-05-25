@@ -15,6 +15,7 @@ import (
 	"github.com/mitchellh/go-homedir"
 	"github.com/spf13/cast"
 	"go.opentelemetry.io/contrib/bridges/otelslog"
+	"go.opentelemetry.io/contrib/exporters/autoexport"
 	logGlobal "go.opentelemetry.io/otel/log/global"
 	logSdk "go.opentelemetry.io/otel/sdk/log"
 
@@ -59,19 +60,11 @@ func loadConfig() error {
 	return nil
 }
 
-func getLogger(cfg *config.Config) (log *slog.Logger, shutdownFn func(ctx context.Context) error, err error) {
+func getLogger(ctx context.Context, cfg *config.Config) (log *slog.Logger, shutdownFn func(ctx context.Context) error, err error) {
 	// Get the level
 	level, err := getLogLevel(cfg)
 	if err != nil {
 		return nil, nil, err
-	}
-
-	// Check if we are sending logs to an OTel collector
-	// We pass a background context here as the main context for the app isn't ready yet
-	exp, expLogFn, err := cfg.Logs.GetLogsExporter(context.Background())
-	if err != nil {
-		// We don't use newLoadConfigError as this is not a loading error
-		return nil, nil, fmt.Errorf("failed to get logger: %w", err)
 	}
 
 	// Create the handler
@@ -94,38 +87,46 @@ func getLogger(cfg *config.Config) (log *slog.Logger, shutdownFn func(ctx contex
 		})
 	}
 
-	// If we have an OpenTelemetry exporter, we need to create a handler that sends logs to OTel too
+	// Create a handler that sends logs to OTel too
 	// We wrap the handler in a "fanout" handler that sends logs to both
-	if exp != nil {
-		// Create the logger provider
-		provider := logSdk.NewLoggerProvider(
-			logSdk.WithProcessor(
-				logSdk.NewBatchProcessor(exp),
-			),
-			logSdk.WithResource(cfg.GetOtelResource(buildinfo.AppName)),
-		)
-
-		// Set the logger provider globally
-		logGlobal.SetLoggerProvider(provider)
-
-		// Wrap the handler in a "fanout" one
-		handler = utils.LogFanoutHandler{
-			handler,
-			otelslog.NewHandler(buildinfo.AppName, otelslog.WithLoggerProvider(provider)),
-		}
-
-		// Return a function to invoke during shutdown
-		shutdownFn = provider.Shutdown
+	resource, err := cfg.GetOtelResource(buildinfo.AppName)
+	if err != nil {
+		return nil, nil, fmt.Errorf("failed to get OpenTelemetry resource: %w", err)
 	}
+
+	// If the env var OTEL_LOGS_EXPORTER is empty, we set it to "none"
+	if os.Getenv("OTEL_LOGS_EXPORTER") == "" {
+		os.Setenv("OTEL_LOGS_EXPORTER", "none")
+	}
+	exp, err := autoexport.NewLogExporter(ctx)
+	if err != nil {
+		return nil, nil, fmt.Errorf("failed to initialize OpenTelemetry log exporter: %w", err)
+	}
+
+	// Create the logger provider
+	provider := logSdk.NewLoggerProvider(
+		logSdk.WithProcessor(
+			logSdk.NewBatchProcessor(exp),
+		),
+		logSdk.WithResource(resource),
+	)
+
+	// Set the logger provider globally
+	logGlobal.SetLoggerProvider(provider)
+
+	// Wrap the handler in a "fanout" one
+	handler = utils.LogFanoutHandler{
+		handler,
+		otelslog.NewHandler(buildinfo.AppName, otelslog.WithLoggerProvider(provider)),
+	}
+
+	// Return a function to invoke during shutdown
+	shutdownFn = provider.Shutdown
 
 	log = slog.New(handler).
 		With(slog.String("app", buildinfo.AppName)).
 		With(slog.String("version", buildinfo.AppVersion))
 
-	// If we have a function to emit a log from the exporter, invoke that now
-	if exp != nil && expLogFn != nil {
-		expLogFn(log)
-	}
 	return log, shutdownFn, nil
 }
 
