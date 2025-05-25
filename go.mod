@@ -2,41 +2,43 @@ module github.com/italypaleale/traefik-forward-auth
 
 go 1.24.0
 
+toolchain go1.24.3
+
 require (
 	github.com/Azure/azure-sdk-for-go/sdk/azcore v1.18.0
-	github.com/Azure/azure-sdk-for-go/sdk/azidentity v1.9.0
+	github.com/Azure/azure-sdk-for-go/sdk/azidentity v1.10.0
 	github.com/caarlos0/env/v11 v11.3.1
 	github.com/fsnotify/fsnotify v1.9.0
-	github.com/gin-gonic/gin v1.10.0
+	github.com/gin-gonic/gin v1.10.1
 	github.com/google/uuid v1.6.0
 	github.com/jinzhu/copier v0.4.0
 	github.com/lestrrat-go/jwx/v3 v3.0.1
-	github.com/lmittmann/tint v1.0.7
+	github.com/lmittmann/tint v1.1.0
 	github.com/mattn/go-isatty v0.0.20
 	github.com/mitchellh/go-homedir v1.1.0
 	github.com/prometheus/client_golang v1.22.0
 	github.com/spf13/cast v1.8.0
 	github.com/stretchr/testify v1.10.0
-	go.opentelemetry.io/contrib/bridges/otelslog v0.10.0
-	go.opentelemetry.io/contrib/instrumentation/github.com/gin-gonic/gin/otelgin v0.60.0
-	go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp v0.60.0
-	go.opentelemetry.io/otel v1.35.0
-	go.opentelemetry.io/otel/exporters/otlp/otlplog/otlploggrpc v0.11.0
-	go.opentelemetry.io/otel/exporters/otlp/otlplog/otlploghttp v0.11.0
-	go.opentelemetry.io/otel/exporters/otlp/otlpmetric/otlpmetricgrpc v1.35.0
-	go.opentelemetry.io/otel/exporters/otlp/otlpmetric/otlpmetrichttp v1.35.0
-	go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracegrpc v1.35.0
-	go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracehttp v1.35.0
-	go.opentelemetry.io/otel/exporters/prometheus v0.57.0
-	go.opentelemetry.io/otel/log v0.11.0
-	go.opentelemetry.io/otel/metric v1.35.0
-	go.opentelemetry.io/otel/sdk v1.35.0
-	go.opentelemetry.io/otel/sdk/log v0.11.0
-	go.opentelemetry.io/otel/sdk/metric v1.35.0
-	golang.org/x/net v0.39.0
-	golang.org/x/text v0.24.0
+	go.opentelemetry.io/contrib/bridges/otelslog v0.11.0
+	go.opentelemetry.io/contrib/instrumentation/github.com/gin-gonic/gin/otelgin v0.61.0
+	go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp v0.61.0
+	go.opentelemetry.io/otel v1.36.0
+	go.opentelemetry.io/otel/exporters/otlp/otlplog/otlploggrpc v0.12.2
+	go.opentelemetry.io/otel/exporters/otlp/otlplog/otlploghttp v0.12.2
+	go.opentelemetry.io/otel/exporters/otlp/otlpmetric/otlpmetricgrpc v1.36.0
+	go.opentelemetry.io/otel/exporters/otlp/otlpmetric/otlpmetrichttp v1.36.0
+	go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracegrpc v1.36.0
+	go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracehttp v1.36.0
+	go.opentelemetry.io/otel/exporters/prometheus v0.58.0
+	go.opentelemetry.io/otel/log v0.12.2
+	go.opentelemetry.io/otel/metric v1.36.0
+	go.opentelemetry.io/otel/sdk v1.36.0
+	go.opentelemetry.io/otel/sdk/log v0.12.2
+	go.opentelemetry.io/otel/sdk/metric v1.36.0
+	golang.org/x/net v0.40.0
+	golang.org/x/text v0.25.0
 	sigs.k8s.io/yaml v1.4.0
-	tailscale.com v1.82.5
+	tailscale.com v1.84.0
 )
 
 require (
@@ -48,9 +50,10 @@ require (
 	github.com/beorn7/perks v1.0.1 // indirect
 	github.com/bytedance/sonic v1.13.2 // indirect
 	github.com/bytedance/sonic/loader v0.2.4 // indirect
-	github.com/cenkalti/backoff/v4 v4.3.0 // indirect
+	github.com/cenkalti/backoff/v5 v5.0.2 // indirect
 	github.com/cespare/xxhash/v2 v2.3.0 // indirect
 	github.com/cloudwego/base64x v0.1.5 // indirect
+	github.com/coder/websocket v1.8.12 // indirect
 	github.com/davecgh/go-spew v1.1.2-0.20180830191138-d8f796af33cc // indirect
 	github.com/dblohm7/wingoes v0.0.0-20240119213807-a09d6be7affa // indirect
 	github.com/decred/dcrd/dcrec/secp256k1/v4 v4.4.0 // indirect
@@ -88,7 +91,7 @@ require (
 	github.com/pkg/browser v0.0.0-20240102092130-5ac0b6a4141c // indirect
 	github.com/pmezard/go-difflib v1.0.1-0.20181226105442-5d4384ee4fb2 // indirect
 	github.com/prometheus/client_model v0.6.2 // indirect
-	github.com/prometheus/common v0.63.0 // indirect
+	github.com/prometheus/common v0.64.0 // indirect
 	github.com/prometheus/procfs v0.16.1 // indirect
 	github.com/segmentio/asm v1.2.0 // indirect
 	github.com/tailscale/go-winio v0.0.0-20231025203758-c4f33415bf55 // indirect
@@ -96,20 +99,20 @@ require (
 	github.com/ugorji/go/codec v1.2.12 // indirect
 	github.com/x448/float16 v0.8.4 // indirect
 	go.opentelemetry.io/auto/sdk v1.1.0 // indirect
-	go.opentelemetry.io/otel/exporters/otlp/otlptrace v1.35.0 // indirect
-	go.opentelemetry.io/otel/trace v1.35.0 // indirect
+	go.opentelemetry.io/otel/exporters/otlp/otlptrace v1.36.0 // indirect
+	go.opentelemetry.io/otel/trace v1.36.0 // indirect
 	go.opentelemetry.io/proto/otlp v1.6.0 // indirect
 	go4.org/mem v0.0.0-20240501181205-ae6ca9944745 // indirect
 	go4.org/netipx v0.0.0-20231129151722-fdeea329fbba // indirect
-	golang.org/x/arch v0.16.0 // indirect
-	golang.org/x/crypto v0.37.0 // indirect
+	golang.org/x/arch v0.17.0 // indirect
+	golang.org/x/crypto v0.38.0 // indirect
 	golang.org/x/exp v0.0.0-20250218142911-aa4b98e5adaa // indirect
-	golang.org/x/sync v0.13.0 // indirect
-	golang.org/x/sys v0.32.0 // indirect
+	golang.org/x/sync v0.14.0 // indirect
+	golang.org/x/sys v0.33.0 // indirect
 	golang.zx2c4.com/wireguard/windows v0.5.3 // indirect
-	google.golang.org/genproto/googleapis/api v0.0.0-20250428153025-10db94c68c34 // indirect
-	google.golang.org/genproto/googleapis/rpc v0.0.0-20250428153025-10db94c68c34 // indirect
-	google.golang.org/grpc v1.72.0 // indirect
+	google.golang.org/genproto/googleapis/api v0.0.0-20250519155744-55703ea1f237 // indirect
+	google.golang.org/genproto/googleapis/rpc v0.0.0-20250519155744-55703ea1f237 // indirect
+	google.golang.org/grpc v1.72.1 // indirect
 	google.golang.org/protobuf v1.36.6 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 )
