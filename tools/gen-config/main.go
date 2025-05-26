@@ -386,6 +386,7 @@ func generateProviderExample(outYAML io.Writer, structType *ast.StructType, prov
 	fmt.Fprintf(outYAML, "  - name: %s\n", portalName)
 	fmt.Fprintf(outYAML, "    displayName: \"%s\"\n", displayTitle)
 	fmt.Fprintf(outYAML, "    authenticationTimeout: 5m\n")
+	fmt.Fprintf(outYAML, "    alwaysShowProvidersPage: false\n")
 	fmt.Fprintf(outYAML, "    providers:\n")
 	fmt.Fprintf(outYAML, "      - provider: %s\n", providerType)
 	fmt.Fprintf(outYAML, "        # Default name is the provider type\n")

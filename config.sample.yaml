@@ -126,7 +126,7 @@ logs:
 
 ## portals (list)
 ## Description:
-##   List of portals
+##   List of portals when running in multi-portal mode
 #portals: 
 
 ### Example Portal Configurations
@@ -137,6 +137,7 @@ portals:
   - name: github-portal
     displayName: "GitHub Authentication"
     authenticationTimeout: 5m
+    alwaysShowProvidersPage: false
     providers:
       - provider: github
         # Default name is the provider type
@@ -180,6 +181,7 @@ portals:
   - name: google-portal
     displayName: "Google Authentication"
     authenticationTimeout: 5m
+    alwaysShowProvidersPage: false
     providers:
       - provider: google
         # Default name is the provider type
@@ -237,6 +239,7 @@ portals:
   - name: microsoftentraid-portal
     displayName: "Microsoft Entra ID Authentication"
     authenticationTimeout: 5m
+    alwaysShowProvidersPage: false
     providers:
       - provider: microsoftentraid
         # Default name is the provider type
@@ -303,6 +306,7 @@ portals:
   - name: openidconnect-portal
     displayName: "OpenID Connect Authentication"
     authenticationTimeout: 5m
+    alwaysShowProvidersPage: false
     providers:
       - provider: openidconnect
         # Default name is the provider type
@@ -382,6 +386,7 @@ portals:
   - name: tailscalewhois-portal
     displayName: "Tailscale Whois Authentication"
     authenticationTimeout: 5m
+    alwaysShowProvidersPage: false
     providers:
       - provider: tailscalewhois
         # Default name is the provider type

@@ -21,6 +21,6 @@
 | <a id="config-opt-logs-level"></a>YAML: `logs.level`<br>Env: `TFA_LOGS_LEVEL` | string | Controls log level and verbosity. Supported values: `debug`, `info` (default), `warn`, `error`.| Default: _"info"_ |
 | <a id="config-opt-logs-omithealthchecks"></a>YAML: `logs.omitHealthChecks`<br>Env: `TFA_LOGS_OMITHEALTHCHECKS` | boolean | If true, calls to the healthcheck endpoint (`/healthz`) are not included in the logs.| Default: _true_ |
 | <a id="config-opt-logs-json"></a>YAML: `logs.json`<br>Env: `TFA_LOGS_JSON` | boolean | If true, emits logs formatted as JSON, otherwise uses a text-based structured log format.| Default: _false if a TTY is attached (e.g. in development); true otherwise._ |
-| <a id="config-opt-portals"></a>YAML: `portals`<br>Env: - | list | List of portals|  |
+| <a id="config-opt-portals"></a>YAML: `portals`<br>Env: - | list | List of portals when running in multi-portal mode|  |
 
 <!-- END CONFIG TABLE -->

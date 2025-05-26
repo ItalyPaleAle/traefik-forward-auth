@@ -38,7 +38,7 @@ type Config struct {
 	// Logs configuration
 	Logs ConfigLogs `yaml:"logs"`
 
-	// List of portals
+	// List of portals when running in multi-portal mode
 	Portals []ConfigPortal `yaml:"portals"`
 
 	// Dev is meant for development only; it's undocumented
@@ -162,7 +162,7 @@ type ConfigPortal struct {
 	Providers []ConfigPortalProvider `yaml:"providers"`
 
 	// If true, always shows the providers selection page, even when there's a single provider configured.
-	// Has no effect if there's more than one provider configured.
+	// Has no effect when there's more than one provider configured.
 	// +default false
 	AlwaysShowProvidersPage bool `yaml:"alwaysShowProvidersPage"`
 
