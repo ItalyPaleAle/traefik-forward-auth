@@ -118,7 +118,7 @@ func (a *Google) UserAllowed(profile *user.Profile) error {
 	return nil
 }
 
-func (a *Google) PopulateAdditionalClaims(token jwt.Token, setClaimFn func(key, val string)) {
+func (a *Google) PopulateAdditionalClaims(token jwt.Token, setClaimFn func(key string, val any)) {
 	var val string
 
 	if token.Get(googleClaimDomain, &val) == nil && val != "" {

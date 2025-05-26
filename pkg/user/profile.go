@@ -35,7 +35,7 @@ type Profile struct {
 	Roles []string
 
 	// Additional claims
-	AdditionalClaims map[string]string
+	AdditionalClaims map[string]any
 }
 
 // ProfileName contains the name of a user.
@@ -263,9 +263,9 @@ func (p *Profile) AppendClaims(builder *jwt.Builder) {
 	}
 }
 
-func (p *Profile) SetAdditionalClaim(key, val string) {
+func (p *Profile) SetAdditionalClaim(key string, val any) {
 	if p.AdditionalClaims == nil {
-		p.AdditionalClaims = make(map[string]string)
+		p.AdditionalClaims = make(map[string]any)
 	}
 	p.AdditionalClaims[key] = val
 }

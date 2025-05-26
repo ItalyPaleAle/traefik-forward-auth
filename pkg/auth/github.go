@@ -144,14 +144,14 @@ func (a *GitHub) OAuth2RetrieveProfile(ctx context.Context, at OAuth2AccessToken
 			Nickname: userData.Login,
 			FullName: fn,
 		},
-		AdditionalClaims: make(map[string]string, 1),
+		AdditionalClaims: make(map[string]any, 1),
 	}
 	profile.SetAdditionalClaim(githubClaimGitHubUserID, userData.ID)
 
 	return profile, nil
 }
 
-func (a *GitHub) PopulateAdditionalClaims(token jwt.Token, setClaimFn func(key, val string)) {
+func (a *GitHub) PopulateAdditionalClaims(token jwt.Token, setClaimFn func(key string, val any)) {
 	var val string
 
 	if token.Get(githubClaimGitHubUserID, &val) == nil && val != "" {

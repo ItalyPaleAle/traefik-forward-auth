@@ -11,8 +11,17 @@ import (
 	"github.com/Azure/azure-sdk-for-go/sdk/azcore"
 	"github.com/Azure/azure-sdk-for-go/sdk/azcore/policy"
 	"github.com/Azure/azure-sdk-for-go/sdk/azidentity"
+	"github.com/lestrrat-go/jwx/v3/jwt"
+	"github.com/lestrrat-go/jwx/v3/jwt/openid"
+	"github.com/spf13/cast"
 
 	"github.com/italypaleale/traefik-forward-auth/pkg/user"
+)
+
+const (
+	microsoftEntraIDClaimOid  = "oid"
+	microsoftEntraIDClaimTid  = "tid"
+	microsoftEntraIDClaimWids = "wids"
 )
 
 // MicrosoftEntraID manages authentication with Microsoft Entra ID.
@@ -51,6 +60,51 @@ func (o NewMicrosoftEntraIDOptions) ToNewOpenIDConnectOptions() NewOpenIDConnect
 		AllowedUsers:   o.AllowedUsers,
 		TokenIssuer:    "https://login.microsoftonline.com/" + o.TenantID + "/v2.0",
 		PKCEKey:        o.PKCEKey,
+
+		// Profile modifier functions that add these claims:
+		// - id: uses "oid" instead of "sub"
+		// - "tid": tenant ID
+		// - "wids": list of roles in the directory) and "tid" (tenant ID)
+		// https://learn.microsoft.com/en-us/entra/identity-platform/id-token-claims-reference
+		profileModifier: profileModifierFn{
+			Token: func(token openid.Token, profile *user.Profile) error {
+				var str string
+				if token.Get(microsoftEntraIDClaimOid, &str) == nil && str != "" {
+					profile.ID = str
+				}
+				if token.Get(microsoftEntraIDClaimTid, &str) == nil && str != "" {
+					profile.SetAdditionalClaim(microsoftEntraIDClaimTid, str)
+				}
+
+				var v any
+				if token.Get(microsoftEntraIDClaimWids, &v) == nil {
+					wids := cast.ToStringSlice(v)
+					if len(wids) > 0 {
+						profile.SetAdditionalClaim(microsoftEntraIDClaimWids, wids)
+					}
+				}
+				return nil
+			},
+			Claims: func(claims map[string]any, profile *user.Profile) error {
+				var str string
+				str = cast.ToString(claims[microsoftEntraIDClaimOid])
+				if str != "" {
+					profile.ID = str
+				}
+				str = cast.ToString(claims[microsoftEntraIDClaimTid])
+				if str != "" {
+					profile.SetAdditionalClaim(microsoftEntraIDClaimTid, str)
+				}
+
+				if v, ok := claims[microsoftEntraIDClaimWids]; ok {
+					wids := cast.ToStringSlice(v)
+					if len(wids) > 0 {
+						profile.SetAdditionalClaim(microsoftEntraIDClaimWids, wids)
+					}
+				}
+				return nil
+			},
+		},
 	}
 }
 
@@ -114,13 +168,6 @@ func NewMicrosoftEntraID(opts NewMicrosoftEntraIDOptions) (*MicrosoftEntraID, er
 	return a, nil
 }
 
-func (a *MicrosoftEntraID) UserIDFromProfile(profile *user.Profile) string {
-	if profile.Email != nil && profile.Email.Value != "" {
-		return profile.Email.Value
-	}
-	return profile.ID
-}
-
 func getFederatedIdentity(afi string) (fic azcore.TokenCredential, err error) {
 	// Crete the federated identity credential object depending on the kind of federated identity
 	afi = strings.ToLower(afi)
@@ -153,6 +200,16 @@ func getFederatedIdentity(afi string) (fic azcore.TokenCredential, err error) {
 	}
 
 	return fic, nil
+}
+
+func (a *MicrosoftEntraID) PopulateAdditionalClaims(token jwt.Token, setClaimFn func(key string, val any)) {
+	var val any
+	if token.Get(microsoftEntraIDClaimTid, &val) == nil {
+		setClaimFn(microsoftEntraIDClaimTid, val)
+	}
+	if token.Get(microsoftEntraIDClaimWids, &val) == nil {
+		setClaimFn(microsoftEntraIDClaimWids, val)
+	}
 }
 
 // Compile-time interface assertion

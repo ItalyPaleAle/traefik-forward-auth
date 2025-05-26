@@ -130,7 +130,7 @@ func (a *TailscaleWhois) SeamlessAuth(r *http.Request) (*user.Profile, error) {
 			FullName: info.UserProfile.DisplayName,
 		},
 		Picture: info.UserProfile.ProfilePicURL,
-		AdditionalClaims: map[string]string{
+		AdditionalClaims: map[string]any{
 			tailscaleWhoisClaimTailnet: tailnet,
 			tailscaleWhoisClaimIP:      sourceIP.String(),
 		},
@@ -166,7 +166,7 @@ func (a *TailscaleWhois) ValidateRequestClaims(r *http.Request, profile *user.Pr
 
 	var expectIP string
 	if profile.AdditionalClaims != nil {
-		expectIP = profile.AdditionalClaims[tailscaleWhoisClaimIP]
+		expectIP, _ = profile.AdditionalClaims[tailscaleWhoisClaimIP].(string)
 	}
 	if expectIP != sourceIP.String() {
 		return fmt.Errorf("token was issued for Tailscale IP '%s', but this request is from '%s'", expectIP, sourceIP.String())
@@ -179,7 +179,7 @@ func (a *TailscaleWhois) UserIDFromProfile(profile *user.Profile) string {
 	return profile.ID
 }
 
-func (a *TailscaleWhois) PopulateAdditionalClaims(token jwt.Token, setClaimFn func(key, val string)) {
+func (a *TailscaleWhois) PopulateAdditionalClaims(token jwt.Token, setClaimFn func(key string, val any)) {
 	var val string
 
 	if token.Get(tailscaleWhoisClaimIP, &val) == nil && val != "" {

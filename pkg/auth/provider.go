@@ -20,7 +20,7 @@ type Provider interface {
 	// ValidateRequestClaims validates that claims are valid for the incoming request from the client.
 	ValidateRequestClaims(r *http.Request, profile *user.Profile) error
 	// PopulateAdditionalClaims allows a provider to populate the AdditionalClaims property of a Profile object.
-	PopulateAdditionalClaims(token jwt.Token, setClaimFn func(key, val string))
+	PopulateAdditionalClaims(token jwt.Token, setClaimFn func(key string, val any))
 	// UserAllowed checks if the user can authenticate based on allowlists and other rules.
 	UserAllowed(profile *user.Profile) error
 

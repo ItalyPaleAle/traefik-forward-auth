@@ -3,8 +3,10 @@ package server
 import (
 	"fmt"
 	"net/http"
+	"reflect"
 
 	"github.com/gin-gonic/gin"
+	"github.com/spf13/cast"
 )
 
 // RouteGetProfile is the handler for GET /profile
@@ -55,32 +57,44 @@ func (s *Server) RouteGetProfile(c *gin.Context) {
 	if profile.Timezone != "" {
 		fmt.Fprint(c.Writer, "Timezone: "+profile.Timezone+"\n")
 	}
-	if len(profile.Groups) > 0 {
-		fmt.Fprint(c.Writer, "Groups: ")
-		for i, g := range profile.Groups {
-			if i > 0 {
-				fmt.Fprint(c.Writer, ", "+g)
-			} else {
-				fmt.Fprint(c.Writer, g)
-			}
+
+	switch {
+	case len(profile.Groups) > 1:
+		fmt.Fprint(c.Writer, "Groups:\n")
+		for _, v := range profile.Groups {
+			fmt.Fprint(c.Writer, "  - "+v+"\n")
 		}
-		fmt.Fprint(c.Writer, "\n")
+	case len(profile.Groups) == 1:
+		fmt.Fprint(c.Writer, "Group: "+profile.Groups[0]+"\n")
 	}
-	if len(profile.Roles) > 0 {
-		fmt.Fprint(c.Writer, "Roles: ")
-		for i, g := range profile.Roles {
-			if i > 0 {
-				fmt.Fprint(c.Writer, ", "+g)
-			} else {
-				fmt.Fprint(c.Writer, g)
-			}
+
+	switch {
+	case len(profile.Roles) > 1:
+		fmt.Fprint(c.Writer, "Roles:\n")
+		for _, v := range profile.Roles {
+			fmt.Fprint(c.Writer, "  - "+v+"\n")
 		}
-		fmt.Fprint(c.Writer, "\n")
+	case len(profile.Roles) == 1:
+		fmt.Fprint(c.Writer, "Role: "+profile.Roles[0]+"\n")
 	}
+
 	if len(profile.AdditionalClaims) > 0 {
 		fmt.Fprint(c.Writer, "Additional claims:\n")
 		for k, v := range profile.AdditionalClaims {
-			fmt.Fprint(c.Writer, "   "+k+": "+v+"\n")
+			if reflect.TypeOf(v).Kind() == reflect.Slice {
+				vs := cast.ToStringSlice(v)
+				switch {
+				case len(vs) > 1:
+					fmt.Fprint(c.Writer, "   "+k+":\n")
+					for _, v := range vs {
+						fmt.Fprint(c.Writer, "     - "+v+"\n")
+					}
+				case len(vs) == 1:
+					fmt.Fprint(c.Writer, "   "+k+": "+profile.Roles[0]+"\n")
+				}
+			} else {
+				fmt.Fprint(c.Writer, "   "+k+": "+cast.ToString(v)+"\n")
+			}
 		}
 	}
 }
@@ -119,7 +133,7 @@ func (s *Server) RouteGetProfileJSON(c *gin.Context) {
 		Timezone         string             `json:"timezone,omitempty"`
 		Groups           []string           `json:"groups,omitempty"`
 		Roles            []string           `json:"roles,omitempty"`
-		AdditionalClaims map[string]string  `json:"additionalClaims,omitempty"`
+		AdditionalClaims map[string]any     `json:"additionalClaims,omitempty"`
 	}
 	res := responseData{
 		Authenticated: true,
