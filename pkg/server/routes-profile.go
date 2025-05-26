@@ -55,6 +55,28 @@ func (s *Server) RouteGetProfile(c *gin.Context) {
 	if profile.Timezone != "" {
 		fmt.Fprint(c.Writer, "Timezone: "+profile.Timezone+"\n")
 	}
+	if len(profile.Groups) > 0 {
+		fmt.Fprint(c.Writer, "Groups: ")
+		for i, g := range profile.Groups {
+			if i > 0 {
+				fmt.Fprint(c.Writer, ", "+g)
+			} else {
+				fmt.Fprint(c.Writer, g)
+			}
+		}
+		fmt.Fprint(c.Writer, "\n")
+	}
+	if len(profile.Roles) > 0 {
+		fmt.Fprint(c.Writer, "Roles: ")
+		for i, g := range profile.Roles {
+			if i > 0 {
+				fmt.Fprint(c.Writer, ", "+g)
+			} else {
+				fmt.Fprint(c.Writer, g)
+			}
+		}
+		fmt.Fprint(c.Writer, "\n")
+	}
 	if len(profile.AdditionalClaims) > 0 {
 		fmt.Fprint(c.Writer, "Additional claims:\n")
 		for k, v := range profile.AdditionalClaims {
@@ -95,6 +117,8 @@ func (s *Server) RouteGetProfileJSON(c *gin.Context) {
 		Picture          string             `json:"picture,omitempty"`
 		Locale           string             `json:"local,omitempty"`
 		Timezone         string             `json:"timezone,omitempty"`
+		Groups           []string           `json:"groups,omitempty"`
+		Roles            []string           `json:"roles,omitempty"`
 		AdditionalClaims map[string]string  `json:"additionalClaims,omitempty"`
 	}
 	res := responseData{
@@ -117,6 +141,12 @@ func (s *Server) RouteGetProfileJSON(c *gin.Context) {
 			Address:  profile.Email.Value,
 			Verified: profile.Email.Verified,
 		}
+	}
+	if len(profile.Groups) > 0 {
+		res.Groups = profile.Groups
+	}
+	if len(profile.Roles) > 0 {
+		res.Roles = profile.Roles
 	}
 	if len(profile.AdditionalClaims) > 0 {
 		res.AdditionalClaims = profile.AdditionalClaims

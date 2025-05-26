@@ -29,6 +29,11 @@ type Profile struct {
 	// Time zone name
 	Timezone string
 
+	// Groups
+	Groups []string
+	// Roles
+	Roles []string
+
 	// Additional claims
 	AdditionalClaims map[string]string
 }
@@ -84,6 +89,7 @@ func NewProfileFromOpenIDToken(token openid.Token, provider string) (*Profile, e
 
 	profile.Name.PopulateFullName()
 
+	// Email
 	email, _ := token.Email()
 	if email != "" {
 		verified, _ := token.EmailVerified()
@@ -100,6 +106,11 @@ func NewProfileFromOpenIDToken(token openid.Token, provider string) (*Profile, e
 			Verified: verified,
 		}
 	}
+
+	// Groups and roles
+	// These could be a "groups"/"roles" claim containing a string or array, and we accept "group"/"role" too
+	profile.Groups = getGroupsClaimFromToken(token, "group")
+	profile.Roles = getGroupsClaimFromToken(token, "role")
 
 	return &profile, nil
 }
@@ -136,6 +147,7 @@ func NewProfileFromClaims(claims map[string]any, provider string) (*Profile, err
 
 	profile.Name.PopulateFullName()
 
+	// Email
 	email := cast.ToString(claims["email"])
 	if email != "" {
 		profile.Email = &ProfileEmail{
@@ -144,7 +156,56 @@ func NewProfileFromClaims(claims map[string]any, provider string) (*Profile, err
 		}
 	}
 
+	// Groups and roles
+	// These could be a "groups"/"roles" claim containing a string or array, and we accept "group"/"role" too
+	profile.Groups = getGroupsClaimFromMap(claims, "group")
+	profile.Roles = getGroupsClaimFromMap(claims, "role")
+
 	return profile, nil
+}
+
+func getGroupsClaimFromToken(token jwt.Token, claim string) (res []string) {
+	var v any
+
+	// Try the claim with plural name
+	if token.Get(claim+"s", &v) == nil {
+		res = cast.ToStringSlice(v)
+		if len(res) > 0 {
+			return res
+		}
+	}
+
+	// Try the claim with singular name
+	if token.Get(claim, &v) == nil {
+		res = cast.ToStringSlice(v)
+		if len(res) > 0 {
+			return res
+		}
+	}
+
+	return nil
+}
+
+func getGroupsClaimFromMap(claims map[string]any, claim string) (res []string) {
+	var ok bool
+
+	// Try the claim with plural name
+	if _, ok = claims[claim+"s"]; ok {
+		res = cast.ToStringSlice(claims[claim+"s"])
+		if len(res) > 0 {
+			return res
+		}
+	}
+
+	// Try the claim with singular name
+	if _, ok = claims[claim]; ok {
+		res = cast.ToStringSlice(claims[claim])
+		if len(res) > 0 {
+			return res
+		}
+	}
+
+	return nil
 }
 
 // GetEmail returns the email address of the user if present, with nil-checks
@@ -188,6 +249,13 @@ func (p *Profile) AppendClaims(builder *jwt.Builder) {
 	}
 	if p.Timezone != "" {
 		builder.Claim("zoneinfo", p.Timezone)
+	}
+
+	if len(p.Groups) > 0 {
+		builder.Claim("groups", p.Groups)
+	}
+	if len(p.Roles) > 0 {
+		builder.Claim("roles", p.Roles)
 	}
 
 	for k, v := range p.AdditionalClaims {

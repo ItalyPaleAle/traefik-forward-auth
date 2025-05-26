@@ -6,8 +6,13 @@ import (
 	"strings"
 	"time"
 
+	"github.com/lestrrat-go/jwx/v3/jwt/openid"
+	"github.com/spf13/cast"
+
 	"github.com/italypaleale/traefik-forward-auth/pkg/user"
 )
+
+const googleClaimDomain = "hd"
 
 // Google manages authentication with Google Identity.
 // It is based on the OpenIDConnect provider.
@@ -40,6 +45,26 @@ func (o NewGoogleOptions) ToNewOpenIDConnectOptions() NewOpenIDConnectOptions {
 		AllowedEmails:  o.AllowedEmails,
 		AllowedUsers:   o.AllowedUsers,
 		TokenIssuer:    "https://accounts.google.com",
+
+		// Profile modifier functions that add the "hd" claim
+		// This is set by Google on accounts that belong to an organization and indicates the domain of the org
+		// https://developers.google.com/identity/openid-connect/openid-connect
+		profileModifier: profileModifierFn{
+			Token: func(token openid.Token, profile *user.Profile) error {
+				var v string
+				if token.Get(googleClaimDomain, &v) == nil && v != "" {
+					profile.SetAdditionalClaim(googleClaimDomain, v)
+				}
+				return nil
+			},
+			Claims: func(claims map[string]any, profile *user.Profile) error {
+				v := cast.ToString(claims[googleClaimDomain])
+				if v != "" {
+					profile.SetAdditionalClaim(googleClaimDomain, v)
+				}
+				return nil
+			},
+		},
 	}
 }
 

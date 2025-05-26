@@ -22,8 +22,14 @@ import (
 // It is based on the OAuth 2 provider.
 type OpenIDConnect struct {
 	oAuth2
-	allowedEmails []string
-	allowedUsers  []string
+	allowedEmails   []string
+	allowedUsers    []string
+	profileModifier profileModifierFn
+}
+
+type profileModifierFn struct {
+	Token  func(openid.Token, *user.Profile) error
+	Claims func(map[string]any, *user.Profile) error
 }
 
 // NewOpenIDConnectOptions is the options for NewOpenIDConnect
@@ -52,6 +58,8 @@ type NewOpenIDConnectOptions struct {
 	skipClientSecretValidation bool
 	// Allows providers to modify the parameters passed to the IdP while invoking the token endpoint
 	tokenExchangeParametersModifier tokenExchangeParametersModifierFn
+	// Allows providers to modify the user profile
+	profileModifier profileModifierFn
 }
 
 // NewOpenIDConnect returns a new OpenIDConnect provider
@@ -113,9 +121,10 @@ func NewOpenIDConnect(ctx context.Context, opts NewOpenIDConnectOptions) (*OpenI
 	}
 
 	return &OpenIDConnect{
-		oAuth2:        oauth2,
-		allowedEmails: opts.AllowedEmails,
-		allowedUsers:  opts.AllowedUsers,
+		oAuth2:          oauth2,
+		allowedEmails:   opts.AllowedEmails,
+		allowedUsers:    opts.AllowedUsers,
+		profileModifier: opts.profileModifier,
 	}, nil
 }
 
@@ -150,9 +159,10 @@ func newOpenIDConnectInternal(providerType string, providerMetadata ProviderMeta
 	}
 
 	return &OpenIDConnect{
-		oAuth2:        oauth2,
-		allowedEmails: opts.AllowedEmails,
-		allowedUsers:  opts.AllowedUsers,
+		oAuth2:          oauth2,
+		allowedEmails:   opts.AllowedEmails,
+		allowedUsers:    opts.AllowedUsers,
+		profileModifier: opts.profileModifier,
 	}, nil
 }
 
@@ -184,6 +194,14 @@ func (a *OpenIDConnect) OAuth2RetrieveProfile(ctx context.Context, at OAuth2Acce
 		if err != nil {
 			return nil, fmt.Errorf("invalid claims in token: %w", err)
 		}
+
+		if a.profileModifier.Token != nil {
+			err = a.profileModifier.Token(oidToken, profile)
+			if err != nil {
+				return nil, fmt.Errorf("error from profile modifier callback: %w", err)
+			}
+		}
+
 		return profile, nil
 	}
 
@@ -223,6 +241,13 @@ func (a *OpenIDConnect) OAuth2RetrieveProfile(ctx context.Context, at OAuth2Acce
 	profile, err = user.NewProfileFromClaims(claims, a.GetProviderName())
 	if err != nil {
 		return nil, fmt.Errorf("invalid claims in token: %w", err)
+	}
+
+	if a.profileModifier.Claims != nil {
+		err = a.profileModifier.Claims(claims, profile)
+		if err != nil {
+			return nil, fmt.Errorf("error from profile modifier callback: %w", err)
+		}
 	}
 
 	return profile, nil
