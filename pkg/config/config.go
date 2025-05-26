@@ -41,6 +41,9 @@ type Config struct {
 	// List of portals when running in multi-portal mode
 	Portals []ConfigPortal `yaml:"portals"`
 
+	// If set to the name of a portal defined in "portals", it makes the portal available on the root endpoint, without the `portals/<name>/` prefix
+	DefaultPortal string `yaml:"defaultPortal"`
+
 	// Dev is meant for development only; it's undocumented
 	Dev ConfigDev `yaml:"-"`
 
@@ -322,6 +325,14 @@ func (c *Config) Validate(logger *slog.Logger) error {
 			return fmt.Errorf("duplicate portal '%s' found", c.Portals[i].Name)
 		}
 		names[c.Portals[i].Name] = struct{}{}
+	}
+
+	// If there's a default portal, ensure it exists
+	if c.DefaultPortal != "" {
+		_, ok := names[c.DefaultPortal]
+		if !ok {
+			return fmt.Errorf("default portal '%s' does not exist in the configuration", c.DefaultPortal)
+		}
 	}
 
 	return nil

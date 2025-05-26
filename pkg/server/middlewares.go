@@ -286,7 +286,13 @@ func (s *Server) MiddlewareLoggerMask(exp *regexp.Regexp, replace string) gin.Ha
 }
 
 func (s *Server) getPortal(c *gin.Context) (Portal, error) {
+	cfg := config.Get()
+
 	portalName := strings.ToLower(c.Param("portal"))
+	if portalName == "" && cfg.DefaultPortal != "" {
+		portalName = cfg.DefaultPortal
+	}
+
 	portal, ok := s.portals[portalName]
 	if !ok {
 		return Portal{}, NewResponseError(http.StatusNotFound, "Portal not found")

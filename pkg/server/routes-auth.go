@@ -496,5 +496,13 @@ func getOAuth2RedirectURI(c *gin.Context, portal string) string {
 // Get the URI for a portal
 func getPortalURI(c *gin.Context, portal string) string {
 	cfg := config.Get()
-	return c.GetHeader("X-Forwarded-Proto") + "://" + cfg.Server.Hostname + cfg.Server.BasePath + "/portals/" + portal
+
+	baseURI := c.GetHeader("X-Forwarded-Proto") + "://" + cfg.Server.Hostname + cfg.Server.BasePath
+
+	// If the user is visiting the default portal and they're using the "short" format, we omit the portal name in the URL
+	if c.Param("portal") == "" && cfg.DefaultPortal == portal {
+		return baseURI
+	}
+
+	return baseURI + "/portals/" + portal
 }

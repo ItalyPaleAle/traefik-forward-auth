@@ -22,5 +22,6 @@
 | <a id="config-opt-logs-omithealthchecks"></a>YAML: `logs.omitHealthChecks`<br>Env: `TFA_LOGS_OMITHEALTHCHECKS` | boolean | If true, calls to the healthcheck endpoint (`/healthz`) are not included in the logs.| Default: _true_ |
 | <a id="config-opt-logs-json"></a>YAML: `logs.json`<br>Env: `TFA_LOGS_JSON` | boolean | If true, emits logs formatted as JSON, otherwise uses a text-based structured log format.| Default: _false if a TTY is attached (e.g. in development); true otherwise._ |
 | <a id="config-opt-portals"></a>YAML: `portals`<br>Env: - | list | List of portals when running in multi-portal mode|  |
+| <a id="config-opt-defaultportal"></a>YAML: `defaultPortal`<br>Env: - | string | If set to the name of a portal defined in "portals", it makes the portal available on the root endpoint, without the `portals/<name>/` prefix|  |
 
 <!-- END CONFIG TABLE -->

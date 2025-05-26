@@ -181,16 +181,27 @@ func (s *Server) initAppServer(log *slog.Logger) (err error) {
 	s.appRouter.GET("/healthz", gin.WrapF(s.RouteHealthzHandler))
 
 	// Portals
-	// For the root route, we add it with and without trailing slash to avoid Gin setting up a 301 (Permanent) redirect, which causes issues with forward auth
-	portalRoutes := s.appRouter.Group(path.Join(conf.Server.BasePath, "portals/:portal"), s.MiddlewareProxyHeaders)
-	portalRoutes.GET("", s.MiddlewareRequireClientCertificate, s.MiddlewareLoadAuthCookie, s.RouteGetAuthRoot)
-	portalRoutes.GET("/", s.MiddlewareRequireClientCertificate, s.MiddlewareLoadAuthCookie, s.RouteGetAuthRoot)
-	portalRoutes.GET("/provider/:provider", s.MiddlewareRequireClientCertificate, s.MiddlewareLoadAuthCookie, s.RouteGetAuthProvider)
-	portalRoutes.GET("/oauth2/callback", codeFilterLogMw, s.RouteGetOAuth2Callback)
-	portalRoutes.GET("/signin", s.RouteGetAuthSignin)
-	portalRoutes.GET("/profile", s.MiddlewareLoadAuthCookie, s.RouteGetProfile)
-	portalRoutes.GET("/profile.json", s.MiddlewareLoadAuthCookie, s.RouteGetProfileJSON)
-	portalRoutes.GET("/logout", s.RouteGetLogout)
+	// If there's a default portal we also register it on the base path, without "portals/:portal"
+	registerPortalRoutes := func(r *gin.RouterGroup) {
+		// For the root route, we add it with and without trailing slash to avoid Gin setting up a 301 (Permanent) redirect, which causes issues with forward auth
+		r.GET("", s.MiddlewareRequireClientCertificate, s.MiddlewareLoadAuthCookie, s.RouteGetAuthRoot)
+		r.GET("/", s.MiddlewareRequireClientCertificate, s.MiddlewareLoadAuthCookie, s.RouteGetAuthRoot)
+		r.GET("/provider/:provider", s.MiddlewareRequireClientCertificate, s.MiddlewareLoadAuthCookie, s.RouteGetAuthProvider)
+		r.GET("/oauth2/callback", codeFilterLogMw, s.RouteGetOAuth2Callback)
+		r.GET("/signin", s.RouteGetAuthSignin)
+		r.GET("/profile", s.MiddlewareLoadAuthCookie, s.RouteGetProfile)
+		r.GET("/profile.json", s.MiddlewareLoadAuthCookie, s.RouteGetProfileJSON)
+		r.GET("/logout", s.RouteGetLogout)
+	}
+	registerPortalRoutes(
+		s.appRouter.Group(path.Join(conf.Server.BasePath, "portals/:portal"), s.MiddlewareProxyHeaders),
+	)
+
+	if conf.DefaultPortal != "" {
+		registerPortalRoutes(
+			s.appRouter.Group(conf.Server.BasePath, s.MiddlewareProxyHeaders),
+		)
+	}
 
 	// API Routes
 	// These do not follow BasePath and do not require a client certificate, or loading the auth cookie, or the proxy headers
