@@ -161,6 +161,11 @@ type ConfigPortal struct {
 	// +required
 	Providers []ConfigPortalProvider `yaml:"providers"`
 
+	// If true, always shows the providers selection page, even when there's a single provider configured.
+	// Has no effect if there's more than one provider configured.
+	// +default false
+	AlwaysShowProvidersPage bool `yaml:"alwaysShowProvidersPage"`
+
 	// Timeout for authenticating with the authentication provider.
 	// +default 5m
 	AuthenticationTimeout time.Duration `yaml:"authenticationTimeout"`

@@ -410,4 +410,5 @@ type Portal struct {
 	Providers             map[string]auth.Provider
 	ProvidersList         []string
 	AuthenticationTimeout time.Duration
+	AlwaysShowSigninPage  bool
 }

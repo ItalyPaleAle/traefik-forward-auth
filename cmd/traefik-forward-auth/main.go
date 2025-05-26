@@ -94,6 +94,7 @@ func main() {
 			Providers:             make(map[string]auth.Provider, len(providers)),
 			ProvidersList:         make([]string, len(providers)),
 			AuthenticationTimeout: p.AuthenticationTimeout,
+			AlwaysShowSigninPage:  p.AlwaysShowProvidersPage,
 		}
 		for i, p := range providers {
 			name := p.GetProviderName()

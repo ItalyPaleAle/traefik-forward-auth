@@ -137,15 +137,27 @@ func (s *Server) RouteGetAuthSignin(c *gin.Context) {
 		return
 	}
 
-	// Render the template
-	s.renderSigninTemplate(c, portal, stateCookieID, content.nonce)
-}
-
-func (s *Server) renderSigninTemplate(c *gin.Context, portal Portal, stateCookieID string, nonce string) {
-	conf := config.Get()
-
 	// Check if the user has just logged out, and if so, display the logged out banner
 	logoutBanner := utils.IsTruthy(c.Query("logout"))
+
+	// If there's a single provider, we redirect the user to that directly, unless AlwaysShowProvidersPage is true
+	// We also always display the signing page if the user just logged out
+	if len(portal.ProvidersList) == 1 && !portal.AlwaysShowSigninPage && !logoutBanner {
+		providerName := portal.ProvidersList[0]
+		redirectURL := getPortalURI(c, portal.Name) + "/provider/" + providerName + "?state=" + stateCookieID + "~" + content.nonce
+		c.Header("Location", redirectURL)
+		c.Header("Content-Type", "text/plain; charset=utf-8")
+		c.Writer.WriteHeader(http.StatusSeeOther)
+		_, _ = c.Writer.WriteString(`Redirecting to provider: ` + redirectURL)
+		return
+	}
+
+	// Render the template
+	s.renderSigninTemplate(c, portal, stateCookieID, content.nonce, logoutBanner)
+}
+
+func (s *Server) renderSigninTemplate(c *gin.Context, portal Portal, stateCookieID string, nonce string, logoutBanner bool) {
+	conf := config.Get()
 
 	//nolint:revive
 	type signingTemplateData_Provider struct {

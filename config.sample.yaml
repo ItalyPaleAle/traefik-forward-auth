@@ -124,54 +124,6 @@ logs:
   ## Default: false if a TTY is attached (e.g. in development); true otherwise.
   #json: 
 
-  ## logs.otelCollectorEndpoint (string)
-  ## Description:
-  ##   OpenTelemetry Collector endpoint for sending logs, for example: `<http(s)>://<otel-collector-address>:<otel-collector-port>/v1/logs`.
-  ##   If configured,logs are sent to the collector at the given address.
-  ##   This value can also be set using the environmental variables `OTEL_EXPORTER_OTLP_LOGS_ENDPOINT` or `OTEL_EXPORTER_OTLP_ENDPOINT` ("/v1/logs" is appended for HTTP), and optionally `OTEL_EXPORTER_OTLP_PROTOCOL` ("http/protobuf", the default, or "grpc").
-  #otelCollectorEndpoint: 
-
-metrics:
-  ## metrics.serverEnabled (boolean)
-  ## Description:
-  ##   Enable the metrics server, which exposes a Prometheus-compatible endpoint `/metrics`.
-  ## Default: false
-  #serverEnabled: 
-
-  ## metrics.serverPort (number)
-  ## Description:
-  ##   Port for the metrics server to bind to.
-  ## Default: 2112
-  #serverPort: 
-
-  ## metrics.serverBind (string)
-  ## Description:
-  ##   Address/interface for the metrics server to bind to.
-  ## Default: "0.0.0.0"
-  #serverBind: 
-
-  ## metrics.otelCollectorEndpoint (string)
-  ## Description:
-  ##   OpenTelemetry Collector endpoint for sending metrics, for example: `<http(s)-or-grpc(s)>://<otel-collector-address>:<otel-collector-port>/v1/metrics`
-  ##   If metrics are enabled and `metricsOtelCollectorEndpoint` is set, metrics are sent to the collector
-  ##   This value can also be set using the environmental variables `OTEL_EXPORTER_OTLP_METRICS_ENDPOINT` or `OTEL_EXPORTER_OTLP_ENDPOINT` ("/v1/metrics" is appended for HTTP), and optionally `OTEL_EXPORTER_OTLP_PROTOCOL` ("http/protobuf", the default, or "grpc")
-  #otelCollectorEndpoint: 
-
-tracing:
-  ## tracing.sampling (float)
-  ## Description:
-  ##   Sampling rate for traces, as a float.
-  ##   The default value is 1, sampling all requests.
-  ## Default: 1
-  #sampling: 
-
-  ## tracing.otelCollectorEndpoint (string)
-  ## Description:
-  ##   OpenTelemetry Collector endpoint for sending traces, for example: `<http(s)-or-grpc(s)>://<otel-collector-address>:<otel-collector-port>/v1/traces`.
-  ##   If `tracingOtelCollectorEndpoint` is set, tracing is enabled and sent to the collector.
-  ##   This value can also be set using the environmental variables `OTEL_EXPORTER_OTLP_TRACES_ENDPOINT` or `OTEL_EXPORTER_OTLP_ENDPOINT` ("/v1/traces" is appended for HTTP), and optionally `OTEL_EXPORTER_OTLP_PROTOCOL` ("http/protobuf", the default, or "grpc").
-  #otelCollectorEndpoint: 
-
 ## portals (list)
 ## Description:
 ##   List of portals
