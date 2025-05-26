@@ -6,6 +6,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/lestrrat-go/jwx/v3/jwt"
 	"github.com/lestrrat-go/jwx/v3/jwt/openid"
 	"github.com/spf13/cast"
 
@@ -115,6 +116,14 @@ func (a *Google) UserAllowed(profile *user.Profile) error {
 	}
 
 	return nil
+}
+
+func (a *Google) PopulateAdditionalClaims(token jwt.Token, setClaimFn func(key, val string)) {
+	var val string
+
+	if token.Get(googleClaimDomain, &val) == nil && val != "" {
+		setClaimFn(googleClaimDomain, val)
+	}
 }
 
 // Compile-time interface assertion
