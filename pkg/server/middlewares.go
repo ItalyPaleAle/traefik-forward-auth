@@ -20,6 +20,7 @@ import (
 
 const (
 	sessionAuthContextKey     = "session-auth"
+	sessionTokenContextKey    = "session-token"
 	sessionProfileContextKey  = "session-profile"
 	sessionProviderContextKey = "session-provider"
 	requestIDContextKey       = "request-id"
@@ -104,7 +105,7 @@ func (s *Server) MiddlewareLoadAuthCookie(c *gin.Context) {
 	}
 
 	// Get the cookie and parse it
-	profile, provider, err := s.getSessionCookie(c, portal.Name)
+	token, profile, provider, err := s.getSessionCookie(c, portal.Name)
 	if err != nil {
 		s.deleteSessionCookie(c, portal.Name)
 		AbortWithError(c, NewInvalidTokenErrorf("Session cookie is invalid: %v", err))
@@ -137,6 +138,7 @@ func (s *Server) MiddlewareLoadAuthCookie(c *gin.Context) {
 
 	// Set the claims in the context
 	c.Set(sessionAuthContextKey, true)
+	c.Set(sessionTokenContextKey, token)
 	c.Set(sessionProfileContextKey, profile)
 	c.Set(sessionProviderContextKey, provider)
 }

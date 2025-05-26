@@ -3,13 +3,18 @@ package server
 import (
 	"crypto/sha256"
 	"encoding/base64"
+	"errors"
 	"fmt"
 	"html/template"
 	"net/http"
 	"net/url"
+	"reflect"
+	"slices"
 	"strings"
 
 	"github.com/gin-gonic/gin"
+	"github.com/lestrrat-go/jwx/v3/jwt/openid"
+	"github.com/spf13/cast"
 
 	"github.com/italypaleale/traefik-forward-auth/pkg/auth"
 	"github.com/italypaleale/traefik-forward-auth/pkg/config"
@@ -29,20 +34,9 @@ func (s *Server) RouteGetAuthRoot(c *gin.Context) {
 	// Check if we have a session already
 	profile, provider := s.getProfileFromContext(c)
 	if profile != nil && provider != nil {
-		// If we are here, we have a valid session, so respond with a 200 status code
-		// Include the user name in the response body in case a visitor is hitting the auth server directly
-		s.metrics.RecordAuthentication(true)
-
-		// Set the X-Forwarded-User and X-Authenticated-User headers
-		userID := provider.UserIDFromProfile(profile)
-		c.Header("X-Forwarded-User", userID)
-		c.Header("X-Authenticated-User", auth.AuthenticatedUserFromProfile(provider, profile))
-
-		if utils.IsTruthy(c.Query("html")) {
-			s.renderAuthenticatedTemplate(c, portal, userID, provider)
-		} else {
-			_, _ = fmt.Fprintf(c.Writer, `You are authenticated with provider '%s' as '%s'`, provider.GetProviderDisplayName(), userID)
-		}
+		// We already have a session
+		// We normally get to this point when Traefik is checking if the request can proceed
+		s.handleAuthenticatedRoot(c, portal, provider, profile)
 		return
 	}
 
@@ -89,7 +83,79 @@ func (s *Server) RouteGetAuthRoot(c *gin.Context) {
 	_, _ = c.Writer.WriteString(`Redirecting to sign-in page: ` + signInURL)
 }
 
-func (s *Server) renderAuthenticatedTemplate(c *gin.Context, portal Portal, userID string, provider auth.Provider) {
+func (s *Server) handleAuthenticatedRoot(c *gin.Context, portal Portal, provider auth.Provider, profile *user.Profile) {
+	// Check if there's any condition ("if" query string arg) to check claims against, for AuthZ
+	cond := c.Query("if")
+	if cond != "" {
+		ok, err := s.checkAuthzConditions(c, cond)
+
+		if err != nil {
+			// Errors indicate thins such as invalid condition
+			_ = c.Error(fmt.Errorf("failed to check authorization condition: %w", err))
+			AbortWithError(c, NewResponseErrorf(http.StatusBadRequest, "Invalid authorization condition"))
+			return
+		} else if !ok {
+			// The token is not authorized
+			s.metrics.RecordAuthentication(false)
+			AbortWithError(c, NewResponseErrorf(http.StatusForbidden, "Token failed authorization checks"))
+			return
+		}
+	}
+
+	// If we are here, we have a valid session, so respond with a 200 status code
+	// Include the user name in the response body in case a visitor is hitting the auth server directly
+	s.metrics.RecordAuthentication(true)
+
+	// Set the X-Forwarded-User and X-Authenticated-User headers
+	userID := provider.UserIDFromProfile(profile)
+	c.Header("X-Forwarded-User", userID)
+	c.Header("X-Authenticated-User", auth.AuthenticatedUserFromProfile(provider, profile))
+
+	if utils.IsTruthy(c.Query("html")) {
+		s.renderAuthenticatedTemplate(c, portal, provider, userID)
+	} else {
+		_, _ = fmt.Fprintf(c.Writer, `You are authenticated with provider '%s' as '%s'`, provider.GetProviderDisplayName(), userID)
+	}
+}
+
+func (s *Server) checkAuthzConditions(c *gin.Context, cond string) (bool, error) {
+	// Parse the condition, which should be in the format "key=expect"
+	// If the expect of the claim "key" is an array, it checks that the expect is in the array
+	key, expect, ok := strings.Cut(cond, "=")
+	if !ok || key == "" || expect == "" {
+		return false, errors.New("invalid condition format")
+	}
+
+	// Get the token
+	token := s.getTokenFromContext(c)
+	if token == nil {
+		// Should never happen
+		return false, errors.New("token missing in context")
+	}
+
+	// Get the value
+	var valAny any
+	err := token.Get(key, &valAny)
+	if err != nil {
+		// This should happen only when the claim isn't present in the token
+		// Do not return the error here, just the failure
+		return false, nil
+	}
+
+	// Convert all primitive values (strings, bool, int) to strings, and all slices to []string
+	var pass bool
+	if reflect.TypeOf(valAny).Kind() == reflect.Slice {
+		// Check if the value is contained in the slice
+		pass = slices.Contains(cast.ToStringSlice(valAny), expect)
+	} else {
+		// Check if the string value matches
+		pass = cast.ToString(valAny) == expect
+	}
+
+	return pass, nil
+}
+
+func (s *Server) renderAuthenticatedTemplate(c *gin.Context, portal Portal, provider auth.Provider, userID string) {
 	conf := config.Get()
 
 	// Respond with 200, indicating Traefik that the user is successfully-authenticated
@@ -460,6 +526,23 @@ func (s *Server) getProfileFromContext(c *gin.Context) (*user.Profile, auth.Prov
 	}
 
 	return profile, provider
+}
+
+func (s *Server) getTokenFromContext(c *gin.Context) openid.Token {
+	if !c.GetBool(sessionAuthContextKey) {
+		return nil
+	}
+
+	tokenAny, ok := c.Get(sessionTokenContextKey)
+	if !ok {
+		return nil
+	}
+	token, ok := tokenAny.(openid.Token)
+	if !ok || token == nil {
+		return nil
+	}
+
+	return token
 }
 
 // Get the return URL, to redirect users to after a successful auth
