@@ -13,6 +13,7 @@ import (
 	"io"
 	"log/slog"
 	"net"
+	"os"
 	"regexp"
 	"strings"
 	"time"
@@ -148,6 +149,10 @@ type ConfigTokens struct {
 	// Can be generated for example with `openssl rand -base64 32`
 	// If left empty, it will be randomly generated every time the app starts (recommended, unless you need user sessions to persist after the application is restarted).
 	SigningKey string `env:"TOKENS_SIGNINGKEY" yaml:"signingKey"`
+
+	// File containing the key used to sign state tokens.
+	// This is an alternative to specifying `signingKey` tokens.directly.
+	SigningKeyFile string `env:"TOKENS_SIGNINGKEYFILE" yaml:"signingKeyFile"`
 }
 
 type ConfigPortal struct {
@@ -475,6 +480,24 @@ func (v *ConfigPortalProvider) Parse(c *Config) error {
 func (c *Config) SetTokenSigningKey(logger *slog.Logger) (err error) {
 	var tokenSigningKeyRaw []byte
 	b := []byte(c.Tokens.SigningKey)
+
+	// Try reading from file if present
+	if len(b) == 0 && c.Tokens.SigningKeyFile != "" {
+		b, err = os.ReadFile(c.Tokens.SigningKeyFile)
+		if err != nil {
+			return fmt.Errorf("failed to read token signing key from file '%s': %w", c.Tokens.SigningKeyFile, err)
+		}
+
+		if len(b) == 0 {
+			return fmt.Errorf("token signing key file '%s' is empty", c.Tokens.SigningKeyFile)
+		}
+	}
+
+	// Ensure that the key is at least 20-character long (although ideally it's 32 or more, but enforcing some minimum standard)
+	if len(b) > 0 && len(b) < 20 {
+		return errors.New("token signing key is too short: must be at least 20 characters")
+	}
+
 	if len(b) == 0 {
 		if logger != nil {
 			logger.Debug("No 'tokens.signingKey' found in the configuration: a random one will be generated")

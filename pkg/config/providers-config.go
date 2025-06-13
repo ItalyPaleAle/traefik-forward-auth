@@ -25,9 +25,14 @@ type ProviderConfig_GitHub struct {
 	// Client ID for the GitHub auth application
 	// +required
 	ClientID string `yaml:"clientID"`
-	// Client secret for the GitHub auth application
+	// Client secret for the GitHub application
+	// One of `clientSecret` and `clientSecretFile` is required.
 	// +required
 	ClientSecret string `yaml:"clientSecret"`
+	// File containing the client secret for the GitHub application
+	// This is an alternative to passing the secret as `clientSecret`
+	// One of `clientSecret` and `clientSecretFile` is required.
+	ClientSecretFile string `yaml:"clientSecretFile"`
 	// List of allowed users for GitHub auth
 	// This is a list of usernames
 	AllowedUsers []string `yaml:"allowedUsers"`
@@ -57,8 +62,13 @@ type ProviderConfig_Google struct {
 	// +required
 	ClientID string `yaml:"clientID"`
 	// Client secret for the Google auth application
+	// One of `clientSecret` and `clientSecretFile` is required.
 	// +required
 	ClientSecret string `yaml:"clientSecret"`
+	// File containing the client secret for the Google auth application
+	// This is an alternative to passing the secret as `clientSecret`
+	// One of `clientSecret` and `clientSecretFile` is required.
+	ClientSecretFile string `yaml:"clientSecretFile"`
 	// List of allowed users for Google auth
 	// This is a list of user IDs
 	AllowedUsers []string `yaml:"allowedUsers"`
@@ -74,14 +84,20 @@ type ProviderConfig_Google struct {
 }
 
 func (p *ProviderConfig_Google) GetAuthProvider(_ context.Context) (auth.Provider, error) {
-	return auth.NewGoogle(auth.NewGoogleOptions{
+	opts := auth.NewGoogleOptions{
 		ClientID:       p.ClientID,
 		ClientSecret:   p.ClientSecret,
 		AllowedUsers:   p.AllowedUsers,
 		AllowedEmails:  p.AllowedEmails,
 		AllowedDomains: p.AllowedDomains,
 		RequestTimeout: p.RequestTimeout,
-	})
+	}
+	err := populateSecretFromFile(&opts.ClientSecret, p.ClientSecretFile)
+	if err != nil {
+		return nil, err
+	}
+
+	return auth.NewGoogle(opts)
 }
 
 func (p *ProviderConfig_Google) SetConfigObject(_ *Config) {
@@ -101,6 +117,9 @@ type ProviderConfig_MicrosoftEntraID struct {
 	// Client secret for the Microsoft Entra ID auth application
 	// Required when not using Federated Identity Credentials
 	ClientSecret string `yaml:"clientSecret"`
+	// File containing the client secret for the Microsoft Entra ID application.
+	// This is an alternative to passing the secret as `clientSecret`
+	ClientSecretFile string `yaml:"clientSecretFile"`
 	// Enables the usage of Federated Identity Credentials to obtain assertions for confidential clients for Microsoft Entra ID applications.
 	// This is an alternative to using client secrets, when the application is running in Azure in an environment that supports Managed Identity, or in an environment that supports Workload Identity Federation with Microsoft Entra ID.
 	// Currently, these values are supported:
@@ -123,7 +142,7 @@ type ProviderConfig_MicrosoftEntraID struct {
 }
 
 func (p *ProviderConfig_MicrosoftEntraID) GetAuthProvider(_ context.Context) (auth.Provider, error) {
-	return auth.NewMicrosoftEntraID(auth.NewMicrosoftEntraIDOptions{
+	opts := auth.NewMicrosoftEntraIDOptions{
 		TenantID:               p.TenantID,
 		ClientID:               p.ClientID,
 		ClientSecret:           p.ClientSecret,
@@ -131,7 +150,13 @@ func (p *ProviderConfig_MicrosoftEntraID) GetAuthProvider(_ context.Context) (au
 		AllowedUsers:           p.AllowedUsers,
 		RequestTimeout:         p.RequestTimeout,
 		PKCEKey:                p.config.internal.pkceKey,
-	})
+	}
+	err := populateSecretFromFile(&opts.ClientSecret, p.ClientSecretFile)
+	if err != nil {
+		return nil, err
+	}
+
+	return auth.NewMicrosoftEntraID(opts)
 }
 
 func (p *ProviderConfig_MicrosoftEntraID) SetConfigObject(c *Config) {
@@ -142,12 +167,15 @@ func (p *ProviderConfig_MicrosoftEntraID) SetConfigObject(c *Config) {
 // +name openidconnect
 // +displayName OpenID Connect
 type ProviderConfig_OpenIDConnect struct {
-	// Client ID for the OpenID Connect auth application
+	// Client ID for the OpenID Connect application
 	// +required
 	ClientID string `yaml:"clientID"`
-	// Client secret for the OpenID Connect auth application
+	// Client secret for the OpenID Connect application
 	// +required
 	ClientSecret string `yaml:"clientSecret"`
+	// File containing the client secret for the OpenID Connect application
+	// This is an alternative to passing the secret as `clientSecret`
+	ClientSecretFile string `yaml:"clientSecretFile"`
 	// OpenID Connect token issuer
 	// The OpenID Connect configuration document will be fetched at `<token-issuer>/.well-known/openid-configuration`
 	// +required
@@ -155,7 +183,7 @@ type ProviderConfig_OpenIDConnect struct {
 	// List of allowed users for OpenID Connect auth
 	// This is a list of user IDs, as returned by the ID provider in the "sub" claim
 	AllowedUsers []string `yaml:"allowedUsers"`
-	// List of allowed email addresses for users for OpenID Connect auth
+	// List of allowed email addresses for users for OpenID Connect
 	// This is a list of email addresses, as returned by the ID provider in the "email" claim
 	AllowedEmails []string `yaml:"allowedEmails"`
 	// Timeout for network requests for OpenID Connect auth
@@ -197,7 +225,7 @@ func (p *ProviderConfig_OpenIDConnect) GetAuthProvider(ctx context.Context) (aut
 		}
 	}
 
-	return auth.NewOpenIDConnect(ctx, auth.NewOpenIDConnectOptions{
+	opts := auth.NewOpenIDConnectOptions{
 		ClientID:         p.ClientID,
 		ClientSecret:     p.ClientSecret,
 		TokenIssuer:      p.TokenIssuer,
@@ -207,7 +235,13 @@ func (p *ProviderConfig_OpenIDConnect) GetAuthProvider(ctx context.Context) (aut
 		PKCEKey:          pkceKey,
 		TLSSkipVerify:    p.TLSInsecureSkipVerify,
 		TLSCACertificate: tlsCACertificate,
-	})
+	}
+	err = populateSecretFromFile(&opts.ClientSecret, p.ClientSecretFile)
+	if err != nil {
+		return nil, err
+	}
+
+	return auth.NewOpenIDConnect(ctx, opts)
 }
 
 func (p *ProviderConfig_OpenIDConnect) SetConfigObject(c *Config) {
@@ -256,6 +290,27 @@ func ApplyProviderConfig(props map[string]any, dest any) error {
 	if err != nil {
 		return fmt.Errorf("failed to decode provider config: %w", err)
 	}
+
+	return nil
+}
+
+func populateSecretFromFile(secret *string, secretFile string) error {
+	// Do nothing if the secret is already populated or if the file name is empty
+	// If the secret is required, let downstream code handle that
+	if *secret != "" || secretFile == "" {
+		return nil
+	}
+
+	r, err := os.ReadFile(secretFile)
+	if err != nil {
+		return fmt.Errorf("failed to read secret file '%s': %w", secretFile, err)
+	}
+
+	if len(r) == 0 {
+		return fmt.Errorf("secret file '%s' is empty", secretFile)
+	}
+
+	*secret = string(r)
 
 	return nil
 }
