@@ -270,6 +270,48 @@ func (p *Profile) SetAdditionalClaim(key string, val any) {
 	p.AdditionalClaims[key] = val
 }
 
+// Get returns the value of the claim by its name
+func (p *Profile) Get(claim string) any {
+	switch claim {
+	case "provider":
+		return p.Provider
+	case "id", "sub":
+		return p.ID
+	case "name":
+		return p.Name.FullName
+	case "given_name":
+		return p.Name.First
+	case "middle_name":
+		return p.Name.Middle
+	case "family_name":
+		return p.Name.Last
+	case "nickname":
+		return p.Name.Nickname
+	case "email":
+		if p.Email == nil {
+			return ""
+		}
+		return p.Email.Value
+	case "email_verified":
+		if p.Email == nil {
+			return ""
+		}
+		return p.Email.Verified
+	case "picture":
+		return p.Picture
+	case "locale":
+		return p.Locale
+	case "zoneinfo":
+		return p.Timezone
+	case "groups":
+		return p.Groups
+	case "roles":
+		return p.Roles
+	default:
+		return p.AdditionalClaims[claim]
+	}
+}
+
 // PopulateFullName builds the full name if it's not set but there are other fields
 func (n *ProfileName) PopulateFullName() {
 	if n.FullName != "" {
@@ -283,19 +325,23 @@ func (n *ProfileName) PopulateFullName() {
 	}
 
 	// Build the full name as first + middle + last
-	parts := make([]string, 0, 3)
+	fn := strings.Builder{}
 	if n.First != "" {
-		parts = append(parts, n.First)
+		fn.WriteString(n.First)
 	}
 	if n.Middle != "" {
-		parts = append(parts, n.Middle)
+		if fn.Len() > 0 {
+			fn.WriteRune(' ')
+		}
+		fn.WriteString(n.Middle)
 	}
 	if n.Last != "" {
-		parts = append(parts, n.Last)
+		if fn.Len() > 0 {
+			fn.WriteRune(' ')
+		}
+		fn.WriteString(n.Last)
 	}
-	if len(parts) > 0 {
-		n.FullName = strings.Join(parts, " ")
-	}
+	n.FullName = fn.String()
 }
 
 func stringOrEmpty(val string, _ bool) string {
