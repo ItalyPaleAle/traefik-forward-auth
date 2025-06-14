@@ -26,9 +26,10 @@ func init() {
 			NOT: not,
 		},
 		Functions: map[string]any{
-			"Equal":         equal,
+			"ClaimEqual":    equal,
 			"Eq":            equal,
-			"Contains":      contains,
+			"ClaimContains": contains,
+			"Cont":          contains,
 			"Group":         group,
 			"Role":          role,
 			"EmailVerified": emailVerified,
