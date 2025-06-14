@@ -34,46 +34,46 @@ const (
 	returnURLClaim        = "tf_return_url"
 )
 
-func (s *Server) getSessionCookie(c *gin.Context, portalName string) (token openid.Token, profile *user.Profile, provider auth.Provider, err error) {
+func (s *Server) getSessionCookie(c *gin.Context, portalName string) (profile *user.Profile, provider auth.Provider, err error) {
 	cfg := config.Get()
 
 	// Get the cookie
 	cookieValue, err := c.Cookie(cfg.Cookies.CookieName(portalName))
 	if errors.Is(err, http.ErrNoCookie) {
-		return nil, nil, nil, nil
+		return nil, nil, nil
 	} else if err != nil {
-		return nil, nil, nil, fmt.Errorf("failed to get session cookie: %w", err)
+		return nil, nil, fmt.Errorf("failed to get session cookie: %w", err)
 	}
 	if cookieValue == "" {
-		return nil, nil, nil, fmt.Errorf("session cookie %s is empty", cfg.Cookies.CookieName(portalName))
+		return nil, nil, fmt.Errorf("session cookie %s is empty", cfg.Cookies.CookieName(portalName))
 	}
 
 	// Parse the JWT in the cookie
-	token, err = s.parseSessionToken(cookieValue, portalName)
+	token, err := s.parseSessionToken(cookieValue, portalName)
 	if err != nil {
-		return nil, nil, nil, err
+		return nil, nil, err
 	}
 
 	// Get the user profile from the claim
 	var providerName string
 	_ = token.Get(user.ProviderNameClaim, &providerName)
 	if providerName == "" {
-		return nil, nil, nil, fmt.Errorf("claim %s is missing or empty", user.ProviderNameClaim)
+		return nil, nil, fmt.Errorf("claim %s is missing or empty", user.ProviderNameClaim)
 	}
 	profile, err = user.NewProfileFromOpenIDToken(token, providerName)
 	if err != nil {
-		return nil, nil, nil, fmt.Errorf("failed to parse claims from session token JWT: %w", err)
+		return nil, nil, fmt.Errorf("failed to parse claims from session token JWT: %w", err)
 	}
 
 	provider = s.portals[portalName].Providers[profile.Provider]
 	if provider == nil {
-		return nil, nil, nil, errors.New("invalid provider in session token JWT")
+		return nil, nil, errors.New("invalid provider in session token JWT")
 	}
 
 	// Populate additional claims if any
 	provider.PopulateAdditionalClaims(token, profile.SetAdditionalClaim)
 
-	return token, profile, provider, nil
+	return profile, provider, nil
 }
 
 func (s *Server) parseSessionToken(val string, portalName string) (openid.Token, error) {

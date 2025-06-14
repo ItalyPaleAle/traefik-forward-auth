@@ -2,11 +2,9 @@ package auth
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"net"
 	"net/http"
-	"slices"
 	"strings"
 	"time"
 
@@ -28,7 +26,6 @@ type TailscaleWhois struct {
 
 	requestTimeout time.Duration
 	allowedTailnet string
-	allowedUsers   []string
 
 	httpClient *http.Client
 }
@@ -37,8 +34,6 @@ type TailscaleWhois struct {
 type NewTailscaleWhoisOptions struct {
 	// If non-empty, requires the Tailnet of the user to match this value
 	AllowedTailnet string
-	// If non-empty, allows these user accounts only
-	AllowedUsers []string
 	// Request timeout; defaults to 10s
 	RequestTimeout time.Duration
 }
@@ -66,7 +61,6 @@ func NewTailscaleWhois(opts NewTailscaleWhoisOptions) (*TailscaleWhois, error) {
 		httpClient:     httpClient,
 		requestTimeout: reqTimeout,
 		allowedTailnet: opts.AllowedTailnet,
-		allowedUsers:   opts.AllowedUsers,
 	}
 	return a, nil
 }
@@ -137,24 +131,6 @@ func (a *TailscaleWhois) SeamlessAuth(r *http.Request) (*user.Profile, error) {
 	}
 
 	return profile, nil
-}
-
-func (a *TailscaleWhois) UserAllowed(profile *user.Profile) error {
-	// Check tailnet
-	tailnet := profile.AdditionalClaims[tailscaleWhoisClaimTailnet]
-	if a.allowedTailnet != "" && tailnet != a.allowedTailnet {
-		if tailnet == "" {
-			return fmt.Errorf("user profile does not contain a tailnet name (normally, this indicates that the user is connecting to a shared node), but wanted users in tailnet '%s' only", a.allowedTailnet)
-		}
-		return fmt.Errorf("user is part of tailnet '%s', wanted '%s'", tailnet, a.allowedTailnet)
-	}
-
-	// Check allowed users
-	if len(a.allowedUsers) > 0 && !slices.Contains(a.allowedUsers, profile.ID) {
-		return errors.New("user ID is not in the allowlist")
-	}
-
-	return nil
 }
 
 func (a *TailscaleWhois) ValidateRequestClaims(r *http.Request, profile *user.Profile) error {

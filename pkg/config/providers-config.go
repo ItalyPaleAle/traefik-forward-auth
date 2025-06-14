@@ -33,9 +33,6 @@ type ProviderConfig_GitHub struct {
 	// This is an alternative to passing the secret as `clientSecret`
 	// One of `clientSecret` and `clientSecretFile` is required.
 	ClientSecretFile string `yaml:"clientSecretFile"`
-	// List of allowed users for GitHub auth
-	// This is a list of usernames
-	AllowedUsers []string `yaml:"allowedUsers"`
 	// Timeout for network requests for GitHub auth
 	// +default 10s
 	RequestTimeout time.Duration `yaml:"requestTimeout"`
@@ -45,7 +42,6 @@ func (p *ProviderConfig_GitHub) GetAuthProvider(_ context.Context) (auth.Provide
 	return auth.NewGitHub(auth.NewGitHubOptions{
 		ClientID:       p.ClientID,
 		ClientSecret:   p.ClientSecret,
-		AllowedUsers:   p.AllowedUsers,
 		RequestTimeout: p.RequestTimeout,
 	})
 }
@@ -69,15 +65,6 @@ type ProviderConfig_Google struct {
 	// This is an alternative to passing the secret as `clientSecret`
 	// One of `clientSecret` and `clientSecretFile` is required.
 	ClientSecretFile string `yaml:"clientSecretFile"`
-	// List of allowed users for Google auth
-	// This is a list of user IDs
-	AllowedUsers []string `yaml:"allowedUsers"`
-	// List of allowed email addresses of users for Google auth
-	// This is a list of email addresses
-	AllowedEmails []string `yaml:"allowedEmails"`
-	// List of allowed domains for Google auth
-	// This is a list of domains for email addresses
-	AllowedDomains []string `yaml:"allowedDomains"`
 	// Timeout for network requests for Google auth
 	// +default 10s
 	RequestTimeout time.Duration `yaml:"requestTimeout"`
@@ -87,9 +74,6 @@ func (p *ProviderConfig_Google) GetAuthProvider(_ context.Context) (auth.Provide
 	opts := auth.NewGoogleOptions{
 		ClientID:       p.ClientID,
 		ClientSecret:   p.ClientSecret,
-		AllowedUsers:   p.AllowedUsers,
-		AllowedEmails:  p.AllowedEmails,
-		AllowedDomains: p.AllowedDomains,
 		RequestTimeout: p.RequestTimeout,
 	}
 	err := populateSecretFromFile(&opts.ClientSecret, p.ClientSecretFile)
@@ -128,12 +112,6 @@ type ProviderConfig_MicrosoftEntraID struct {
 	// - `ManagedIdentity=client-id`: uses a user-assigned managed identity with client id "client-id" (e.g. "ManagedIdentity=00000000-0000-0000-0000-000000000000")
 	// - `WorkloadIdentity`: uses workload identity, e.g. for Kubernetes
 	AzureFederatedIdentity string `yaml:"azureFederatedIdentity"`
-	// List of allowed users for Microsoft Entra ID auth
-	// This is a list of user IDs
-	AllowedUsers []string `yaml:"allowedUsers"`
-	// List of allowed email addresses of users for Microsoft Entra ID auth
-	// This is a list of email addresses
-	AllowedEmails []string `yaml:"allowedEmails"`
 	// Timeout for network requests for Microsoft Entra ID auth
 	// +default 10s
 	RequestTimeout time.Duration `yaml:"requestTimeout"`
@@ -147,7 +125,6 @@ func (p *ProviderConfig_MicrosoftEntraID) GetAuthProvider(_ context.Context) (au
 		ClientID:               p.ClientID,
 		ClientSecret:           p.ClientSecret,
 		AzureFederatedIdentity: p.AzureFederatedIdentity,
-		AllowedUsers:           p.AllowedUsers,
 		RequestTimeout:         p.RequestTimeout,
 		PKCEKey:                p.config.internal.pkceKey,
 	}
@@ -180,12 +157,6 @@ type ProviderConfig_OpenIDConnect struct {
 	// The OpenID Connect configuration document will be fetched at `<token-issuer>/.well-known/openid-configuration`
 	// +required
 	TokenIssuer string `yaml:"tokenIssuer"`
-	// List of allowed users for OpenID Connect auth
-	// This is a list of user IDs, as returned by the ID provider in the "sub" claim
-	AllowedUsers []string `yaml:"allowedUsers"`
-	// List of allowed email addresses for users for OpenID Connect
-	// This is a list of email addresses, as returned by the ID provider in the "email" claim
-	AllowedEmails []string `yaml:"allowedEmails"`
 	// Timeout for network requests for OpenID Connect auth
 	// +default 10s
 	RequestTimeout time.Duration `yaml:"requestTimeout"`
@@ -229,8 +200,6 @@ func (p *ProviderConfig_OpenIDConnect) GetAuthProvider(ctx context.Context) (aut
 		ClientID:         p.ClientID,
 		ClientSecret:     p.ClientSecret,
 		TokenIssuer:      p.TokenIssuer,
-		AllowedUsers:     p.AllowedUsers,
-		AllowedEmails:    p.AllowedEmails,
 		RequestTimeout:   p.RequestTimeout,
 		PKCEKey:          pkceKey,
 		TLSSkipVerify:    p.TLSInsecureSkipVerify,
@@ -254,9 +223,6 @@ func (p *ProviderConfig_OpenIDConnect) SetConfigObject(c *Config) {
 type ProviderConfig_TailscaleWhois struct {
 	// If non-empty, requires the Tailnet of the user to match this value
 	AllowedTailnet string `yaml:"allowedTailnet"`
-	// List of allowed users for Tailscale Whois auth
-	// This is a list of user IDs as returned by the ID provider
-	AllowedUsers []string `yaml:"allowedUsers"`
 	// Timeout for network requests for Tailscale Whois auth
 	// +default 10s
 	RequestTimeout time.Duration `yaml:"requestTimeout"`
@@ -265,7 +231,6 @@ type ProviderConfig_TailscaleWhois struct {
 func (p *ProviderConfig_TailscaleWhois) GetAuthProvider(_ context.Context) (auth.Provider, error) {
 	return auth.NewTailscaleWhois(auth.NewTailscaleWhoisOptions{
 		AllowedTailnet: p.AllowedTailnet,
-		AllowedUsers:   p.AllowedUsers,
 		RequestTimeout: p.RequestTimeout,
 	})
 }

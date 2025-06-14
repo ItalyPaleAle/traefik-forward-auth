@@ -288,10 +288,7 @@ func (p *Profile) Get(claim string) any {
 	case "nickname":
 		return p.Name.Nickname
 	case "email":
-		if p.Email == nil {
-			return ""
-		}
-		return p.Email.Value
+		return p.GetEmail()
 	case "email_verified":
 		if p.Email == nil {
 			return ""

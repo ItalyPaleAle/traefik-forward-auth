@@ -8,7 +8,6 @@ import (
 	"io"
 	"net/http"
 	"net/url"
-	"slices"
 	"strings"
 	"time"
 
@@ -22,8 +21,6 @@ import (
 // It is based on the OAuth 2 provider.
 type OpenIDConnect struct {
 	oAuth2
-	allowedEmails   []string
-	allowedUsers    []string
 	profileModifier profileModifierFn
 }
 
@@ -40,10 +37,6 @@ type NewOpenIDConnectOptions struct {
 	ClientSecret string
 	// Token issuer
 	TokenIssuer string
-	// If non-empty, allows these user accounts only, matching the "sub" claim
-	AllowedUsers []string
-	// If non-empty, allows users with these email addresses only, matching the "email" claim
-	AllowedEmails []string
 	// Request timeout; defaults to 10s
 	RequestTimeout time.Duration
 	// Key for generating PKCE code verifiers
@@ -122,8 +115,6 @@ func NewOpenIDConnect(ctx context.Context, opts NewOpenIDConnectOptions) (*OpenI
 
 	return &OpenIDConnect{
 		oAuth2:          oauth2,
-		allowedEmails:   opts.AllowedEmails,
-		allowedUsers:    opts.AllowedUsers,
 		profileModifier: opts.profileModifier,
 	}, nil
 }
@@ -160,8 +151,6 @@ func newOpenIDConnectInternal(providerType string, providerMetadata ProviderMeta
 
 	return &OpenIDConnect{
 		oAuth2:          oauth2,
-		allowedEmails:   opts.AllowedEmails,
-		allowedUsers:    opts.AllowedUsers,
 		profileModifier: opts.profileModifier,
 	}, nil
 }
@@ -291,26 +280,6 @@ func fetchOIDCEndpoints(ctx context.Context, tokenIssuer string, client *http.Cl
 	}
 
 	return endpoints, nil
-}
-
-func (a *OpenIDConnect) UserAllowed(profile *user.Profile) error {
-	// Check allowed user IDs
-	if len(a.allowedUsers) > 0 && !slices.Contains(a.allowedUsers, profile.ID) {
-		return errors.New("user ID is not in the allowlist")
-	}
-
-	// Check the allowed email addresses
-	if len(a.allowedEmails) > 0 {
-		email := profile.GetEmail()
-		if email == "" {
-			return errors.New("profile does not contain an email address")
-		}
-		if !slices.Contains(a.allowedEmails, email) {
-			return errors.New("user's email address is not in the allowlist")
-		}
-	}
-
-	return nil
 }
 
 // Compile-time interface assertion

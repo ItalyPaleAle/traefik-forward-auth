@@ -19,6 +19,7 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/alphadose/haxmap"
 	"github.com/gin-gonic/gin"
 	"go.opentelemetry.io/contrib/instrumentation/github.com/gin-gonic/gin/otelgin"
 	"go.opentelemetry.io/otel"
@@ -32,13 +33,15 @@ import (
 	"github.com/italypaleale/traefik-forward-auth/pkg/config"
 	"github.com/italypaleale/traefik-forward-auth/pkg/metrics"
 	"github.com/italypaleale/traefik-forward-auth/pkg/utils"
+	"github.com/italypaleale/traefik-forward-auth/pkg/utils/conditions"
 )
 
 // Server is the server based on Gin
 type Server struct {
-	appRouter *gin.Engine
-	metrics   *metrics.TFAMetrics
-	portals   map[string]Portal
+	appRouter  *gin.Engine
+	metrics    *metrics.TFAMetrics
+	portals    map[string]Portal
+	predicates *haxmap.Map[string, cachedPredicate]
 
 	// Servers
 	appSrv *http.Server
@@ -84,9 +87,10 @@ type NewServerOpts struct {
 // NewServer creates a new Server object and initializes it
 func NewServer(opts NewServerOpts) (*Server, error) {
 	s := &Server{
-		metrics:   opts.Metrics,
-		portals:   opts.Portals,
-		startTime: time.Now().UTC(),
+		metrics:    opts.Metrics,
+		portals:    opts.Portals,
+		startTime:  time.Now().UTC(),
+		predicates: haxmap.New[string, cachedPredicate](),
 
 		addTestRoutes: opts.addTestRoutes,
 	}
@@ -254,11 +258,39 @@ func (s *Server) Run(ctx context.Context) error {
 		}
 	}
 
+	// Periodically clean up the cached predicates
+	go s.predicatesCacheCleanup(ctx)
+
 	// Block until the context is canceled
 	<-ctx.Done()
 
 	// Servers are stopped with deferred calls
 	return nil
+}
+
+func (s *Server) predicatesCacheCleanup(ctx context.Context) {
+	for {
+		ticker := time.NewTicker(10 * time.Minute)
+		defer ticker.Stop()
+
+		select {
+		// Exiting
+		case <-ctx.Done():
+			return
+
+		// Tick
+		case <-ticker.C:
+			// Clear all cached predicates that haven't been used in over a hour
+			before := time.Now().Add(-time.Hour).Unix()
+			keys := make([]string, 0)
+			for k, v := range s.predicates.Iterator() {
+				if v.lastUsed.Load() < before {
+					keys = append(keys, k)
+				}
+			}
+			s.predicates.Del(keys...)
+		}
+	}
 }
 
 func (s *Server) startAppServer(ctx context.Context) error {
@@ -422,4 +454,9 @@ type Portal struct {
 	ProvidersList         []string
 	AuthenticationTimeout time.Duration
 	AlwaysShowSigninPage  bool
+}
+
+type cachedPredicate struct {
+	predicate conditions.UserProfilePredicate
+	lastUsed  *atomic.Int64
 }

@@ -40,10 +40,6 @@ type NewMicrosoftEntraIDOptions struct {
 	ClientSecret string
 	// Enables the use of Federated Identity Credentials
 	AzureFederatedIdentity string
-	// If non-empty, allows these user accounts only (matching the internal user ID)
-	AllowedUsers []string
-	// If non-empty, allows users with these email addresses only
-	AllowedEmails []string
 	// Request timeout; defaults to 10s
 	RequestTimeout time.Duration
 	// Key for generating PKCE code verifiers
@@ -56,8 +52,6 @@ func (o NewMicrosoftEntraIDOptions) ToNewOpenIDConnectOptions() NewOpenIDConnect
 		ClientID:       o.ClientID,
 		ClientSecret:   o.ClientSecret,
 		RequestTimeout: o.RequestTimeout,
-		AllowedEmails:  o.AllowedEmails,
-		AllowedUsers:   o.AllowedUsers,
 		TokenIssuer:    "https://login.microsoftonline.com/" + o.TenantID + "/v2.0",
 		PKCEKey:        o.PKCEKey,
 

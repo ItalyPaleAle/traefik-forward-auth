@@ -540,21 +540,6 @@ func generateExampleValue(fieldType ast.Expr, fieldName string, providerType str
 		return "10s"
 	case "[]string":
 		switch fieldName {
-		case "allowedUsers":
-			switch providerType {
-			case "github":
-				return "\n" + fieldPrefix + "  - \"githubuser1\"\n" + fieldPrefix + "  - \"githubuser2\""
-			case "microsoftentraid":
-				return "\n" + fieldPrefix + "  - \"user-object-id\""
-			case "tailscalewhois":
-				return "\n" + fieldPrefix + "  - \"user@example.com\""
-			default:
-				return "\n" + fieldPrefix + "  - \"user1\"\n" + fieldPrefix + "  - \"user2\""
-			}
-		case "allowedEmails":
-			return "\n" + fieldPrefix + "  - \"user@example.com\""
-		case "allowedDomains":
-			return "\n" + fieldPrefix + "  - \"yourdomain.com\""
 		default:
 			return "\n" + fieldPrefix + "  - \"example1\"\n" + fieldPrefix + "  - \"example2\""
 		}

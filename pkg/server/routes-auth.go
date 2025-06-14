@@ -8,18 +8,17 @@ import (
 	"html/template"
 	"net/http"
 	"net/url"
-	"reflect"
-	"slices"
 	"strings"
+	"sync/atomic"
+	"time"
 
 	"github.com/gin-gonic/gin"
-	"github.com/lestrrat-go/jwx/v3/jwt/openid"
-	"github.com/spf13/cast"
 
 	"github.com/italypaleale/traefik-forward-auth/pkg/auth"
 	"github.com/italypaleale/traefik-forward-auth/pkg/config"
 	"github.com/italypaleale/traefik-forward-auth/pkg/user"
 	"github.com/italypaleale/traefik-forward-auth/pkg/utils"
+	"github.com/italypaleale/traefik-forward-auth/pkg/utils/conditions"
 )
 
 // RouteGetAuthRoot is the handler for GET /portals/:portal
@@ -84,20 +83,29 @@ func (s *Server) RouteGetAuthRoot(c *gin.Context) {
 }
 
 func (s *Server) handleAuthenticatedRoot(c *gin.Context, portal Portal, provider auth.Provider, profile *user.Profile) {
-	// Check if there's any condition ("if" query string arg) to check claims against, for AuthZ
+	// Check if there's any condition ("if" query string arg or "X-Forward-Auth-If" header) to check claims against, for AuthZ
 	cond := c.Query("if")
+	condHeader := c.GetHeader("X-Forward-Auth-If")
+	if cond != "" && condHeader != "" {
+		_ = c.Error(errors.New("condition passed in both 'if' query string arg and 'x-forward-auth-if' header"))
+		AbortWithError(c, NewResponseErrorf(http.StatusBadRequest, "Authorization condition passed in both 'if' query string arg and 'x-forward-auth-if' header"))
+		return
+	} else if condHeader != "" {
+		cond = condHeader
+	}
+
 	if cond != "" {
-		ok, err := s.checkAuthzConditions(c, cond)
+		ok, err := s.checkAuthzConditions(c, cond, profile)
 
 		if err != nil {
 			// Errors indicate thins such as invalid condition
-			_ = c.Error(fmt.Errorf("failed to check authorization condition: %w", err))
-			AbortWithError(c, NewResponseErrorf(http.StatusBadRequest, "Invalid authorization condition"))
+			_ = c.Error(fmt.Errorf("failed to check authorization rules: %w", err))
+			AbortWithError(c, NewResponseErrorf(http.StatusBadRequest, "Invalid authorization rules"))
 			return
 		} else if !ok {
 			// The token is not authorized
 			s.metrics.RecordAuthentication(false)
-			AbortWithError(c, NewResponseErrorf(http.StatusForbidden, "Token failed authorization checks"))
+			AbortWithError(c, NewResponseErrorf(http.StatusForbidden, "Access denied per authorization rules"))
 			return
 		}
 	}
@@ -118,41 +126,34 @@ func (s *Server) handleAuthenticatedRoot(c *gin.Context, portal Portal, provider
 	}
 }
 
-func (s *Server) checkAuthzConditions(c *gin.Context, cond string) (bool, error) {
-	// Parse the condition, which should be in the format "key=expect"
-	// If the expect of the claim "key" is an array, it checks that the expect is in the array
-	key, expect, ok := strings.Cut(cond, "=")
-	if !ok || key == "" || expect == "" {
-		return false, errors.New("invalid condition format")
-	}
+func (s *Server) checkAuthzConditions(c *gin.Context, cond string, profile *user.Profile) (bool, error) {
+	var err error
 
-	// Get the token
-	token := s.getTokenFromContext(c)
-	if token == nil {
-		// Should never happen
-		return false, errors.New("token missing in context")
-	}
-
-	// Get the value
-	var valAny any
-	err := token.Get(key, &valAny)
-	if err != nil {
-		// This should happen only when the claim isn't present in the token
-		// Do not return the error here, just the failure
-		return false, nil
-	}
-
-	// Convert all primitive values (strings, bool, int) to strings, and all slices to []string
-	var pass bool
-	if reflect.TypeOf(valAny).Kind() == reflect.Slice {
-		// Check if the value is contained in the slice
-		pass = slices.Contains(cast.ToStringSlice(valAny), expect)
+	// Get the predicate from the cache
+	// Note: we use Get and Set separately, instead of atomic operations like GetOrCompute, because we need to be able to handle errors
+	// This means there's a chance that we may compute the same predicate twice, if two requests happen in parallel, but it's acceptable in this case
+	var predicate conditions.UserProfilePredicate
+	cached, ok := s.predicates.Get(cond)
+	if ok {
+		predicate = cached.predicate
+		cached.lastUsed.Store(time.Now().Unix())
 	} else {
-		// Check if the string value matches
-		pass = cast.ToString(valAny) == expect
+		predicate, err = conditions.NewPredicate(cond)
+		if err != nil {
+			return false, fmt.Errorf("authorization condition is not valid: %w", err)
+		}
+
+		cached := cachedPredicate{
+			predicate: predicate,
+			lastUsed:  &atomic.Int64{},
+		}
+		cached.lastUsed.Store(time.Now().Unix())
+		s.predicates.Set(cond, cached)
 	}
 
-	return pass, nil
+	// Evaluate the condition
+	ok = predicate(profile)
+	return ok, nil
 }
 
 func (s *Server) renderAuthenticatedTemplate(c *gin.Context, portal Portal, provider auth.Provider, userID string) {
@@ -419,14 +420,6 @@ func (s *Server) RouteGetOAuth2Callback(c *gin.Context) {
 		return
 	}
 
-	// Check if the user is allowed per rules
-	err = provider.UserAllowed(profile)
-	if err != nil {
-		_ = c.Error(fmt.Errorf("access denied per allowlist rules: %w", err))
-		AbortWithError(c, NewResponseError(http.StatusUnauthorized, "Access denied per allowlist rules"))
-		return
-	}
-
 	// Set the profile in the cookie
 	err = s.setSessionCookie(c, portal.Name, profile)
 	if err != nil {
@@ -457,14 +450,6 @@ func (s *Server) handleGetAuthProviderSeamlessAuth(c *gin.Context, portal Portal
 
 	// Clear the state cookie for the portal
 	s.deleteStateCookies(c, portal.Name)
-
-	// Check if the user is allowed per rules
-	err = provider.UserAllowed(profile)
-	if err != nil {
-		_ = c.Error(fmt.Errorf("access denied per allowlist rules: %w", err))
-		AbortWithError(c, NewResponseError(http.StatusUnauthorized, "Access denied per allowlist rules"))
-		return
-	}
 
 	// Set the profile in the cookie
 	err = s.setSessionCookie(c, portal.Name, profile)
@@ -526,23 +511,6 @@ func (s *Server) getProfileFromContext(c *gin.Context) (*user.Profile, auth.Prov
 	}
 
 	return profile, provider
-}
-
-func (s *Server) getTokenFromContext(c *gin.Context) openid.Token {
-	if !c.GetBool(sessionAuthContextKey) {
-		return nil
-	}
-
-	tokenAny, ok := c.Get(sessionTokenContextKey)
-	if !ok {
-		return nil
-	}
-	token, ok := tokenAny.(openid.Token)
-	if !ok || token == nil {
-		return nil
-	}
-
-	return token
 }
 
 // Get the return URL, to redirect users to after a successful auth

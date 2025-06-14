@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"io"
 	"net/http"
-	"slices"
 	"strings"
 	"time"
 
@@ -25,7 +24,6 @@ const (
 // It is based on the OAuth 2 provider.
 type GitHub struct {
 	oAuth2
-	allowedUsers []string
 }
 
 // NewGitHubOptions is the options for NewGitHub
@@ -34,8 +32,6 @@ type NewGitHubOptions struct {
 	ClientID string
 	// Client secret
 	ClientSecret string
-	// If non-empty, allows these user accounts only
-	AllowedUsers []string
 	// Request timeout; defaults to 10s
 	RequestTimeout time.Duration
 }
@@ -78,8 +74,7 @@ func NewGitHub(opts NewGitHubOptions) (*GitHub, error) {
 	}
 
 	return &GitHub{
-		oAuth2:       oauth2,
-		allowedUsers: opts.AllowedUsers,
+		oAuth2: oauth2,
 	}, nil
 }
 
@@ -157,15 +152,6 @@ func (a *GitHub) PopulateAdditionalClaims(token jwt.Token, setClaimFn func(key s
 	if token.Get(githubClaimGitHubUserID, &val) == nil && val != "" {
 		setClaimFn(githubClaimGitHubUserID, val)
 	}
-}
-
-func (a *GitHub) UserAllowed(profile *user.Profile) error {
-	// Check allowed users
-	if len(a.allowedUsers) > 0 && !slices.Contains(a.allowedUsers, profile.ID) {
-		return errors.New("user login name is not in the allowlist")
-	}
-
-	return nil
 }
 
 // Compile-time interface assertion

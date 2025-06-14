@@ -294,11 +294,6 @@ func (a *oAuth2) PopulateAdditionalClaims(token jwt.Token, setClaimFn func(key s
 	// Nop in this implementation
 }
 
-func (a *oAuth2) UserAllowed(profile *user.Profile) error {
-	// Nop in this implementation
-	return nil
-}
-
 // Valid returns true if all fields are set
 func (e OAuth2Endpoints) Valid() bool {
 	return e.Authorization != "" && e.Token != "" && e.UserInfo != ""

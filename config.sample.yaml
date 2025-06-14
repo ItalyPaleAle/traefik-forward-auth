@@ -105,6 +105,12 @@ tokens:
   ##   If left empty, it will be randomly generated every time the app starts (recommended, unless you need user sessions to persist after the application is restarted).
   #signingKey: 
 
+  ## tokens.signingKeyFile (string)
+  ## Description:
+  ##   File containing the key used to sign state tokens.
+  ##   This is an alternative to specifying `signingKey` tokens.directly.
+  #signingKeyFile: 
+
 logs:
   ## logs.level (string)
   ## Description:
@@ -164,17 +170,17 @@ portals:
 
           ## clientSecret (string)
           ## Description:
-          ##   Client secret for the GitHub auth application
+          ##   Client secret for the GitHub application
+          ##   One of `clientSecret` and `clientSecretFile` is required.
           ## Required
           clientSecret: "your-client-secret"
 
-          ## allowedUsers (list of strings)
+          ## clientSecretFile (string)
           ## Description:
-          ##   List of allowed users for GitHub auth
-          ##   This is a list of usernames
-          # allowedUsers:
-          #   - "githubuser1"
-          #   - "githubuser2"
+          ##   File containing the client secret for the GitHub application
+          ##   This is an alternative to passing the secret as `clientSecret`
+          ##   One of `clientSecret` and `clientSecretFile` is required.
+          # clientSecretFile: "example-value"
 
           ## requestTimeout (duration)
           ## Description:
@@ -209,30 +215,16 @@ portals:
           ## clientSecret (string)
           ## Description:
           ##   Client secret for the Google auth application
+          ##   One of `clientSecret` and `clientSecretFile` is required.
           ## Required
           clientSecret: "your-client-secret"
 
-          ## allowedUsers (list of strings)
+          ## clientSecretFile (string)
           ## Description:
-          ##   List of allowed users for Google auth
-          ##   This is a list of user IDs
-          # allowedUsers:
-          #   - "user1"
-          #   - "user2"
-
-          ## allowedEmails (list of strings)
-          ## Description:
-          ##   List of allowed email addresses of users for Google auth
-          ##   This is a list of email addresses
-          # allowedEmails:
-          #   - "user@example.com"
-
-          ## allowedDomains (list of strings)
-          ## Description:
-          ##   List of allowed domains for Google auth
-          ##   This is a list of domains for email addresses
-          # allowedDomains:
-          #   - "yourdomain.com"
+          ##   File containing the client secret for the Google auth application
+          ##   This is an alternative to passing the secret as `clientSecret`
+          ##   One of `clientSecret` and `clientSecretFile` is required.
+          # clientSecretFile: "example-value"
 
           ## requestTimeout (duration)
           ## Description:
@@ -276,6 +268,12 @@ portals:
           ##   Required when not using Federated Identity Credentials
           # clientSecret: "your-client-secret"
 
+          ## clientSecretFile (string)
+          ## Description:
+          ##   File containing the client secret for the Microsoft Entra ID application.
+          ##   This is an alternative to passing the secret as `clientSecret`
+          # clientSecretFile: "example-value"
+
           ## azureFederatedIdentity (string)
           ## Description:
           ##   Enables the usage of Federated Identity Credentials to obtain assertions for confidential clients for Microsoft Entra ID applications.
@@ -286,20 +284,6 @@ portals:
           ##   - `ManagedIdentity=client-id`: uses a user-assigned managed identity with client id "client-id" (e.g. "ManagedIdentity=00000000-0000-0000-0000-000000000000")
           ##   - `WorkloadIdentity`: uses workload identity, e.g. for Kubernetes
           # azureFederatedIdentity: "ManagedIdentity"
-
-          ## allowedUsers (list of strings)
-          ## Description:
-          ##   List of allowed users for Microsoft Entra ID auth
-          ##   This is a list of user IDs
-          # allowedUsers:
-          #   - "user-object-id"
-
-          ## allowedEmails (list of strings)
-          ## Description:
-          ##   List of allowed email addresses of users for Microsoft Entra ID auth
-          ##   This is a list of email addresses
-          # allowedEmails:
-          #   - "user@example.com"
 
           ## requestTimeout (duration)
           ## Description:
@@ -327,15 +311,21 @@ portals:
         config:
           ## clientID (string)
           ## Description:
-          ##   Client ID for the OpenID Connect auth application
+          ##   Client ID for the OpenID Connect application
           ## Required
           clientID: "your-client-id"
 
           ## clientSecret (string)
           ## Description:
-          ##   Client secret for the OpenID Connect auth application
+          ##   Client secret for the OpenID Connect application
           ## Required
           clientSecret: "your-client-secret"
+
+          ## clientSecretFile (string)
+          ## Description:
+          ##   File containing the client secret for the OpenID Connect application
+          ##   This is an alternative to passing the secret as `clientSecret`
+          # clientSecretFile: "example-value"
 
           ## tokenIssuer (string)
           ## Description:
@@ -343,21 +333,6 @@ portals:
           ##   The OpenID Connect configuration document will be fetched at `<token-issuer>/.well-known/openid-configuration`
           ## Required
           tokenIssuer: "https://your-identity-provider/.well-known/openid-configuration"
-
-          ## allowedUsers (list of strings)
-          ## Description:
-          ##   List of allowed users for OpenID Connect auth
-          ##   This is a list of user IDs, as returned by the ID provider in the "sub" claim
-          # allowedUsers:
-          #   - "user1"
-          #   - "user2"
-
-          ## allowedEmails (list of strings)
-          ## Description:
-          ##   List of allowed email addresses for users for OpenID Connect auth
-          ##   This is a list of email addresses, as returned by the ID provider in the "email" claim
-          # allowedEmails:
-          #   - "user@example.com"
 
           ## requestTimeout (duration)
           ## Description:
@@ -409,13 +384,6 @@ portals:
           ## Description:
           ##   If non-empty, requires the Tailnet of the user to match this value
           # allowedTailnet: "yourtailnet.ts.net"
-
-          ## allowedUsers (list of strings)
-          ## Description:
-          ##   List of allowed users for Tailscale Whois auth
-          ##   This is a list of user IDs as returned by the ID provider
-          # allowedUsers:
-          #   - "user@example.com"
 
           ## requestTimeout (duration)
           ## Description:
