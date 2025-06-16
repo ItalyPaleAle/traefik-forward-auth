@@ -95,7 +95,7 @@ func (s *Server) handleAuthenticatedRoot(c *gin.Context, portal Portal, provider
 	}
 
 	if cond != "" {
-		ok, err := s.checkAuthzConditions(c, cond, profile)
+		ok, err := s.checkAuthzConditions(cond, profile)
 
 		if err != nil {
 			// Errors indicate thins such as invalid condition
@@ -126,7 +126,7 @@ func (s *Server) handleAuthenticatedRoot(c *gin.Context, portal Portal, provider
 	}
 }
 
-func (s *Server) checkAuthzConditions(c *gin.Context, cond string, profile *user.Profile) (bool, error) {
+func (s *Server) checkAuthzConditions(cond string, profile *user.Profile) (bool, error) {
 	var err error
 
 	// Get the predicate from the cache

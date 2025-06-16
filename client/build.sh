@@ -1,6 +1,6 @@
-#!/bin/sh
+#!/bin/bash
 
-set -euo pipefail
+set -eu
 
 # Create target directory
 rm -rvf dist/ || true
