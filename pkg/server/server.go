@@ -52,6 +52,7 @@ type Server struct {
 	// TLS configuration for the app server
 	tlsConfig *tls.Config
 
+	log     *slog.Logger
 	tracer  *sdkTrace.TracerProvider
 	running atomic.Bool
 	wg      sync.WaitGroup
@@ -91,6 +92,7 @@ func NewServer(opts NewServerOpts) (*Server, error) {
 		portals:    opts.Portals,
 		startTime:  time.Now().UTC(),
 		predicates: haxmap.New[string, cachedPredicate](),
+		log:        opts.Log.With(slog.String("pkg", "server")),
 
 		addTestRoutes: opts.addTestRoutes,
 	}

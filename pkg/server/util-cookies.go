@@ -8,6 +8,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"log/slog"
 	"net/http"
 	"strings"
 	"time"
@@ -155,6 +156,8 @@ func (s *Server) getStateCookie(c *gin.Context, portal Portal, stateCookieID str
 	cfg := config.Get()
 
 	// Get the cookie
+	s.log.Debug("get state cookie",
+		slog.String("cookieId", stateCookieID))
 	cookieValue, err := c.Cookie(stateCookieName(portal.Name, stateCookieID))
 	if errors.Is(err, http.ErrNoCookie) {
 		return stateCookieContent{}, nil
@@ -258,6 +261,11 @@ func (s *Server) setStateCookie(c *gin.Context, portal Portal, nonce string, ret
 	if err != nil {
 		return fmt.Errorf("failed to serialize token: %w", err)
 	}
+
+	s.log.Debug("set state cookie",
+		slog.String("cookieId", stateCookieID),
+		slog.String("cookieName", stateCookieName(portal.Name, stateCookieID)),
+		slog.String("cookieValue", string(cookieValue)))
 
 	// Set the cookie
 	c.SetSameSite(http.SameSiteLaxMode)

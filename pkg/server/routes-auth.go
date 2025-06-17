@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"html/template"
+	"log/slog"
 	"net/http"
 	"net/url"
 	"strings"
@@ -35,6 +36,7 @@ func (s *Server) RouteGetAuthRoot(c *gin.Context) {
 	if profile != nil && provider != nil {
 		// We already have a session
 		// We normally get to this point when Traefik is checking if the request can proceed
+		s.log.Debug("Already authenticated")
 		s.handleAuthenticatedRoot(c, portal, provider, profile)
 		return
 	}
@@ -76,6 +78,7 @@ func (s *Server) RouteGetAuthRoot(c *gin.Context) {
 		signInURL += "&logout=1"
 	}
 
+	s.log.Debug("Redirecting to signin", slog.String("url", signInURL))
 	c.Header("Location", signInURL)
 	c.Header("Content-Type", "text/plain; charset=utf-8")
 	c.Writer.WriteHeader(http.StatusSeeOther)
@@ -197,6 +200,9 @@ func (s *Server) RouteGetAuthSignin(c *gin.Context) {
 		s.deleteStateCookies(c, portal.Name)
 
 		redirectURL := getPortalURI(c, portal.Name)
+		s.log.Info("Issue with state cookie in /signin, redirecting",
+			slog.Any("err", err),
+			slog.String("url", redirectURL))
 		c.Header("Location", redirectURL)
 		c.Header("Content-Type", "text/plain; charset=utf-8")
 		c.Writer.WriteHeader(http.StatusSeeOther)
