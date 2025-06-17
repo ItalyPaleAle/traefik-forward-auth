@@ -1,5 +1,8 @@
 scratch
 config.md
+.bin/
+.idea/
+*.iml
 
 ## Client
 client/node_modules
