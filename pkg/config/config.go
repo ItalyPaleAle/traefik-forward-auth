@@ -56,44 +56,44 @@ type ConfigServer struct {
 	// The hostname the application is reached at.
 	// This is used for setting the "redirect_uri" field for OAuth2 callbacks.
 	// +required
-	Hostname string `env:"SERVER_HOSTNAME" yaml:"hostname"`
+	Hostname string `yaml:"hostname"`
 
 	// Port to bind to.
 	// +default 4181
-	Port int `env:"SERVER_PORT" yaml:"port"`
+	Port int `yaml:"port"`
 
 	// Address/interface to bind to.
 	// +default "0.0.0.0"
-	Bind string `env:"SERVER_BIND" yaml:"bind"`
+	Bind string `yaml:"bind"`
 
 	// Base path for all routes.
 	// Set this if Traefik is forwarding requests to traefik-forward-auth for specific paths only.
 	// Note: this does not apply to /api and /healthz routes
-	BasePath string `env:"SERVER_BASEPATH" yaml:"basePath"`
+	BasePath string `yaml:"basePath"`
 
 	// Path where to load TLS certificates from. Within the folder, the files must be named `tls-cert.pem` and `tls-key.pem` (and optionally `tls-ca.pem`).
 	// The server watches for changes in this folder and automatically reloads the TLS certificates when they're updated.
 	// If empty, certificates are loaded from the same folder where the loaded `config.yaml` is located.
 	// +default Folder where the `config.yaml` file is located
-	TLSPath string `env:"SERVER_TLSPATH" yaml:"tlsPath"`
+	TLSPath string `yaml:"tlsPath"`
 
 	// Full, PEM-encoded TLS certificate.
 	// Using `server.tlsCertPEM` and `server.tlsKeyPEM` is an alternative method of passing TLS certificates than using `server.tlsPath`.
-	TLSCertPEM string `env:"SERVER_TLSCERTPEM" yaml:"tlsCertPEM"`
+	TLSCertPEM string `yaml:"tlsCertPEM"`
 
 	// Full, PEM-encoded TLS key.
 	// Using `server.tlsCertPEM` and `server.tlsKeyPEM` is an alternative method of passing TLS certificates than using `server.tlsPath`.
-	TLSKeyPEM string `env:"SERVER_TLSKEYPEM" yaml:"tlsKeyPEM"`
+	TLSKeyPEM string `yaml:"tlsKeyPEM"`
 
 	// Full, PEM-encoded TLS CA certificate, used for TLS client authentication (mTLS).
 	// This is an alternative method of passing the CA certificate than using `tlsPath`.
 	// Note that this is ignored unless `server.tlsClientAuth` is set to `true`.
-	TLSCAPEM string `env:"SERVER_TLSCAPEM" yaml:"tlsCAPEM"`
+	TLSCAPEM string `yaml:"tlsCAPEM"`
 
 	// If true, enables mTLS for client authentication.
 	// Requests to the root endpoint (normally used by Traefik) must have a valid client certificate signed by the CA.
 	// +default false
-	TLSClientAuth bool `env:"SERVER_TLSCLIENTAUTH" yaml:"tlsClientAuth"`
+	TLSClientAuth bool `yaml:"tlsClientAuth"`
 
 	// String with the name of a header to trust as ID of each request. The ID is included in logs and in responses as `X-Request-ID` header.
 	// Common values include:
@@ -102,7 +102,7 @@ type ConfigServer struct {
 	// - `CF-Ray`: when the application is served by a [Cloudflare CDN](https://developers.cloudflare.com/fundamentals/get-started/reference/cloudflare-ray-id/)
 	//
 	// If this option is empty, or if it contains the name of a header that is not found in an incoming request, a random UUID is generated as request ID.
-	TrustedRequestIdHeader string `env:"SERVER_TRUSTEDREQUESTIDHEADER" yaml:"trustedRequestIdHeader"`
+	TrustedRequestIdHeader string `yaml:"trustedRequestIdHeader"`
 }
 
 type ConfigCookies struct {
@@ -110,16 +110,16 @@ type ConfigCookies struct {
 	// If empty, this is set to the value of the `hostname` property.
 	// This value must either be the same as the `hostname` property, or the hostname must be a sub-domain of the cookie domain name.
 	// +recommended
-	Domain string `env:"COOKIES_DOMAIN" yaml:"domain"`
+	Domain string `yaml:"domain"`
 
 	// Prefix for the cookies used to store the sessions.
 	// +default "tf_sess"
-	NamePrefix string `env:"COOKIES_NAME" yaml:"namePrefix"`
+	NamePrefix string `yaml:"namePrefix"`
 
 	// If true, sets cookies as "insecure", which are served on HTTP endpoints too.
 	// By default, this is false and cookies are sent on HTTPS endpoints only.
 	// +default false
-	Insecure bool `env:"COOKIES_INSECURE" yaml:"insecure"`
+	Insecure bool `yaml:"insecure"`
 }
 
 func (c ConfigCookies) CookieName(portalName string) string {
@@ -129,30 +129,30 @@ func (c ConfigCookies) CookieName(portalName string) string {
 type ConfigLogs struct {
 	// Controls log level and verbosity. Supported values: `debug`, `info` (default), `warn`, `error`.
 	// +default "info"
-	Level string `env:"LOGS_LEVEL" yaml:"level"`
+	Level string `yaml:"level"`
 
 	// If true, calls to the healthcheck endpoint (`/healthz`) are not included in the logs.
 	// +default true
-	OmitHealthChecks bool `env:"LOGS_OMITHEALTHCHECKS" yaml:"omitHealthChecks"`
+	OmitHealthChecks bool `yaml:"omitHealthChecks"`
 
 	// If true, emits logs formatted as JSON, otherwise uses a text-based structured log format.
 	// +default false if a TTY is attached (e.g. in development); true otherwise.
-	JSON bool `env:"LOGS_JSON" yaml:"json"`
+	JSON bool `yaml:"json"`
 }
 
 type ConfigTokens struct {
 	// Lifetime for sessions after a successful authentication.
 	// +default 2h
-	SessionLifetime time.Duration `env:"TOKENS_SESSIONLIFETIME" yaml:"sessionLifetime"`
+	SessionLifetime time.Duration `yaml:"sessionLifetime"`
 
 	// String used as key to sign state tokens.
 	// Can be generated for example with `openssl rand -base64 32`
 	// If left empty, it will be randomly generated every time the app starts (recommended, unless you need user sessions to persist after the application is restarted).
-	SigningKey string `env:"TOKENS_SIGNINGKEY" yaml:"signingKey"`
+	SigningKey string `yaml:"signingKey"`
 
 	// File containing the key used to sign state tokens.
 	// This is an alternative to specifying `signingKey` tokens.directly.
-	SigningKeyFile string `env:"TOKENS_SIGNINGKEYFILE" yaml:"signingKeyFile"`
+	SigningKeyFile string `yaml:"signingKeyFile"`
 }
 
 type ConfigPortal struct {

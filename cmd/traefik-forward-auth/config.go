@@ -18,44 +18,66 @@ import (
 	"go.opentelemetry.io/contrib/exporters/autoexport"
 	logGlobal "go.opentelemetry.io/otel/log/global"
 	logSdk "go.opentelemetry.io/otel/sdk/log"
+	yaml "sigs.k8s.io/yaml/goyaml.v3"
 
 	"github.com/italypaleale/traefik-forward-auth/pkg/buildinfo"
 	"github.com/italypaleale/traefik-forward-auth/pkg/config"
 	"github.com/italypaleale/traefik-forward-auth/pkg/utils"
-	"github.com/italypaleale/traefik-forward-auth/pkg/utils/configloader"
 )
 
-const configEnvPrefix = "TFA_"
+const configFileEnvVar = "TFA_CONFIG"
 
 func loadConfig() error {
 	// Get the path to the config.yaml
 	// First, try with the TFA_CONFIG env var
-	configFile := os.Getenv(configEnvPrefix + "CONFIG")
+	configFile := os.Getenv(configFileEnvVar)
 	if configFile != "" {
 		exists, _ := utils.FileExists(configFile)
 		if !exists {
-			return newLoadConfigError("Environmental variable "+configEnvPrefix+"CONFIG points to a file that does not exist", "Error loading config file")
+			return newLoadConfigError("Environmental variable "+configFileEnvVar+" points to a file that does not exist", "Error loading config file")
 		}
 	} else {
 		// Look in the default paths
+		// Note: It's .yaml not .yml! https://yaml.org/faq.html (insert "it's leviOsa, not levioSA" meme)
 		configFile = findConfigFile("config.yaml", ".", "~/.traefik-forward-auth", "/etc/traefik-forward-auth")
 		if configFile == "" {
 			// Ok, if you really, really want to use ".yml"....
 			configFile = findConfigFile("config.yml", ".", "~/.traefik-forward-auth", "/etc/traefik-forward-auth")
+		}
+
+		// Config file not found
+		if configFile == "" {
+			return newLoadConfigError("Could not find a configuration file config.yaml in the current folder, '~/.traefik-forward-auth', or '/etc/traefik-forward-auth'", "Error loading config file")
 		}
 	}
 
 	// Load the configuration
 	// Note that configFile can be empty
 	cfg := config.Get()
-	err := configloader.Load(cfg, configFile, configloader.LoadOptions{
-		EnvPrefix:                configEnvPrefix,
-		IgnoreZeroValuesInConfig: true,
-	})
+	err := loadConfigFile(cfg, configFile)
 	if err != nil {
 		return newLoadConfigError(err, "Error loading config file")
 	}
 	cfg.SetLoadedConfigPath(configFile)
+
+	return nil
+}
+
+// Loads the configuration from a file and from the environment.
+// "dst" must be a pointer to a struct.
+func loadConfigFile(dst any, filePath string) error {
+	f, err := os.Open(filePath)
+	if err != nil {
+		return fmt.Errorf("failed to open config file '%s': %w", filePath, err)
+	}
+	defer f.Close()
+
+	yamlDec := yaml.NewDecoder(f)
+	yamlDec.KnownFields(true)
+	err = yamlDec.Decode(dst)
+	if err != nil {
+		return fmt.Errorf("failed to decode config file '%s': %w", filePath, err)
+	}
 
 	return nil
 }
