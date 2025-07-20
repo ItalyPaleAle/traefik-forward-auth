@@ -19,7 +19,6 @@ import (
 
 const (
 	docsFileDest = "docs/03-all-configuration-options.md"
-	envPrefix    = "TFA_"
 )
 
 func generateFromStruct(filePath string) error {
@@ -126,7 +125,6 @@ func processStruct(structType *ast.StructType, prefix string, parentYamlPath str
 
 		unquoted, _ := strconv.Unquote(field.Tag.Value)
 		tags := reflect.StructTag(unquoted)
-		envTag, _ := tags.Lookup("env")
 		yamlTag, ok := tags.Lookup("yaml")
 		if !ok || yamlTag == "" || yamlTag == "-" {
 			continue
@@ -156,7 +154,7 @@ func processStruct(structType *ast.StructType, prefix string, parentYamlPath str
 
 		if !isStructField {
 			// Handle regular field
-			processField(field, fullYamlPath, envTag, outYAML, outMD, prefix)
+			processField(field, fullYamlPath, outYAML, outMD, prefix)
 			continue
 		}
 
@@ -188,7 +186,7 @@ func processStruct(structType *ast.StructType, prefix string, parentYamlPath str
 }
 
 // processField handles a single field, generating documentation
-func processField(field *ast.Field, yamlTag string, envTag string, outYAML io.Writer, outMD io.Writer, prefix string) {
+func processField(field *ast.Field, yamlTag string, outYAML io.Writer, outMD io.Writer, prefix string) {
 	var (
 		defaultText, doc                 string
 		required, recommended, lastEmpty bool
@@ -204,12 +202,8 @@ func processField(field *ast.Field, yamlTag string, envTag string, outYAML io.Wr
 	typ := fieldTypeName(field)
 
 	// Parse field documentation
-	envTagMD := "-"
-	if envTag != "" && envTag != "-" {
-		envTagMD = "`" + envPrefix + envTag + "`"
-	}
 	fmt.Fprintf(outYAML, "%s## %s (%s)\n", prefix, yamlTag, typ)
-	fmt.Fprintf(outMD, "| <a id=\"config-opt-%s\"></a>YAML: `%s`<br>Env: %s | %s | ", strings.ToLower(strings.ReplaceAll(yamlTag, ".", "-")), yamlTag, envTagMD, typ)
+	fmt.Fprintf(outMD, "| <a id=\"config-opt-%s\"></a>`%s` | %s | ", strings.ToLower(strings.ReplaceAll(yamlTag, ".", "-")), yamlTag, typ)
 	if field.Doc != nil {
 		doc = field.Doc.Text()
 	}
