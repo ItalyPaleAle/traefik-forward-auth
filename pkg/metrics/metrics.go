@@ -9,7 +9,6 @@ import (
 
 	"github.com/italypaleale/traefik-forward-auth/pkg/buildinfo"
 	"github.com/italypaleale/traefik-forward-auth/pkg/config"
-	prom "github.com/prometheus/client_golang/prometheus"
 	"go.opentelemetry.io/contrib/exporters/autoexport"
 	"go.opentelemetry.io/otel/attribute"
 	api "go.opentelemetry.io/otel/metric"
@@ -21,8 +20,6 @@ const prefix = "tfa"
 type TFAMetrics struct {
 	serverRequests  api.Float64Histogram
 	authentications api.Int64Counter
-
-	prometheusRegisterer *prom.Registry
 }
 
 func NewTFAMetrics(ctx context.Context, log *slog.Logger) (m *TFAMetrics, shutdownFn func(ctx context.Context) error, err error) {

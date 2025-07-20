@@ -35,7 +35,6 @@ func init() {
 			"EmailVerified": emailVerified,
 		},
 	})
-
 	if err != nil {
 		// Indicates a development-time error
 		panic("failed to init parser: " + err.Error())

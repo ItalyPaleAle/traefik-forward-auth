@@ -120,7 +120,7 @@ func TestNewProfileFromOpenIDToken(t *testing.T) {
 			profile, err := NewProfileFromOpenIDToken(token, "")
 
 			if tc.expectedError {
-				assert.Error(t, err)
+				require.Error(t, err)
 				assert.Nil(t, profile)
 			} else {
 				require.NoError(t, err)

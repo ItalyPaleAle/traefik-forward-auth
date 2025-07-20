@@ -539,10 +539,7 @@ func generateExampleValue(fieldType ast.Expr, fieldName string, providerType str
 	case "time.Duration":
 		return "10s"
 	case "[]string":
-		switch fieldName {
-		default:
-			return "\n" + fieldPrefix + "  - \"example1\"\n" + fieldPrefix + "  - \"example2\""
-		}
+		return "\n" + fieldPrefix + "  - \"example1\"\n" + fieldPrefix + "  - \"example2\""
 	default:
 		return ""
 	}
