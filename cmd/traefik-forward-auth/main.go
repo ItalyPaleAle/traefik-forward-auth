@@ -10,7 +10,6 @@ import (
 	"github.com/gin-gonic/gin"
 	"go.opentelemetry.io/contrib/exporters/autoexport"
 
-	"github.com/italypaleale/traefik-forward-auth/pkg/auth"
 	"github.com/italypaleale/traefik-forward-auth/pkg/buildinfo"
 	"github.com/italypaleale/traefik-forward-auth/pkg/config"
 	tfametrics "github.com/italypaleale/traefik-forward-auth/pkg/metrics"
@@ -56,7 +55,7 @@ func main() {
 	}
 
 	// Validate the configuration
-	err = processConfig(log, conf)
+	err = conf.Process(log)
 	if err != nil {
 		utils.FatalError(log, "Invalid configuration", err)
 		return
@@ -80,29 +79,10 @@ func main() {
 	}
 
 	// Get the portals
-	portals := make(map[string]server.Portal, len(conf.Portals))
-	for _, p := range conf.Portals {
-		providers, err := p.GetAuthProviders(ctx)
-		if err != nil {
-			utils.FatalError(log, "Failed to get auth providers for portal "+p.Name, err)
-			return
-		}
-
-		portal := server.Portal{
-			Name:                  p.Name,
-			DisplayName:           p.DisplayName,
-			Providers:             make(map[string]auth.Provider, len(providers)),
-			ProvidersList:         make([]string, len(providers)),
-			AuthenticationTimeout: p.AuthenticationTimeout,
-			AlwaysShowSigninPage:  p.AlwaysShowProvidersPage,
-		}
-		for i, p := range providers {
-			name := p.GetProviderName()
-			portal.Providers[name] = p
-			portal.ProvidersList[i] = name
-		}
-
-		portals[p.Name] = portal
+	portals, err := server.GetPortalsConfig(ctx, conf)
+	if err != nil {
+		utils.FatalError(log, "Failed to get portals configuration", err)
+		return
 	}
 
 	// Get the trace exporter

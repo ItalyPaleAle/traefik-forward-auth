@@ -1,4 +1,3 @@
-//nolint:revive
 package config
 
 import (
@@ -12,6 +11,27 @@ import (
 
 	"github.com/italypaleale/traefik-forward-auth/pkg/auth"
 )
+
+var providerConfigFactory map[string]func() ProviderConfig
+
+func init() {
+	entraIDFn := func() ProviderConfig { return &ProviderConfig_MicrosoftEntraID{} }
+	oidcFn := func() ProviderConfig { return &ProviderConfig_OpenIDConnect{} }
+	tailscaleFn := func() ProviderConfig { return &ProviderConfig_TailscaleWhois{} }
+
+	providerConfigFactory = map[string]func() ProviderConfig{
+		"github":           func() ProviderConfig { return &ProviderConfig_GitHub{} },
+		"google":           func() ProviderConfig { return &ProviderConfig_Google{} },
+		"microsoftentraid": entraIDFn,
+		"azuread":          entraIDFn,
+		"aad":              entraIDFn,
+		"entraid":          entraIDFn,
+		"openidconnect":    oidcFn,
+		"oidc":             oidcFn,
+		"tailscalewhois":   tailscaleFn,
+		"tailscale":        tailscaleFn,
+	}
+}
 
 type ProviderConfig interface {
 	GetAuthProvider(ctx context.Context) (auth.Provider, error)

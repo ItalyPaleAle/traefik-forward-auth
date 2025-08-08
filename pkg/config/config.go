@@ -268,6 +268,23 @@ func (c *Config) GetTokenAudienceClaim() string {
 	return c.Server.Hostname + c.Server.BasePath
 }
 
+// Processes the configuration
+func (c *Config) Process(log *slog.Logger) (err error) {
+	// Check required variables
+	err = c.Validate(log)
+	if err != nil {
+		return err
+	}
+
+	// Ensures the token signing key is present
+	err = c.SetTokenSigningKey(log)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
 // Validates the configuration and performs some sanitization
 func (c *Config) Validate(logger *slog.Logger) error {
 	// Hostname can have an optional port
@@ -444,44 +461,16 @@ func (v *ConfigPortalProvider) Parse(c *Config) error {
 		v.Name = strings.ToLower(v.Name)
 	}
 
-	switch v.Provider {
-	case "github":
-		v.configParsed = &ProviderConfig_GitHub{}
-		v.configParsed.SetConfigObject(c)
-		err := ApplyProviderConfig(v.Config, v.configParsed)
-		if err != nil {
-			return fmt.Errorf("invalid config for provider 'github': %w", err)
-		}
-	case "google":
-		v.configParsed = &ProviderConfig_Google{}
-		v.configParsed.SetConfigObject(c)
-		err := ApplyProviderConfig(v.Config, v.configParsed)
-		if err != nil {
-			return fmt.Errorf("invalid config for provider 'google': %w", err)
-		}
-	case "microsoftentraid", "azuread", "aad", "entraid":
-		v.configParsed = &ProviderConfig_MicrosoftEntraID{}
-		v.configParsed.SetConfigObject(c)
-		err := ApplyProviderConfig(v.Config, v.configParsed)
-		if err != nil {
-			return fmt.Errorf("invalid config for provider 'microsoftentraid': %w", err)
-		}
-	case "openidconnect", "oidc":
-		v.configParsed = &ProviderConfig_OpenIDConnect{}
-		v.configParsed.SetConfigObject(c)
-		err := ApplyProviderConfig(v.Config, v.configParsed)
-		if err != nil {
-			return fmt.Errorf("invalid config for provider 'openidconnect': %w", err)
-		}
-	case "tailscalewhois", "tailscale":
-		v.configParsed = &ProviderConfig_TailscaleWhois{}
-		v.configParsed.SetConfigObject(c)
-		err := ApplyProviderConfig(v.Config, v.configParsed)
-		if err != nil {
-			return fmt.Errorf("invalid config for provider 'tailscalewhois': %w", err)
-		}
-	default:
+	fn, ok := providerConfigFactory[v.Provider]
+	if !ok {
 		return fmt.Errorf("invalid value for 'provider': %s", v.Provider)
+	}
+	v.configParsed = fn()
+
+	v.configParsed.SetConfigObject(c)
+	err := ApplyProviderConfig(v.Config, v.configParsed)
+	if err != nil {
+		return fmt.Errorf("invalid config for provider '%s': %w", v.Provider, err)
 	}
 
 	return nil

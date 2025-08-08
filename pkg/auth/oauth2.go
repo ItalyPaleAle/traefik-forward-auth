@@ -16,7 +16,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/lestrrat-go/jwx/v3/jwt"
 	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
 
 	"github.com/italypaleale/traefik-forward-auth/pkg/user"
@@ -279,15 +278,6 @@ type oAuth2TokenResponse struct {
 func (a *oAuth2) OAuth2RetrieveProfile(ctx context.Context, at OAuth2AccessToken) (profile *user.Profile, err error) {
 	// This method needs to be implemented in structs that embed OAuth2
 	panic("Method OAuth2RetrieveProfile must be implemented by a struct inheriting OAuth2")
-}
-
-func (a *oAuth2) ValidateRequestClaims(r *http.Request, profile *user.Profile) error {
-	// This implementation doesn't need performing additional validation on the claims
-	return nil
-}
-
-func (a *oAuth2) PopulateAdditionalClaims(token jwt.Token, setClaimFn func(key string, val any)) {
-	// Nop in this implementation
 }
 
 // Valid returns true if all fields are set

@@ -1,5 +1,12 @@
 package auth
 
+import (
+	"net/http"
+
+	"github.com/italypaleale/traefik-forward-auth/pkg/user"
+	"github.com/lestrrat-go/jwx/v3/jwt"
+)
+
 type baseProvider struct {
 	metadata ProviderMetadata
 }
@@ -33,4 +40,13 @@ func (b *baseProvider) GetProviderIcon() string {
 
 func (b *baseProvider) GetProviderColor() string {
 	return b.metadata.Color
+}
+
+func (p *baseProvider) ValidateRequestClaims(r *http.Request, profile *user.Profile) error {
+	// Do not perform anything in the base provider
+	return nil
+}
+
+func (p *baseProvider) PopulateAdditionalClaims(token jwt.Token, setClaimFn func(key string, val any)) {
+	// Nop in the base provider
 }

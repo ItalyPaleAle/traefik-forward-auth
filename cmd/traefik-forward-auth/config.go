@@ -173,23 +173,6 @@ func findConfigFile(fileName string, searchPaths ...string) string {
 	return ""
 }
 
-// Processes the configuration
-func processConfig(log *slog.Logger, cfg *config.Config) (err error) {
-	// Check required variables
-	err = cfg.Validate(log)
-	if err != nil {
-		return err
-	}
-
-	// Ensures the token signing key is present
-	err = cfg.SetTokenSigningKey(log)
-	if err != nil {
-		return err
-	}
-
-	return nil
-}
-
 func getLogLevel(cfg *config.Config) (slog.Level, error) {
 	switch strings.ToLower(cfg.Logs.Level) {
 	case "debug":
