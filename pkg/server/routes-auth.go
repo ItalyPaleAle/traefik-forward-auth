@@ -115,14 +115,13 @@ func (s *Server) handleAuthenticatedRoot(c *gin.Context, portal Portal, provider
 	s.metrics.RecordAuthentication(true)
 
 	// Set the X-Forwarded-User and X-Authenticated-User headers
-	userID := provider.UserIDFromProfile(profile)
-	c.Header("X-Forwarded-User", userID)
+	c.Header("X-Forwarded-User", profile.ID)
 	c.Header("X-Authenticated-User", auth.AuthenticatedUserFromProfile(provider, profile))
 
 	if utils.IsTruthy(c.Query("html")) {
-		s.renderAuthenticatedTemplate(c, portal, provider, userID)
+		s.renderAuthenticatedTemplate(c, portal, provider, profile.ID)
 	} else {
-		_, _ = fmt.Fprintf(c.Writer, `You are authenticated with provider '%s' as '%s'`, provider.GetProviderDisplayName(), userID)
+		_, _ = fmt.Fprintf(c.Writer, `You are authenticated with provider '%s' as '%s'`, provider.GetProviderDisplayName(), profile.ID)
 	}
 }
 

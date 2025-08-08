@@ -15,8 +15,6 @@ import (
 type Provider interface {
 	// GetProviderType returns the type of the provider
 	GetProviderType() string
-	// UserIDFromProfile returns the ID of the user, picking the appropriate value from the profile
-	UserIDFromProfile(profile *user.Profile) string
 	// ValidateRequestClaims validates that claims are valid for the incoming request from the client.
 	ValidateRequestClaims(r *http.Request, profile *user.Profile) error
 	// PopulateAdditionalClaims allows a provider to populate the AdditionalClaims property of a Profile object.
@@ -74,7 +72,7 @@ type OAuth2AccessToken struct {
 
 // AuthenticatedUserFromProfile returns the user information to include in the "X-Authenticated-User" header
 func AuthenticatedUserFromProfile(provider Provider, profile *user.Profile) string {
-	userID, _ := json.Marshal(provider.UserIDFromProfile(profile))
+	userID, _ := json.Marshal(profile.ID)
 	// The provider name is already guaranteed to not include characters that must be escaped as JSON
 	return `{"provider":"` + provider.GetProviderName() + `","user":` + string(userID) + `}`
 }

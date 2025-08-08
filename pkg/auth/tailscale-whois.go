@@ -151,10 +151,6 @@ func (a *TailscaleWhois) ValidateRequestClaims(r *http.Request, profile *user.Pr
 	return nil
 }
 
-func (a *TailscaleWhois) UserIDFromProfile(profile *user.Profile) string {
-	return profile.ID
-}
-
 func (a *TailscaleWhois) PopulateAdditionalClaims(token jwt.Token, setClaimFn func(key string, val any)) {
 	var val string
 

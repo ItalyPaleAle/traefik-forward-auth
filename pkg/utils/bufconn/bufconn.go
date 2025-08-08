@@ -1,5 +1,7 @@
 //go:build unit
 
+// This file is only built when the "unit" tag is set
+
 /*
  *
  * Copyright 2017 gRPC authors.

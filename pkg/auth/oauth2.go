@@ -286,10 +286,6 @@ func (a *oAuth2) ValidateRequestClaims(r *http.Request, profile *user.Profile) e
 	return nil
 }
 
-func (a *oAuth2) UserIDFromProfile(profile *user.Profile) string {
-	return profile.ID
-}
-
 func (a *oAuth2) PopulateAdditionalClaims(token jwt.Token, setClaimFn func(key string, val any)) {
 	// Nop in this implementation
 }
