@@ -37,8 +37,8 @@ func TestConfigLoader(t *testing.T) {
 		assert.True(t, cfg.ABool)
 		assert.InDelta(t, 123.45, cfg.AFloat, 0.01)
 		assert.Equal(t, 2*time.Minute, cfg.ADuration)
-		assert.EqualValues(t, []string{"ciao", "mondo"}, cfg.AStringSlice)
-		assert.EqualValues(t, map[string]string{"hello": "world", "salut": "monde"}, cfg.AMap)
+		assert.Equal(t, []string{"ciao", "mondo"}, cfg.AStringSlice)
+		assert.Equal(t, map[string]string{"hello": "world", "salut": "monde"}, cfg.AMap)
 		assert.Equal(t, "bar", cfg.Nested.Foo)
 	})
 
@@ -64,8 +64,8 @@ func TestConfigLoader(t *testing.T) {
 		assert.False(t, cfg.ABool)
 		assert.InDelta(t, 3.14, cfg.AFloat, 0.01)
 		assert.Equal(t, 4*time.Minute, cfg.ADuration)
-		assert.EqualValues(t, []string{"a", "b", "c"}, cfg.AStringSlice)
-		assert.EqualValues(t, map[string]string{"ciao": "mondo", "hola": "mundo"}, cfg.AMap)
+		assert.Equal(t, []string{"a", "b", "c"}, cfg.AStringSlice)
+		assert.Equal(t, map[string]string{"ciao": "mondo", "hola": "mundo"}, cfg.AMap)
 		assert.Equal(t, "bar2", cfg.Nested.Foo)
 	})
 }
