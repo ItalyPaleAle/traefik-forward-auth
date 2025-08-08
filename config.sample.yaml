@@ -387,3 +387,9 @@ authProvider:
 ##   This value can also be set using the environmental variables `OTEL_EXPORTER_OTLP_TRACES_ENDPOINT` or `OTEL_EXPORTER_OTLP_ENDPOINT` ("/v1/traces" is appended for HTTP), and optionally `OTEL_EXPORTER_OTLP_PROTOCOL` ("http/protobuf", the default, or "grpc").
 #tracingOtelCollectorEndpoint: 
 
+## sessionTokenAudience (string)
+## Description:
+##   Value for the audience claim to expect in session tokens used by Traefik Forward Auth.
+##   This defaults to the value of `cookieDomain` which is appropriate for the majority of cases. Most users should rely on the default value.
+#sessionTokenAudience: 
+

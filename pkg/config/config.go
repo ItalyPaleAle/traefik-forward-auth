@@ -284,6 +284,10 @@ type Config struct {
 	// This value can also be set using the environmental variables `OTEL_EXPORTER_OTLP_TRACES_ENDPOINT` or `OTEL_EXPORTER_OTLP_ENDPOINT` ("/v1/traces" is appended for HTTP), and optionally `OTEL_EXPORTER_OTLP_PROTOCOL` ("http/protobuf", the default, or "grpc").
 	TracingOtelCollectorEndpoint string `env:"TRACINGOTELCOLLECTORENDPOINT" yaml:"tracingOtelCollectorEndpoint"`
 
+	// Value for the audience claim to expect in session tokens used by Traefik Forward Auth.
+	// This defaults to the value of `cookieDomain` which is appropriate for the majority of cases. Most users should rely on the default value.
+	SessionTokenAudience string `env:"SESSIONTOKENAUDIENCE" yaml:"sessionTokenAudience"`
+
 	// Dev is meant for development only; it's undocumented
 	Dev Dev `yaml:"-"`
 
@@ -328,6 +332,14 @@ func (c *Config) GetTokenSigningKey() jwk.Key {
 // GetInstanceID returns the instance ID.
 func (c *Config) GetInstanceID() string {
 	return c.internal.instanceID
+}
+
+// GetSessionTokenAudience returns the value of the "aud" claim for the session token
+func (c *Config) GetTokenAudienceClaim() string {
+	if c.SessionTokenAudience != "" {
+		return c.SessionTokenAudience
+	}
+	return c.Hostname
 }
 
 // Validates the configuration and performs some sanitization

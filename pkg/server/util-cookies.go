@@ -69,7 +69,7 @@ func (s *Server) parseSessionToken(val string) (jwt.Token, error) {
 	token, err := jwt.Parse([]byte(val),
 		jwt.WithAcceptableSkew(acceptableClockSkew),
 		jwt.WithIssuer(jwtIssuer+"/"+s.auth.GetProviderName()),
-		jwt.WithAudience(cfg.Hostname),
+		jwt.WithAudience(cfg.GetTokenAudienceClaim()),
 		jwt.WithKey(jwa.HS256, cfg.GetTokenSigningKey()),
 	)
 	if err != nil {
@@ -88,7 +88,7 @@ func (s *Server) setSessionCookie(c *gin.Context, profile *user.Profile) error {
 	profile.AppendClaims(builder)
 	token, err := builder.
 		Issuer(jwtIssuer + "/" + s.auth.GetProviderName()).
-		Audience([]string{cfg.Hostname}).
+		Audience([]string{cfg.GetTokenAudienceClaim()}).
 		IssuedAt(now).
 		// Add 1 extra second to synchronize with cookie expiry
 		Expiration(now.Add(expiration + time.Second)).
@@ -143,7 +143,7 @@ func (s *Server) getStateCookie(c *gin.Context, stateCookieID string) (nonce str
 	token, err := jwt.Parse([]byte(cookieValue),
 		jwt.WithAcceptableSkew(acceptableClockSkew),
 		jwt.WithIssuer(jwtIssuer+"/"+s.auth.GetProviderName()),
-		jwt.WithAudience(cfg.Hostname),
+		jwt.WithAudience(cfg.GetTokenAudienceClaim()),
 		jwt.WithKey(jwa.HS256, cfg.GetTokenSigningKey()),
 	)
 	if err != nil {
@@ -206,7 +206,7 @@ func (s *Server) setStateCookie(c *gin.Context, nonce string, returnURL string, 
 	now := time.Now()
 	token, err := jwt.NewBuilder().
 		Issuer(jwtIssuer+"/"+s.auth.GetProviderName()).
-		Audience([]string{cfg.Hostname}).
+		Audience([]string{cfg.GetTokenAudienceClaim()}).
 		IssuedAt(now).
 		// Add 1 extra second to synchronize with cookie expiry
 		Expiration(now.Add(expiration+time.Second)).
