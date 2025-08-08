@@ -252,7 +252,18 @@ func getReturnURL(c *gin.Context) string {
 		}
 		reqURL, _ = url.Parse(val)
 	}
-	return c.Request.Header.Get("X-Forwarded-Proto") + "://" + c.Request.Header.Get("X-Forwarded-Host") + reqURL.Path
+	
+	// Map WebSocket protocols to HTTP protocols for redirect URLs
+	// This ensures browsers can navigate to the redirect URL after authentication
+	proto := c.Request.Header.Get("X-Forwarded-Proto")
+	switch proto {
+	case "ws":
+		proto = "http"
+	case "wss":
+		proto = "https"
+	}
+	
+	return proto + "://" + c.Request.Header.Get("X-Forwarded-Host") + reqURL.Path
 }
 
 // Computes the state cookie ID for the given return URL
@@ -268,5 +279,16 @@ func getStateCookieID(returnURL string) string {
 // Get the redirect URI, which is sent to the OAuth2 authentication server and indicates where to return users after a successful auth with the IdP
 func getOAuth2RedirectURI(c *gin.Context) string {
 	cfg := config.Get()
-	return c.GetHeader("X-Forwarded-Proto") + "://" + cfg.Hostname + cfg.BasePath + "/oauth2/callback"
+	
+	// Map WebSocket protocols to HTTP protocols for OAuth2 redirect URI
+	// OAuth2 callback URLs must be HTTP/HTTPS for browsers to navigate to
+	proto := c.GetHeader("X-Forwarded-Proto")
+	switch proto {
+	case "ws":
+		proto = "http"
+	case "wss":
+		proto = "https"
+	}
+	
+	return proto + "://" + cfg.Hostname + cfg.BasePath + "/oauth2/callback"
 }
