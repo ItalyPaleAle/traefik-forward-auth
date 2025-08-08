@@ -79,6 +79,7 @@ linters:
     - whitespace
     - wrapcheck
     - wsl
+    - wsl_v5
   settings:
     revive:
       rules:
@@ -91,6 +92,7 @@ linters:
               - UUID
             - - VM
             - - upperCaseConst: true
+                skipPackageNameChecks: true
           severity: warning
           disabled: false
   exclusions:

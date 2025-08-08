@@ -19,7 +19,7 @@ jobs:
     runs-on: ubuntu-latest
     env:
       CGO_ENABLED: "0"
-      GOLANGCI_LINT_VERSION: "v1.64.5"
+      GOLANGCI_LINT_VERSION: "v2.3.1"
     steps:
 
     - name: Check out code
@@ -33,7 +33,7 @@ jobs:
         cache: false
 
     - name: Install golangci-lint
-      uses: golangci/golangci-lint-action@v6
+      uses: golangci/golangci-lint-action@v8
       with:
         version: ${{ env.GOLANGCI_LINT_VERSION }}
 

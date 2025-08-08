@@ -227,7 +227,8 @@ func (s *Server) MiddlewareLogger(parentLog *slog.Logger) func(c *gin.Context) {
 		}
 
 		// Check if we have an error
-		if lastErr := c.Errors.Last(); lastErr != nil {
+		lastErr := c.Errors.Last()
+		if lastErr != nil {
 			// We'll pick the last error only
 			log = log.With(slog.Any("error", lastErr.Err))
 

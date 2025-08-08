@@ -116,7 +116,8 @@ func (s *Server) setSessionCookie(c *gin.Context, profile *user.Profile) error {
 func (s *Server) deleteSessionCookie(c *gin.Context) {
 	cfg := config.Get()
 
-	if _, err := c.Cookie(cfg.CookieName); err != nil {
+	_, err := c.Cookie(cfg.CookieName)
+	if err != nil {
 		// Cookie was not set in the request, nothing to unset
 		return
 	}

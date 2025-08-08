@@ -25,6 +25,7 @@ const (
 // It is based on the OAuth 2 provider.
 type GitHub struct {
 	oAuth2
+
 	allowedUsers []string
 }
 

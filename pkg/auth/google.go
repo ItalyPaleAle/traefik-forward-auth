@@ -13,6 +13,7 @@ import (
 // It is based on the OpenIDConnect provider.
 type Google struct {
 	*OpenIDConnect
+
 	allowedDomains []string
 }
 
