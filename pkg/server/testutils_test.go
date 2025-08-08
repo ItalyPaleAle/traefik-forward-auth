@@ -31,8 +31,20 @@ const (
 
 func TestMain(m *testing.M) {
 	_ = config.SetTestConfig(func(c *config.Config) {
+		c.Server.Hostname = "tfa.example.com"
 		c.Server.Port = testServerPort
 		c.Server.Bind = "127.0.0.1"
+		c.Portals = []config.ConfigPortal{
+			{
+				Name:        "test1",
+				DisplayName: "Test 1",
+				Providers: []config.ConfigPortalProvider{
+					{Provider: "testoauth2"},
+				},
+				AuthenticationTimeout:   10 * time.Second,
+				AlwaysShowProvidersPage: false,
+			},
+		}
 	})
 
 	gin.SetMode(gin.ReleaseMode)
@@ -43,36 +55,7 @@ func TestMain(m *testing.M) {
 func newTestServer(t *testing.T) (srv *Server, logBuf *bytes.Buffer) {
 	t.Helper()
 
-	// Get a conf object with configured providers
-	conf := &config.Config{
-		Server: config.ConfigServer{
-			Hostname: "tfa.example.com",
-			Port:     4181,
-			Bind:     "0.0.0.0",
-		},
-		Cookies: config.ConfigCookies{
-			NamePrefix: "tf_sess",
-			Insecure:   false,
-		},
-		Tokens: config.ConfigTokens{
-			SessionLifetime: 2 * time.Hour,
-		},
-		Logs: config.ConfigLogs{
-			Level:            "info",
-			OmitHealthChecks: true,
-		},
-		Portals: []config.ConfigPortal{
-			{
-				Name:        "test1",
-				DisplayName: "Test 1",
-				Providers: []config.ConfigPortalProvider{
-					{Provider: "testoauth2"},
-				},
-				AuthenticationTimeout:   10 * time.Second,
-				AlwaysShowProvidersPage: false,
-			},
-		},
-	}
+	cfg := config.Get()
 
 	// Logging: we log to stdout and to a buffer, so we can capture logs if needed
 	logBuf = &bytes.Buffer{}
@@ -85,9 +68,9 @@ func newTestServer(t *testing.T) (srv *Server, logBuf *bytes.Buffer) {
 		With(slog.String("app", "test"))
 
 	// Process config
-	err := conf.Process(log)
+	err := cfg.Process(log)
 	require.NoError(t, err)
-	portals, err := GetPortalsConfig(t.Context(), conf)
+	portals, err := GetPortalsConfig(t.Context(), cfg)
 	require.NoError(t, err)
 
 	// Create the server object
