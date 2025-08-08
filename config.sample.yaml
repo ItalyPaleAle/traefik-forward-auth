@@ -391,3 +391,9 @@ portals:
           ## Default: 10s
           # requestTimeout: 10s
 
+## sessionTokenAudience (string)
+## Description:
+##   Value for the audience claim to expect in session tokens used by Traefik Forward Auth.
+##   This defaults to the value of `cookieDomain` which is appropriate for the majority of cases. Most users should rely on the default value.
+#sessionTokenAudience: 
+

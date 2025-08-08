@@ -81,10 +81,10 @@ func (s *Server) MiddlewareProxyHeaders(c *gin.Context) {
 
 	// Validate X-Forwarded-Proto
 	switch c.Request.Header.Get("X-Forwarded-Proto") {
-	case "http", "https":
+	case "http", "https", "ws", "wss":
 		// All good
 	default:
-		AbortWithError(c, NewResponseError(http.StatusBadRequest, "Invalid value for the 'X-Forwarded-Proto' header: must be 'http' or 'https'"))
+		AbortWithError(c, NewResponseError(http.StatusBadRequest, "Invalid value for the 'X-Forwarded-Proto' header: must be 'http', 'https', 'ws', or 'wss'"))
 		return
 	}
 
@@ -236,7 +236,8 @@ func (s *Server) MiddlewareLogger(parentLog *slog.Logger) func(c *gin.Context) {
 		}
 
 		// Check if we have an error
-		if lastErr := c.Errors.Last(); lastErr != nil {
+		lastErr := c.Errors.Last()
+		if lastErr != nil {
 			// We'll pick the last error only
 			log = log.With(slog.Any("error", lastErr.Err))
 

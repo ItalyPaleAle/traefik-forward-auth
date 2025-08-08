@@ -21,6 +21,7 @@ import (
 // It is based on the OAuth 2 provider.
 type OpenIDConnect struct {
 	oAuth2
+
 	profileModifier profileModifierFn
 }
 

@@ -525,7 +525,7 @@ func getReturnURL(c *gin.Context, portal string) string {
 
 	// Here we use  X-Forwarded-* headers which have the data of the original request
 	reqURL, _ := url.Parse(forwardedURI)
-	return c.Request.Header.Get("X-Forwarded-Proto") + "://" + c.Request.Header.Get("X-Forwarded-Host") + reqURL.Path
+	return getForwardedProto(c) + "://" + c.Request.Header.Get("X-Forwarded-Host") + reqURL.Path
 }
 
 // Computes the state cookie ID for the given return URL
@@ -548,7 +548,7 @@ func getOAuth2RedirectURI(c *gin.Context, portal string) string {
 func getPortalURI(c *gin.Context, portal string) string {
 	cfg := config.Get()
 
-	baseURI := c.GetHeader("X-Forwarded-Proto") + "://" + cfg.Server.Hostname + cfg.Server.BasePath
+	baseURI := getForwardedProto(c) + "://" + cfg.Server.Hostname + cfg.Server.BasePath
 
 	// If the user is visiting the default portal and they're using the "short" format, we omit the portal name in the URL
 	if c.Param("portal") == "" && cfg.DefaultPortal == portal {
@@ -556,4 +556,19 @@ func getPortalURI(c *gin.Context, portal string) string {
 	}
 
 	return baseURI + "/portals/" + portal
+}
+
+// Returns the value from the X-Forwarded-Proto header, handling WebSockets
+func getForwardedProto(c *gin.Context) string {
+	// Map WebSocket protocols to HTTP protocols for OAuth2 redirect URI
+	// OAuth2 callback URLs must be HTTP/HTTPS for browsers to navigate to
+	proto := c.GetHeader("X-Forwarded-Proto")
+	switch proto {
+	case "ws":
+		return "http"
+	case "wss":
+		return "https"
+	default:
+		return proto
+	}
 }

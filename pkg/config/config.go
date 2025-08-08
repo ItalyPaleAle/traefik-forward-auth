@@ -153,6 +153,10 @@ type ConfigTokens struct {
 	// File containing the key used to sign state tokens.
 	// This is an alternative to specifying `signingKey` tokens.directly.
 	SigningKeyFile string `yaml:"signingKeyFile"`
+
+	// Value for the audience claim to expect in session tokens used by Traefik Forward Auth.
+	// This defaults to a value based on `cookies.domain` and `server.basePath` which is appropriate for the majority of cases. Most users should rely on the default value.
+	SessionTokenAudience string `yaml:"sessionTokenAudience"`
 }
 
 type ConfigPortal struct {
@@ -256,6 +260,14 @@ func (c *Config) GetInstanceID() string {
 	return c.internal.instanceID
 }
 
+// GetSessionTokenAudience returns the value of the "aud" claim for the session token
+func (c *Config) GetTokenAudienceClaim() string {
+	if c.Tokens.SessionTokenAudience != "" {
+		return c.Tokens.SessionTokenAudience
+	}
+	return c.Server.Hostname + c.Server.BasePath
+}
+
 // Validates the configuration and performs some sanitization
 func (c *Config) Validate(logger *slog.Logger) error {
 	// Hostname can have an optional port
@@ -270,7 +282,7 @@ func (c *Config) Validate(logger *slog.Logger) error {
 		case c.Cookies.Domain == "":
 			c.Cookies.Domain = host
 			if validators.IsIP(host) {
-				// If the CookieDomain is an IP, we must make it empty
+				// If Cookies.Domain is an IP, we must make it empty
 				c.Cookies.Domain = ""
 			}
 		case !validators.IsHostname(c.Cookies.Domain) && !isIP:
@@ -288,7 +300,7 @@ func (c *Config) Validate(logger *slog.Logger) error {
 		case c.Cookies.Domain == "":
 			c.Cookies.Domain = c.Server.Hostname
 			if validators.IsIP(c.Server.Hostname) {
-				// If the CookieDomain is an IP, we must make it empty
+				// If the Cookies.Domain is an IP, we must make it empty
 				c.Cookies.Domain = ""
 			}
 		case !validators.IsHostname(c.Cookies.Domain) && !isIP:
