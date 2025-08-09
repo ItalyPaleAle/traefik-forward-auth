@@ -34,6 +34,8 @@ func TestMain(m *testing.M) {
 		c.Server.Hostname = "tfa.example.com"
 		c.Server.Port = testServerPort
 		c.Server.Bind = "127.0.0.1"
+		c.Server.BasePath = ""
+		c.DefaultPortal = ""
 		c.Portals = []config.ConfigPortal{
 			{
 				Name:        "test1",
@@ -151,6 +153,14 @@ func assertResponseError(t *testing.T, res *http.Response, expectStatusCode int,
 	require.NoError(t, err, "Error parsing response body as JSON")
 
 	require.Equal(t, expectErr, data.Error, "Error message does not match")
+}
+
+func populateRequiredProxyHeaders(t *testing.T, req *http.Request) {
+	req.Header.Set("X-Forwarded-Server", "traefik@docker")
+	req.Header.Set("X-Forwarded-Proto", "https")
+	req.Header.Set("X-Forwarded-Port", "443")
+	req.Header.Set("X-Forwarded-For", "1.1.1.1")
+	req.Header.Set("X-Forwarded-Host", "example.com")
 }
 
 func assertResponseNoContent(t *testing.T, res *http.Response) {
