@@ -9,6 +9,7 @@ import (
 	"log/slog"
 	"net"
 	"net/http"
+	"net/url"
 	"os"
 	"testing"
 	"time"
@@ -186,4 +187,21 @@ func closeBody(res *http.Response) {
 func matchContextInterface(v any) bool {
 	_, ok := v.(context.Context)
 	return ok
+}
+
+func cookiePair(setCookie string) string {
+	for i, r := range setCookie {
+		if r == ';' {
+			return setCookie[:i]
+		}
+	}
+	return setCookie
+}
+
+func urlMustParse(t *testing.T, raw string) *url.URL {
+	t.Helper()
+	require.NotEmpty(t, raw)
+	u, err := url.Parse(raw)
+	require.NoError(t, err)
+	return u
 }

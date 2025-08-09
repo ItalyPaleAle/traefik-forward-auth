@@ -4,7 +4,7 @@ import (
 	"context"
 	"fmt"
 	"net/http"
-	"net/url"
+	"strings"
 	"testing"
 	"time"
 
@@ -74,6 +74,8 @@ func TestServerAuthRoutes(t *testing.T) {
 		assert.Equal(t, expectedSigninPath, locUrl.Path)
 		assert.Contains(t, locUrl.Query().Get("state"), "~")
 		assert.True(t, utils.IsTruthy(locUrl.Query().Get("logout")))
+
+		logBuf.Reset()
 	})
 
 	t.Run("auth root reuses state cookie for same return URL", func(t *testing.T) {
@@ -111,24 +113,128 @@ func TestServerAuthRoutes(t *testing.T) {
 		assert.Equal(t, http.StatusSeeOther, res2.StatusCode)
 		state2 := urlMustParse(t, res2.Header.Get("Location")).Query().Get("state")
 		assert.Equal(t, state1, state2)
+
+		logBuf.Reset()
 	})
 }
 
-func cookiePair(setCookie string) string {
-	for i, r := range setCookie {
-		if r == ';' {
-			return setCookie[:i]
-		}
-	}
-	return setCookie
-}
+func TestRouteGetAuthProvider(t *testing.T) {
+	// Create the server
+	srv, logBuf := newTestServer(t)
+	stopServerFn := startTestServer(t, srv)
+	defer stopServerFn(t)
+	appClient := clientForListener(srv.appListener)
 
-func urlMustParse(t *testing.T, raw string) *url.URL {
-	t.Helper()
-	require.NotEmpty(t, raw)
-	u, err := url.Parse(raw)
-	require.NoError(t, err)
-	return u
+	// Helper to get a fresh state (stateCookieID~nonce) plus associated Set-Cookie headers
+	getState := func(t *testing.T) (state string, cookies []string) {
+		reqCtx, cancel := context.WithTimeout(t.Context(), 2*time.Second)
+		defer cancel()
+		req, err := http.NewRequestWithContext(reqCtx, http.MethodGet, fmt.Sprintf("http://localhost:%d/portals/test1", testServerPort), nil)
+		require.NoError(t, err)
+		populateRequiredProxyHeaders(t, req)
+
+		res, err := appClient.Do(req)
+		require.NoError(t, err)
+		defer closeBody(res)
+
+		require.Equal(t, http.StatusSeeOther, res.StatusCode)
+
+		loc := res.Header.Get("Location")
+		st := urlMustParse(t, loc).Query().Get("state")
+		require.NotEmpty(t, st)
+
+		return st, res.Header.Values("Set-Cookie")
+	}
+
+	t.Run("success redirects to provider auth URL", func(t *testing.T) {
+		state, cookies := getState(t)
+		reqCtx, cancel := context.WithTimeout(t.Context(), 2*time.Second)
+		defer cancel()
+		req, err := http.NewRequestWithContext(reqCtx, http.MethodGet, fmt.Sprintf("http://localhost:%d/portals/test1/provider/testoauth2?state=%s", testServerPort, state), nil)
+		require.NoError(t, err)
+
+		populateRequiredProxyHeaders(t, req)
+		for _, c := range cookies {
+			req.Header.Add("Cookie", cookiePair(c))
+		}
+
+		res, err := appClient.Do(req)
+		require.NoError(t, err)
+		defer closeBody(res)
+
+		assert.Equal(t, http.StatusSeeOther, res.StatusCode)
+
+		locUrl := urlMustParse(t, res.Header.Get("Location"))
+
+		assert.Equal(t, "https://tfa.example.com/portals/test1/oauth2/callback", locUrl.Query().Get("redirect_uri"))
+		assert.Contains(t, locUrl.Query().Get("state"), "~")
+
+		logBuf.Reset()
+	})
+
+	t.Run("missing state param", func(t *testing.T) {
+		reqCtx, cancel := context.WithTimeout(t.Context(), 2*time.Second)
+		defer cancel()
+		req, err := http.NewRequestWithContext(reqCtx, http.MethodGet, fmt.Sprintf("http://localhost:%d/portals/test1/provider/testoauth2", testServerPort), nil)
+		require.NoError(t, err)
+		populateRequiredProxyHeaders(t, req)
+
+		res, err := appClient.Do(req)
+		require.NoError(t, err)
+		defer closeBody(res)
+
+		assert.Equal(t, http.StatusBadRequest, res.StatusCode)
+
+		logBuf.Reset()
+	})
+
+	t.Run("invalid state format", func(t *testing.T) {
+		// Just to have cookies set (though not required for this failure)
+		_, cookies := getState(t)
+
+		reqCtx, cancel := context.WithTimeout(t.Context(), 2*time.Second)
+		defer cancel()
+		req, err := http.NewRequestWithContext(reqCtx, http.MethodGet, fmt.Sprintf("http://localhost:%d/portals/test1/provider/testoauth2?state=badformat", testServerPort), nil)
+		require.NoError(t, err)
+
+		populateRequiredProxyHeaders(t, req)
+		for _, c := range cookies { // attach cookies
+			req.Header.Add("Cookie", cookiePair(c))
+		}
+
+		res, err := appClient.Do(req)
+		require.NoError(t, err)
+		defer closeBody(res)
+
+		assert.Equal(t, http.StatusUnauthorized, res.StatusCode)
+
+		logBuf.Reset()
+	})
+
+	t.Run("nonce mismatch", func(t *testing.T) {
+		state, cookies := getState(t)
+		stateCookieID, nonce, ok := strings.Cut(state, "~")
+		require.True(t, ok)
+		badState := stateCookieID + "~" + nonce[0:len(nonce)-5] + "xxxxx"
+
+		reqCtx, cancel := context.WithTimeout(t.Context(), 2*time.Second)
+		defer cancel()
+		req, err := http.NewRequestWithContext(reqCtx, http.MethodGet, fmt.Sprintf("http://localhost:%d/portals/test1/provider/testoauth2?state=%s", testServerPort, badState), nil)
+		require.NoError(t, err)
+
+		populateRequiredProxyHeaders(t, req)
+		for _, c := range cookies {
+			req.Header.Add("Cookie", cookiePair(c))
+		}
+
+		res, err := appClient.Do(req)
+		require.NoError(t, err)
+		defer closeBody(res)
+
+		assert.Equal(t, http.StatusUnauthorized, res.StatusCode)
+
+		logBuf.Reset()
+	})
 }
 
 func TestCheckAuthzConditions(t *testing.T) {

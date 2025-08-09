@@ -19,7 +19,7 @@ func init() {
 type ProviderConfig_TestOAuth2 struct{}
 
 func (p *ProviderConfig_TestOAuth2) GetAuthProvider(_ context.Context) (auth.Provider, error) {
-	return &auth.TestProviderOAuth2{}, nil
+	return auth.NewTestProviderOAuth2(), nil
 }
 
 func (p *ProviderConfig_TestOAuth2) SetConfigObject(_ *Config) {
@@ -29,7 +29,7 @@ func (p *ProviderConfig_TestOAuth2) SetConfigObject(_ *Config) {
 type ProviderConfig_TestSeamless struct{}
 
 func (p *ProviderConfig_TestSeamless) GetAuthProvider(_ context.Context) (auth.Provider, error) {
-	return &auth.TestProviderSeamless{}, nil
+	return auth.NewTestProviderSeamless(), nil
 }
 
 func (p *ProviderConfig_TestSeamless) SetConfigObject(_ *Config) {

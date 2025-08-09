@@ -19,6 +19,17 @@ type TestProviderOAuth2 struct {
 	baseProvider
 }
 
+func NewTestProviderOAuth2() *TestProviderOAuth2 {
+	return &TestProviderOAuth2{
+		baseProvider: baseProvider{
+			metadata: ProviderMetadata{
+				DisplayName: "TesT Oauth2",
+				Name:        "testoauth2",
+			},
+		},
+	}
+}
+
 func (a *TestProviderOAuth2) GetProviderType() string {
 	return "testoauth2"
 }
@@ -69,6 +80,17 @@ func (a *TestProviderOAuth2) OAuth2RetrieveProfile(ctx context.Context, at OAuth
 // TestProviderSeamless is a test Provider that implements seamless auth
 type TestProviderSeamless struct {
 	baseProvider
+}
+
+func NewTestProviderSeamless() *TestProviderSeamless {
+	return &TestProviderSeamless{
+		baseProvider: baseProvider{
+			metadata: ProviderMetadata{
+				DisplayName: "Test Seamless",
+				Name:        "testseamless",
+			},
+		},
+	}
 }
 
 func (a *TestProviderSeamless) GetProviderType() string {
