@@ -21,9 +21,9 @@ const (
 	docsFileDest = "docs/03-all-configuration-options.md"
 )
 
-func generateFromStruct(filePath string) error {
+func generateFromStruct(dir string) error {
 	fset := token.NewFileSet()
-	node, err := parser.ParseFile(fset, filePath, nil, parser.ParseComments)
+	node, err := parser.ParseFile(fset, filepath.Join(dir, "config.go"), nil, parser.ParseComments)
 	if err != nil {
 		return err
 	}
@@ -82,8 +82,7 @@ func generateFromStruct(filePath string) error {
 	})
 
 	// Parse providers and generate examples dynamically
-	providerFilePath := filepath.Join(filepath.Dir(filePath), "providers-config.go")
-	err = generatePortalExamples(outYAML, providerFilePath)
+	err = generatePortalExamples(outYAML, filepath.Join(dir, "providers-config.go"))
 	if err != nil {
 		return fmt.Errorf("failed to generate portal examples: %w", err)
 	}
@@ -263,20 +262,48 @@ func processField(field *ast.Field, yamlTag string, outYAML io.Writer, outMD io.
 
 // generatePortalExamples adds example configurations for portals and all supported providers dynamically
 func generatePortalExamples(outYAML io.Writer, providerFilePath string) error {
-	fmt.Fprintf(outYAML, "### Example Portal Configurations\n")
-	fmt.Fprintf(outYAML, "### The following are examples of portal configurations with different providers\n\n")
+	// First output the empty portals array as the default value
+	fmt.Fprintf(outYAML, "portals: []\n\n")
 
-	// Start the portals list with proper indentation
-	fmt.Fprintf(outYAML, "portals:\n")
+	// Commented examples header
+	fmt.Fprintf(outYAML, "###\n### Example Portal Configurations\n###\n")
+	fmt.Fprintf(outYAML, "## The following are examples of portal configurations with different providers\n\n")
 
-	// Parse the providers file to extract struct definitions
-	fset := token.NewFileSet()
-	node, err := parser.ParseFile(fset, providerFilePath, nil, parser.ParseComments)
+	// Parse the providers file to extract provider config struct definitions
+	fsetProviders := token.NewFileSet()
+	providersNode, err := parser.ParseFile(fsetProviders, providerFilePath, nil, parser.ParseComments)
 	if err != nil {
 		return err
 	}
 
-	// Map to collect provider structs and their fields
+	// Parse config file to find portal / provider wrapper structs
+	configFilePath := filepath.Join(filepath.Dir(providerFilePath), "config.go")
+	fsetConfig := token.NewFileSet()
+	configNode, _ := parser.ParseFile(fsetConfig, configFilePath, nil, parser.ParseComments)
+
+	var portalStruct *ast.StructType
+	var providerEntryStruct *ast.StructType
+	if configNode != nil {
+		ast.Inspect(configNode, func(n ast.Node) bool {
+			ts, ok := n.(*ast.TypeSpec)
+			if !ok {
+				return true
+			}
+			stDecl, ok := ts.Type.(*ast.StructType)
+			if !ok {
+				return true
+			}
+			switch ts.Name.Name {
+			case "ConfigPortal":
+				portalStruct = stDecl
+			case "ConfigPortalProvider":
+				providerEntryStruct = stDecl
+			}
+			return true
+		})
+	}
+
+	// Map to collect provider config structs and their fields
 	providerTypes := make(map[string]*struct {
 		structType   *ast.StructType
 		displayName  string
@@ -285,8 +312,8 @@ func generatePortalExamples(outYAML io.Writer, providerFilePath string) error {
 	})
 	providerNames := make([]string, 0)
 
-	// First pass: collect all provider struct types
-	ast.Inspect(node, func(n ast.Node) bool {
+	// Collect provider config structs
+	ast.Inspect(providersNode, func(n ast.Node) bool {
 		typeSpec, ok := n.(*ast.TypeSpec)
 		if !ok {
 			return true
@@ -297,18 +324,13 @@ func generatePortalExamples(outYAML io.Writer, providerFilePath string) error {
 			return true
 		}
 
-		// Look for provider config structs that match the pattern ProviderConfig_*
 		typeName := typeSpec.Name.Name
 		if strings.HasPrefix(typeName, "ProviderConfig_") {
 			providerType := strings.TrimPrefix(typeName, "ProviderConfig_")
-
-			// Get documentation from comments
 			doc := ""
 			if typeSpec.Doc != nil {
 				doc = typeSpec.Doc.Text()
 			}
-
-			// Add to our collection
 			providerNames = append(providerNames, typeName)
 			providerTypes[typeName] = &struct {
 				structType   *ast.StructType
@@ -325,14 +347,240 @@ func generatePortalExamples(outYAML io.Writer, providerFilePath string) error {
 		return true
 	})
 
-	// Generate example for each provider type
+	// Generate commented example for each provider type
 	slices.Sort(providerNames)
 	for _, k := range providerNames {
-		provider := providerTypes[k]
-		generateProviderExample(outYAML, provider.structType, provider.providerType, provider.displayName)
+		p := providerTypes[k]
+		generateProviderExample(outYAML, portalStruct, providerEntryStruct, p.structType, p.providerType, p.displayName)
 	}
 
 	return nil
+}
+
+// exampleValueForType returns a simple example for a type (string placeholders)
+func exampleValueForType(expr ast.Expr) string {
+	ft := types.ExprString(expr)
+	switch ft {
+	case "string":
+		return `""`
+	case "int":
+		return "0"
+	case "bool":
+		return "false"
+	case "time.Duration":
+		return "0s"
+	case "[]string":
+		return "[]"
+	default:
+		return "" // unknown or nested
+	}
+}
+
+// generateProviderExample creates a commented YAML example for a single provider (dynamic fields)
+func generateProviderExample(outYAML io.Writer, portalStruct, providerEntryStruct, providerConfigStruct *ast.StructType, providerType string, displayName string) {
+	portalName := providerType + "-portal"
+	displayTitle := displayName + " Authentication"
+
+	w := func(format string, a ...any) { fmt.Fprintf(outYAML, "# "+format, a...) }
+
+	w("Example portal using %s authentication\n", displayName)
+	// Start portal block root sign '-' line specifically; find portal name field first
+	w("- ")
+	// Emit portal fields dynamically; we buffer to collect then rewrite with proper indentation
+
+	// We'll manually output portal fields to preserve ordering from struct
+	if portalStruct != nil {
+		for i, field := range portalStruct.Fields.List {
+			if field.Tag == nil {
+				continue
+			}
+			unquoted, _ := strconv.Unquote(field.Tag.Value)
+			tags := reflect.StructTag(unquoted)
+			yamlTag, ok := tags.Lookup("yaml")
+			if !ok || yamlTag == "" || yamlTag == "-" {
+				continue
+			}
+			yamlTag = strings.Split(yamlTag, ",")[0]
+			deprecatedTag, _ := tags.Lookup("deprecated")
+			if dep, _ := strconv.ParseBool(deprecatedTag); dep {
+				continue
+			}
+
+			// First field we already started with '- ' prefix; subsequent fields indented two spaces
+			indent := strings.Repeat(" ", 2)
+			prefix := strings.Repeat(" ", 2)
+			if i == 0 {
+				indent = ""
+				prefix = ""
+			}
+			value := ""
+			switch yamlTag {
+			case "name":
+				value = portalName
+			case "displayName":
+				value = fmt.Sprintf(`"%s"`, displayTitle)
+			case "providers":
+				// providers list header
+				fmt.Println("HERE", prefix, "PROVIDERS")
+				w("%sproviders:\n", prefix)
+				// generate single provider entry dynamically
+				generateProviderEntryExample(w, providerEntryStruct, providerConfigStruct, providerType)
+				continue
+			default:
+				// Extract default value from field documentation
+				if field.Doc != nil {
+					doc := field.Doc.Text()
+					for _, line := range strings.Split(doc, "\n") {
+						if strings.HasPrefix(line, "+default ") {
+							value = strings.TrimPrefix(line, "+default ")
+							break
+						}
+					}
+				}
+				if value == "" {
+					value = exampleValueForType(field.Type)
+				}
+			}
+			if i == 0 {
+				w("%s: %s\n", yamlTag, value)
+			} else {
+				w("%s%s: %s\n", indent, yamlTag, value)
+			}
+		}
+	}
+	w("\n")
+}
+
+// generateProviderEntryExample emits a single provider entry with dynamic fields
+func generateProviderEntryExample(w func(string, ...any), providerEntryStruct, providerConfigStruct *ast.StructType, providerType string) {
+	w("  - ")
+	if providerEntryStruct != nil {
+		for i, field := range providerEntryStruct.Fields.List {
+			if field.Tag == nil {
+				continue
+			}
+			unquoted, _ := strconv.Unquote(field.Tag.Value)
+			tags := reflect.StructTag(unquoted)
+			yamlTag, ok := tags.Lookup("yaml")
+			if !ok || yamlTag == "" || yamlTag == "-" {
+				continue
+			}
+			yamlTag = strings.Split(yamlTag, ",")[0]
+			deprecatedTag, _ := tags.Lookup("deprecated")
+			if dep, _ := strconv.ParseBool(deprecatedTag); dep {
+				continue
+			}
+
+			indent := strings.Repeat(" ", 4)
+			if i == 0 {
+				indent = ""
+			}
+			value := ""
+			switch yamlTag {
+			case "provider":
+				value = providerType
+			case "name", "displayName", "icon", "color":
+				value = `""`
+			case "config":
+				w("%sconfig:\n", indent)
+				generateProviderSpecificConfig(w, providerConfigStruct, providerType)
+				continue
+			default:
+				value = exampleValueForType(field.Type)
+			}
+			if i == 0 {
+				w("%s: %s\n", yamlTag, value)
+			} else {
+				w("%s%s: %s\n", indent, yamlTag, value)
+			}
+		}
+	} else {
+		// Fallback minimal provider entry
+		w("provider: %s\n", providerType)
+		w("    config:\n")
+		generateProviderSpecificConfig(w, providerConfigStruct, providerType)
+	}
+}
+
+// generateProviderSpecificConfig emits the provider-specific config struct commented documentation and example values
+func generateProviderSpecificConfig(w func(string, ...any), providerConfigStruct *ast.StructType, providerType string) {
+	if providerConfigStruct == nil {
+		return
+	}
+	fieldIndent := "        "
+	for _, field := range providerConfigStruct.Fields.List {
+		if field.Tag == nil {
+			continue
+		}
+		unquoted, _ := strconv.Unquote(field.Tag.Value)
+		tags := reflect.StructTag(unquoted)
+		yamlTag, ok := tags.Lookup("yaml")
+		if !ok || yamlTag == "" || yamlTag == "-" {
+			continue
+		}
+		yamlTag = strings.Split(yamlTag, ",")[0]
+		deprecatedTag, _ := tags.Lookup("deprecated")
+		if dep, _ := strconv.ParseBool(deprecatedTag); dep {
+			continue
+		}
+
+		var (
+			defaultText string
+			required    bool
+			lastEmpty   bool
+			doc         string
+		)
+		if field.Doc != nil {
+			doc = field.Doc.Text()
+		}
+		typ := fieldTypeName(field)
+		w("%s## %s (%s)\n", fieldIndent, yamlTag, typ)
+		if doc != "" {
+			w("%s## Description:\n", fieldIndent)
+			for _, line := range strings.Split(doc, "\n") {
+				if line == "" {
+					lastEmpty = true
+					continue
+				}
+				switch {
+				case strings.HasPrefix(line, "+default "):
+					defaultText = strings.TrimPrefix(line, "+default ")
+				case strings.TrimSpace(line) == "+required":
+					required = true
+				case strings.TrimSpace(line) == "+recommended":
+					// ignore
+				default:
+					if lastEmpty {
+						w("%s##\n", fieldIndent)
+					}
+					w("%s##   %s\n", fieldIndent, line)
+					lastEmpty = false
+				}
+			}
+			if defaultText != "" {
+				w("%s## Default: %s\n", fieldIndent, defaultText)
+			}
+			if required {
+				w("%s## Required\n", fieldIndent)
+			}
+		}
+		exampleValue := generateExampleValue(field.Type, yamlTag, providerType, fieldIndent)
+		if exampleValue != "" {
+			if strings.HasPrefix(exampleValue, "\n") {
+				w("%s%s:\n", fieldIndent, yamlTag)
+				lines := strings.Split(exampleValue[1:], "\n")
+				for _, l := range lines {
+					if l == "" {
+						continue
+					}
+					w("%s%s\n", fieldIndent, l)
+				}
+			} else {
+				w("%s%s: %s\n", fieldIndent, yamlTag, exampleValue)
+			}
+		}
+		w("\n")
+	}
 }
 
 // getProviderType converts the struct name to the actual provider type used in configuration
@@ -353,7 +601,7 @@ func getProviderType(name string) string {
 	}
 }
 
-// getProviderDisplayName converts the struct name to the actual provider display name used in configuration
+// getProviderDisplayName converts the struct name to the display name
 func getProviderDisplayName(name string) string {
 	switch name {
 	case "GitHub":
@@ -371,167 +619,40 @@ func getProviderDisplayName(name string) string {
 	}
 }
 
-// generateProviderExample creates a YAML example for a single provider
-func generateProviderExample(outYAML io.Writer, structType *ast.StructType, providerType string, displayName string) {
-	portalName := providerType + "-portal"
-	displayTitle := displayName + " Authentication"
-
-	fmt.Fprintf(outYAML, "  # Example portal using %s authentication\n", displayName)
-	fmt.Fprintf(outYAML, "  - name: %s\n", portalName)
-	fmt.Fprintf(outYAML, "    displayName: \"%s\"\n", displayTitle)
-	fmt.Fprintf(outYAML, "    authenticationTimeout: 5m\n")
-	fmt.Fprintf(outYAML, "    alwaysShowProvidersPage: false\n")
-	fmt.Fprintf(outYAML, "    providers:\n")
-	fmt.Fprintf(outYAML, "      - provider: %s\n", providerType)
-	fmt.Fprintf(outYAML, "        # Default name is the provider type\n")
-	fmt.Fprintf(outYAML, "        name: \"\"\n")
-	fmt.Fprintf(outYAML, "        # Optional display name; if empty, uses the default value for the provider type\n")
-	fmt.Fprintf(outYAML, "        displayName: \"\"\n")
-	fmt.Fprintf(outYAML, "        # Optional icon; if empty, uses the default value for the provider type\n")
-	fmt.Fprintf(outYAML, "        icon: \"\"\n")
-	fmt.Fprintf(outYAML, "        # Optional color scheme; if empty, uses the default value for the provider type\n")
-	fmt.Fprintf(outYAML, `        # Supported values: "purple-to-blue", "cyan-to-blue", "green-to-blue", "purple-to-pink", "pink-to-orange", "teal-to-lime", "red-to-yellow"`+"\n")
-	fmt.Fprintf(outYAML, "        color: \"\"\n")
-	fmt.Fprintf(outYAML, "        # Provider configuration\n")
-	fmt.Fprintf(outYAML, "        config:\n")
-
-	// Process fields from the struct
-	fieldPrefix := strings.Repeat(" ", 10)
-	for _, field := range structType.Fields.List {
-		var (
-			defaultText, doc, examplePrefix string
-			required, lastEmpty             bool
-		)
-
-		if field.Tag == nil {
-			continue
-		}
-
-		unquoted, _ := strconv.Unquote(field.Tag.Value)
-		tags := reflect.StructTag(unquoted)
-		yamlTag, ok := tags.Lookup("yaml")
-		if !ok || yamlTag == "" || yamlTag == "-" {
-			continue
-		}
-
-		// Skip deprecated fields
-		deprecatedTag, _ := tags.Lookup("deprecated")
-		deprecated, _ := strconv.ParseBool(deprecatedTag)
-		if deprecated {
-			continue
-		}
-
-		// Extract field docs to determine requirements and defaults
-		if field.Doc != nil {
-			doc = field.Doc.Text()
-		}
-
-		// Field type
-		typ := fieldTypeName(field)
-
-		// Print field name and type
-		fmt.Fprintf(outYAML, "          ## %s (%s)\n", yamlTag, typ)
-
-		// Add comments from field documentation
-		if doc != "" {
-			fmt.Fprint(outYAML, "          ## Description:\n")
-			for _, line := range strings.Split(doc, "\n") {
-				if line == "" {
-					lastEmpty = true
-					continue
-				}
-
-				switch {
-				case strings.HasPrefix(line, "+default "):
-					defaultText = strings.TrimPrefix(line, "+default ")
-				case strings.TrimSpace(line) == "+required":
-					required = true
-				case strings.TrimSpace(line) == "+recommended":
-					// Nothing to do here in example generation
-				default:
-					if lastEmpty {
-						fmt.Fprintf(outYAML, "%s##\n", fieldPrefix)
-					}
-					fmt.Fprintf(outYAML, "%s##   %s\n", fieldPrefix, line)
-					lastEmpty = false
-				}
-			}
-
-			if defaultText != "" {
-				fmt.Fprintf(outYAML, "%s## Default: %s\n", fieldPrefix, defaultText)
-			}
-
-			if required {
-				fmt.Fprintf(outYAML, "%s## Required\n", fieldPrefix)
-			}
-		}
-
-		// Generate example value based on field type
-		examplePrefix = fieldPrefix
-		if !required {
-			examplePrefix += "# "
-		}
-		exampleValue := generateExampleValue(field.Type, yamlTag, providerType, examplePrefix)
-
-		if exampleValue != "" {
-			if strings.HasPrefix(exampleValue, "\n") {
-				// For list/complex types that include newlines
-				fmt.Fprintf(outYAML, "%s%s:%s\n\n", examplePrefix, yamlTag, exampleValue)
-			} else {
-				fmt.Fprintf(outYAML, "%s%s: %s\n\n", examplePrefix, yamlTag, exampleValue)
-			}
-		}
-	}
-	// fmt.Fprintf(outYAML, "\n")
-}
-
 // generateExampleValue creates an appropriate example value based on field type
 func generateExampleValue(fieldType ast.Expr, fieldName string, providerType string, fieldPrefix string) string {
 	ft := types.ExprString(fieldType)
 
-	// Special cases based on field name and provider
-	if fieldName == "clientID" {
+	// Provider/name specific
+	switch {
+	case fieldName == "clientID":
 		switch providerType {
 		case "google":
 			return `"your-google-client-id.apps.googleusercontent.com"`
 		default:
 			return `"your-client-id"`
 		}
-	}
-
-	if fieldName == "clientSecret" {
+	case fieldName == "clientSecret":
 		return `"your-client-secret"`
-	}
-
-	if fieldName == "tenantID" && providerType == "microsoftentraid" {
+	case fieldName == "tenantID" && providerType == "microsoftentraid":
 		return `"your-tenant-id"`
-	}
-
-	if fieldName == "tokenIssuer" && providerType == "openidconnect" {
+	case fieldName == "tokenIssuer" && providerType == "openidconnect":
 		return `"https://your-identity-provider/.well-known/openid-configuration"`
-	}
-
-	if fieldName == "allowedTailnet" && providerType == "tailscalewhois" {
+	case fieldName == "allowedTailnet" && providerType == "tailscalewhois":
 		return `"yourtailnet.ts.net"`
-	}
-
-	if fieldName == "azureFederatedIdentity" && providerType == "microsoftentraid" {
+	case fieldName == "azureFederatedIdentity" && providerType == "microsoftentraid":
 		return `"ManagedIdentity"`
 	}
 
-	// Handle by type
 	switch ft {
 	case "string":
-		return `"example-value"`
+		return `""`
 	case "int":
-		return "123"
+		return "0"
 	case "bool":
-		if fieldName == "enablePKCE" {
-			return "true"
-		}
 		return "false"
 	case "time.Duration":
-		return "10s"
+		return "0s"
 	case "[]string":
 		return "\n" + fieldPrefix + "  - \"example1\"\n" + fieldPrefix + "  - \"example2\""
 	default:
@@ -539,6 +660,7 @@ func generateExampleValue(fieldType ast.Expr, fieldName string, providerType str
 	}
 }
 
+// fieldTypeName returns a human-readable name for a field type
 func fieldTypeName(field *ast.Field) string {
 	ft := types.ExprString(field.Type)
 	switch ft {
@@ -567,7 +689,7 @@ func fieldTypeName(field *ast.Field) string {
 }
 
 func main() {
-	err := generateFromStruct(filepath.Join("pkg", "config", "config.go"))
+	err := generateFromStruct(filepath.Join("pkg", "config"))
 	if err != nil {
 		panic(err)
 	}

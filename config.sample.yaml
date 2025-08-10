@@ -111,6 +111,12 @@ tokens:
   ##   This is an alternative to specifying `signingKey` tokens.directly.
   #signingKeyFile: 
 
+  ## tokens.sessionTokenAudience (string)
+  ## Description:
+  ##   Value for the audience claim to expect in session tokens used by Traefik Forward Auth.
+  ##   This defaults to a value based on `cookies.domain` and `server.basePath` which is appropriate for the majority of cases. Most users should rely on the default value.
+  #sessionTokenAudience: 
+
 logs:
   ## logs.level (string)
   ## Description:
@@ -140,260 +146,232 @@ logs:
 ##   If set to the name of a portal defined in "portals", it makes the portal available on the root endpoint, without the `portals/<name>/` prefix
 #defaultPortal: 
 
+portals: []
+
+###
 ### Example Portal Configurations
-### The following are examples of portal configurations with different providers
+###
+## The following are examples of portal configurations with different providers
 
-portals:
-  # Example portal using GitHub authentication
-  - name: github-portal
-    displayName: "GitHub Authentication"
-    authenticationTimeout: 5m
-    alwaysShowProvidersPage: false
-    providers:
-      - provider: github
-        # Default name is the provider type
-        name: ""
-        # Optional display name; if empty, uses the default value for the provider type
-        displayName: ""
-        # Optional icon; if empty, uses the default value for the provider type
-        icon: ""
-        # Optional color scheme; if empty, uses the default value for the provider type
-        # Supported values: "purple-to-blue", "cyan-to-blue", "green-to-blue", "purple-to-pink", "pink-to-orange", "teal-to-lime", "red-to-yellow"
-        color: ""
-        # Provider configuration
-        config:
-          ## clientID (string)
-          ## Description:
-          ##   Client ID for the GitHub auth application
-          ## Required
-          clientID: "your-client-id"
-
-          ## clientSecret (string)
-          ## Description:
-          ##   Client secret for the GitHub application
-          ##   One of `clientSecret` and `clientSecretFile` is required.
-          ## Required
-          clientSecret: "your-client-secret"
-
-          ## clientSecretFile (string)
-          ## Description:
-          ##   File containing the client secret for the GitHub application
-          ##   This is an alternative to passing the secret as `clientSecret`
-          ##   One of `clientSecret` and `clientSecretFile` is required.
-          # clientSecretFile: "example-value"
-
-          ## requestTimeout (duration)
-          ## Description:
-          ##   Timeout for network requests for GitHub auth
-          ## Default: 10s
-          # requestTimeout: 10s
-
-  # Example portal using Google authentication
-  - name: google-portal
-    displayName: "Google Authentication"
-    authenticationTimeout: 5m
-    alwaysShowProvidersPage: false
-    providers:
-      - provider: google
-        # Default name is the provider type
-        name: ""
-        # Optional display name; if empty, uses the default value for the provider type
-        displayName: ""
-        # Optional icon; if empty, uses the default value for the provider type
-        icon: ""
-        # Optional color scheme; if empty, uses the default value for the provider type
-        # Supported values: "purple-to-blue", "cyan-to-blue", "green-to-blue", "purple-to-pink", "pink-to-orange", "teal-to-lime", "red-to-yellow"
-        color: ""
-        # Provider configuration
-        config:
-          ## clientID (string)
-          ## Description:
-          ##   Client ID for the Google auth application
-          ## Required
-          clientID: "your-google-client-id.apps.googleusercontent.com"
-
-          ## clientSecret (string)
-          ## Description:
-          ##   Client secret for the Google auth application
-          ##   One of `clientSecret` and `clientSecretFile` is required.
-          ## Required
-          clientSecret: "your-client-secret"
-
-          ## clientSecretFile (string)
-          ## Description:
-          ##   File containing the client secret for the Google auth application
-          ##   This is an alternative to passing the secret as `clientSecret`
-          ##   One of `clientSecret` and `clientSecretFile` is required.
-          # clientSecretFile: "example-value"
-
-          ## requestTimeout (duration)
-          ## Description:
-          ##   Timeout for network requests for Google auth
-          ## Default: 10s
-          # requestTimeout: 10s
-
-  # Example portal using Microsoft Entra ID authentication
-  - name: microsoftentraid-portal
-    displayName: "Microsoft Entra ID Authentication"
-    authenticationTimeout: 5m
-    alwaysShowProvidersPage: false
-    providers:
-      - provider: microsoftentraid
-        # Default name is the provider type
-        name: ""
-        # Optional display name; if empty, uses the default value for the provider type
-        displayName: ""
-        # Optional icon; if empty, uses the default value for the provider type
-        icon: ""
-        # Optional color scheme; if empty, uses the default value for the provider type
-        # Supported values: "purple-to-blue", "cyan-to-blue", "green-to-blue", "purple-to-pink", "pink-to-orange", "teal-to-lime", "red-to-yellow"
-        color: ""
-        # Provider configuration
-        config:
-          ## tenantID (string)
-          ## Description:
-          ##   Tenant ID for the Microsoft Entra ID auth application
-          ## Required
-          tenantID: "your-tenant-id"
-
-          ## clientID (string)
-          ## Description:
-          ##   Client ID for the Microsoft Entra ID auth application
-          ## Required
-          clientID: "your-client-id"
-
-          ## clientSecret (string)
-          ## Description:
-          ##   Client secret for the Microsoft Entra ID auth application
-          ##   Required when not using Federated Identity Credentials
-          # clientSecret: "your-client-secret"
-
-          ## clientSecretFile (string)
-          ## Description:
-          ##   File containing the client secret for the Microsoft Entra ID application.
-          ##   This is an alternative to passing the secret as `clientSecret`
-          # clientSecretFile: "example-value"
-
-          ## azureFederatedIdentity (string)
-          ## Description:
-          ##   Enables the usage of Federated Identity Credentials to obtain assertions for confidential clients for Microsoft Entra ID applications.
-          ##   This is an alternative to using client secrets, when the application is running in Azure in an environment that supports Managed Identity, or in an environment that supports Workload Identity Federation with Microsoft Entra ID.
-          ##   Currently, these values are supported:
-          ##
-          ##   - `ManagedIdentity`: uses a system-assigned managed identity
-          ##   - `ManagedIdentity=client-id`: uses a user-assigned managed identity with client id "client-id" (e.g. "ManagedIdentity=00000000-0000-0000-0000-000000000000")
-          ##   - `WorkloadIdentity`: uses workload identity, e.g. for Kubernetes
-          # azureFederatedIdentity: "ManagedIdentity"
-
-          ## requestTimeout (duration)
-          ## Description:
-          ##   Timeout for network requests for Microsoft Entra ID auth
-          ## Default: 10s
-          # requestTimeout: 10s
-
-  # Example portal using OpenID Connect authentication
-  - name: openidconnect-portal
-    displayName: "OpenID Connect Authentication"
-    authenticationTimeout: 5m
-    alwaysShowProvidersPage: false
-    providers:
-      - provider: openidconnect
-        # Default name is the provider type
-        name: ""
-        # Optional display name; if empty, uses the default value for the provider type
-        displayName: ""
-        # Optional icon; if empty, uses the default value for the provider type
-        icon: ""
-        # Optional color scheme; if empty, uses the default value for the provider type
-        # Supported values: "purple-to-blue", "cyan-to-blue", "green-to-blue", "purple-to-pink", "pink-to-orange", "teal-to-lime", "red-to-yellow"
-        color: ""
-        # Provider configuration
-        config:
-          ## clientID (string)
-          ## Description:
-          ##   Client ID for the OpenID Connect application
-          ## Required
-          clientID: "your-client-id"
-
-          ## clientSecret (string)
-          ## Description:
-          ##   Client secret for the OpenID Connect application
-          ## Required
-          clientSecret: "your-client-secret"
-
-          ## clientSecretFile (string)
-          ## Description:
-          ##   File containing the client secret for the OpenID Connect application
-          ##   This is an alternative to passing the secret as `clientSecret`
-          # clientSecretFile: "example-value"
-
-          ## tokenIssuer (string)
-          ## Description:
-          ##   OpenID Connect token issuer
-          ##   The OpenID Connect configuration document will be fetched at `<token-issuer>/.well-known/openid-configuration`
-          ## Required
-          tokenIssuer: "https://your-identity-provider/.well-known/openid-configuration"
-
-          ## requestTimeout (duration)
-          ## Description:
-          ##   Timeout for network requests for OpenID Connect auth
-          ## Default: 10s
-          # requestTimeout: 10s
-
-          ## enablePKCE (boolean)
-          ## Description:
-          ##   If true, enables the use of PKCE during the code exchange.
-          ## Default: false
-          # enablePKCE: true
-
-          ## tlsInsecureSkipVerify (boolean)
-          ## Description:
-          ##   If true, skips validating TLS certificates when connecting to the OpenID Connect Identity Provider.
-          ## Default: false
-          # tlsInsecureSkipVerify: false
-
-          ## tlsCACertificatePEM (string)
-          ## Description:
-          ##   Optional PEM-encoded CA certificate to trust when connecting to the OpenID Connect Identity Provider.
-          # tlsCACertificatePEM: "example-value"
-
-          ## tlsCACertificatePath (string)
-          ## Description:
-          ##   Optional path to a CA certificate to trust when connecting to the OpenID Connect Identity Provider.
-          # tlsCACertificatePath: "example-value"
-
-  # Example portal using Tailscale Whois authentication
-  - name: tailscalewhois-portal
-    displayName: "Tailscale Whois Authentication"
-    authenticationTimeout: 5m
-    alwaysShowProvidersPage: false
-    providers:
-      - provider: tailscalewhois
-        # Default name is the provider type
-        name: ""
-        # Optional display name; if empty, uses the default value for the provider type
-        displayName: ""
-        # Optional icon; if empty, uses the default value for the provider type
-        icon: ""
-        # Optional color scheme; if empty, uses the default value for the provider type
-        # Supported values: "purple-to-blue", "cyan-to-blue", "green-to-blue", "purple-to-pink", "pink-to-orange", "teal-to-lime", "red-to-yellow"
-        color: ""
-        # Provider configuration
-        config:
-          ## allowedTailnet (string)
-          ## Description:
-          ##   If non-empty, requires the Tailnet of the user to match this value
-          # allowedTailnet: "yourtailnet.ts.net"
-
-          ## requestTimeout (duration)
-          ## Description:
-          ##   Timeout for network requests for Tailscale Whois auth
-          ## Default: 10s
-          # requestTimeout: 10s
-
-## sessionTokenAudience (string)
-## Description:
-##   Value for the audience claim to expect in session tokens used by Traefik Forward Auth.
-##   This defaults to the value of `cookieDomain` which is appropriate for the majority of cases. Most users should rely on the default value.
-#sessionTokenAudience: 
-
+# Example portal using GitHub authentication
+# - # name: github-portal
+#   displayName: "GitHub Authentication"
+#   providers:
+#   - # provider: github
+#     name: ""
+#     displayName: ""
+#     icon: ""
+#     color: ""
+#     config:
+#         ## clientID (string)
+#         ## Description:
+#         ##   Client ID for the GitHub auth application
+#         ## Required
+#         clientID: "your-client-id"
+# 
+#         ## clientSecret (string)
+#         ## Description:
+#         ##   Client secret for the GitHub application
+#         ##   One of `clientSecret` and `clientSecretFile` is required.
+#         ## Required
+#         clientSecret: "your-client-secret"
+# 
+#         ## clientSecretFile (string)
+#         ## Description:
+#         ##   File containing the client secret for the GitHub application
+#         ##   This is an alternative to passing the secret as `clientSecret`
+#         ##   One of `clientSecret` and `clientSecretFile` is required.
+#         clientSecretFile: ""
+# 
+#         ## requestTimeout (duration)
+#         ## Description:
+#         ##   Timeout for network requests for GitHub auth
+#         ## Default: 10s
+#         requestTimeout: 0s
+# 
+#   alwaysShowProvidersPage: false
+#   authenticationTimeout: 5m
+# 
+# Example portal using Google authentication
+# - # name: google-portal
+#   displayName: "Google Authentication"
+#   providers:
+#   - # provider: google
+#     name: ""
+#     displayName: ""
+#     icon: ""
+#     color: ""
+#     config:
+#         ## clientID (string)
+#         ## Description:
+#         ##   Client ID for the Google auth application
+#         ## Required
+#         clientID: "your-google-client-id.apps.googleusercontent.com"
+# 
+#         ## clientSecret (string)
+#         ## Description:
+#         ##   Client secret for the Google auth application
+#         ##   One of `clientSecret` and `clientSecretFile` is required.
+#         ## Required
+#         clientSecret: "your-client-secret"
+# 
+#         ## clientSecretFile (string)
+#         ## Description:
+#         ##   File containing the client secret for the Google auth application
+#         ##   This is an alternative to passing the secret as `clientSecret`
+#         ##   One of `clientSecret` and `clientSecretFile` is required.
+#         clientSecretFile: ""
+# 
+#         ## requestTimeout (duration)
+#         ## Description:
+#         ##   Timeout for network requests for Google auth
+#         ## Default: 10s
+#         requestTimeout: 0s
+# 
+#   alwaysShowProvidersPage: false
+#   authenticationTimeout: 5m
+# 
+# Example portal using Microsoft Entra ID authentication
+# - # name: microsoftentraid-portal
+#   displayName: "Microsoft Entra ID Authentication"
+#   providers:
+#   - # provider: microsoftentraid
+#     name: ""
+#     displayName: ""
+#     icon: ""
+#     color: ""
+#     config:
+#         ## tenantID (string)
+#         ## Description:
+#         ##   Tenant ID for the Microsoft Entra ID auth application
+#         ## Required
+#         tenantID: "your-tenant-id"
+# 
+#         ## clientID (string)
+#         ## Description:
+#         ##   Client ID for the Microsoft Entra ID auth application
+#         ## Required
+#         clientID: "your-client-id"
+# 
+#         ## clientSecret (string)
+#         ## Description:
+#         ##   Client secret for the Microsoft Entra ID auth application
+#         ##   Required when not using Federated Identity Credentials
+#         clientSecret: "your-client-secret"
+# 
+#         ## clientSecretFile (string)
+#         ## Description:
+#         ##   File containing the client secret for the Microsoft Entra ID application.
+#         ##   This is an alternative to passing the secret as `clientSecret`
+#         clientSecretFile: ""
+# 
+#         ## azureFederatedIdentity (string)
+#         ## Description:
+#         ##   Enables the usage of Federated Identity Credentials to obtain assertions for confidential clients for Microsoft Entra ID applications.
+#         ##   This is an alternative to using client secrets, when the application is running in Azure in an environment that supports Managed Identity, or in an environment that supports Workload Identity Federation with Microsoft Entra ID.
+#         ##   Currently, these values are supported:
+#         ##
+#         ##   - `ManagedIdentity`: uses a system-assigned managed identity
+#         ##   - `ManagedIdentity=client-id`: uses a user-assigned managed identity with client id "client-id" (e.g. "ManagedIdentity=00000000-0000-0000-0000-000000000000")
+#         ##   - `WorkloadIdentity`: uses workload identity, e.g. for Kubernetes
+#         azureFederatedIdentity: "ManagedIdentity"
+# 
+#         ## requestTimeout (duration)
+#         ## Description:
+#         ##   Timeout for network requests for Microsoft Entra ID auth
+#         ## Default: 10s
+#         requestTimeout: 0s
+# 
+#   alwaysShowProvidersPage: false
+#   authenticationTimeout: 5m
+# 
+# Example portal using OpenID Connect authentication
+# - # name: openidconnect-portal
+#   displayName: "OpenID Connect Authentication"
+#   providers:
+#   - # provider: openidconnect
+#     name: ""
+#     displayName: ""
+#     icon: ""
+#     color: ""
+#     config:
+#         ## clientID (string)
+#         ## Description:
+#         ##   Client ID for the OpenID Connect application
+#         ## Required
+#         clientID: "your-client-id"
+# 
+#         ## clientSecret (string)
+#         ## Description:
+#         ##   Client secret for the OpenID Connect application
+#         ## Required
+#         clientSecret: "your-client-secret"
+# 
+#         ## clientSecretFile (string)
+#         ## Description:
+#         ##   File containing the client secret for the OpenID Connect application
+#         ##   This is an alternative to passing the secret as `clientSecret`
+#         clientSecretFile: ""
+# 
+#         ## tokenIssuer (string)
+#         ## Description:
+#         ##   OpenID Connect token issuer
+#         ##   The OpenID Connect configuration document will be fetched at `<token-issuer>/.well-known/openid-configuration`
+#         ## Required
+#         tokenIssuer: "https://your-identity-provider/.well-known/openid-configuration"
+# 
+#         ## requestTimeout (duration)
+#         ## Description:
+#         ##   Timeout for network requests for OpenID Connect auth
+#         ## Default: 10s
+#         requestTimeout: 0s
+# 
+#         ## enablePKCE (boolean)
+#         ## Description:
+#         ##   If true, enables the use of PKCE during the code exchange.
+#         ## Default: false
+#         enablePKCE: false
+# 
+#         ## tlsInsecureSkipVerify (boolean)
+#         ## Description:
+#         ##   If true, skips validating TLS certificates when connecting to the OpenID Connect Identity Provider.
+#         ## Default: false
+#         tlsInsecureSkipVerify: false
+# 
+#         ## tlsCACertificatePEM (string)
+#         ## Description:
+#         ##   Optional PEM-encoded CA certificate to trust when connecting to the OpenID Connect Identity Provider.
+#         tlsCACertificatePEM: ""
+# 
+#         ## tlsCACertificatePath (string)
+#         ## Description:
+#         ##   Optional path to a CA certificate to trust when connecting to the OpenID Connect Identity Provider.
+#         tlsCACertificatePath: ""
+# 
+#   alwaysShowProvidersPage: false
+#   authenticationTimeout: 5m
+# 
+# Example portal using Tailscale Whois authentication
+# - # name: tailscalewhois-portal
+#   displayName: "Tailscale Whois Authentication"
+#   providers:
+#   - # provider: tailscalewhois
+#     name: ""
+#     displayName: ""
+#     icon: ""
+#     color: ""
+#     config:
+#         ## allowedTailnet (string)
+#         ## Description:
+#         ##   If non-empty, requires the Tailnet of the user to match this value
+#         allowedTailnet: "yourtailnet.ts.net"
+# 
+#         ## requestTimeout (duration)
+#         ## Description:
+#         ##   Timeout for network requests for Tailscale Whois auth
+#         ## Default: 10s
+#         requestTimeout: 0s
+# 
+#   alwaysShowProvidersPage: false
+#   authenticationTimeout: 5m
+# 
