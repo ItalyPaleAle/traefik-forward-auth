@@ -115,7 +115,7 @@ func (a *MicrosoftEntraID) UserIDFromProfile(profile *user.Profile) string {
 }
 
 func (a *MicrosoftEntraID) FullNameFromProfile(profile *user.Profile) string {
-	if profile.Name != nil && profile.Name.FullName != "" {
+	if profile.Name.FullName != "" {
 		return profile.Name.FullName
 	}
 	return ""
