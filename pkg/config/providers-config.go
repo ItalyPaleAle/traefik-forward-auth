@@ -44,17 +44,20 @@ type ProviderConfig interface {
 type ProviderConfig_GitHub struct {
 	// Client ID for the GitHub auth application
 	// +required
+	// +example "your-client-id"
 	ClientID string `yaml:"clientID"`
 	// Client secret for the GitHub application
 	// One of `clientSecret` and `clientSecretFile` is required.
 	// +required
+	// +example "your-client-secret"
 	ClientSecret string `yaml:"clientSecret"`
 	// File containing the client secret for the GitHub application
 	// This is an alternative to passing the secret as `clientSecret`
 	// One of `clientSecret` and `clientSecretFile` is required.
+	// +example "/var/run/secrets/traefik-forward-auth/github/client-secret"
 	ClientSecretFile string `yaml:"clientSecretFile"`
 	// Timeout for network requests for GitHub auth
-	// +default 10s
+	// +default "10s"
 	RequestTimeout time.Duration `yaml:"requestTimeout"`
 }
 
@@ -76,17 +79,20 @@ func (p *ProviderConfig_GitHub) SetConfigObject(_ *Config) {
 type ProviderConfig_Google struct {
 	// Client ID for the Google auth application
 	// +required
+	// +example "your-google-client-id.apps.googleusercontent.com"
 	ClientID string `yaml:"clientID"`
 	// Client secret for the Google auth application
 	// One of `clientSecret` and `clientSecretFile` is required.
 	// +required
+	// +example "your-client-secret"
 	ClientSecret string `yaml:"clientSecret"`
 	// File containing the client secret for the Google auth application
 	// This is an alternative to passing the secret as `clientSecret`
 	// One of `clientSecret` and `clientSecretFile` is required.
+	// +example "/var/run/secrets/traefik-forward-auth/google/client-secret"
 	ClientSecretFile string `yaml:"clientSecretFile"`
 	// Timeout for network requests for Google auth
-	// +default 10s
+	// +default "10s"
 	RequestTimeout time.Duration `yaml:"requestTimeout"`
 }
 
@@ -114,15 +120,19 @@ func (p *ProviderConfig_Google) SetConfigObject(_ *Config) {
 type ProviderConfig_MicrosoftEntraID struct {
 	// Tenant ID for the Microsoft Entra ID auth application
 	// +required
+	// +example
 	TenantID string `yaml:"tenantID"`
 	// Client ID for the Microsoft Entra ID auth application
 	// +required
+	// +example "your-client-id"
 	ClientID string `yaml:"clientID"`
 	// Client secret for the Microsoft Entra ID auth application
 	// Required when not using Federated Identity Credentials
+	// +example "your-client-secret"
 	ClientSecret string `yaml:"clientSecret"`
 	// File containing the client secret for the Microsoft Entra ID application.
 	// This is an alternative to passing the secret as `clientSecret`
+	// +example "/var/run/secrets/traefik-forward-auth/client-secret"
 	ClientSecretFile string `yaml:"clientSecretFile"`
 	// Enables the usage of Federated Identity Credentials to obtain assertions for confidential clients for Microsoft Entra ID applications.
 	// This is an alternative to using client secrets, when the application is running in Azure in an environment that supports Managed Identity, or in an environment that supports Workload Identity Federation with Microsoft Entra ID.
@@ -133,7 +143,7 @@ type ProviderConfig_MicrosoftEntraID struct {
 	// - `WorkloadIdentity`: uses workload identity, e.g. for Kubernetes
 	AzureFederatedIdentity string `yaml:"azureFederatedIdentity"`
 	// Timeout for network requests for Microsoft Entra ID auth
-	// +default 10s
+	// +default "10s"
 	RequestTimeout time.Duration `yaml:"requestTimeout"`
 
 	config *Config
@@ -166,19 +176,23 @@ func (p *ProviderConfig_MicrosoftEntraID) SetConfigObject(c *Config) {
 type ProviderConfig_OpenIDConnect struct {
 	// Client ID for the OpenID Connect application
 	// +required
+	// +example "your-client-id"
 	ClientID string `yaml:"clientID"`
 	// Client secret for the OpenID Connect application
 	// +required
+	// +example "your-client-secret"
 	ClientSecret string `yaml:"clientSecret"`
 	// File containing the client secret for the OpenID Connect application
 	// This is an alternative to passing the secret as `clientSecret`
+	// +example "/var/run/secrets/traefik-forward-auth/openidconnect/client-secret"
 	ClientSecretFile string `yaml:"clientSecretFile"`
 	// OpenID Connect token issuer
 	// The OpenID Connect configuration document will be fetched at `<token-issuer>/.well-known/openid-configuration`
 	// +required
+	// +example "https://id.external-example.com"
 	TokenIssuer string `yaml:"tokenIssuer"`
 	// Timeout for network requests for OpenID Connect auth
-	// +default 10s
+	// +default "10s"
 	RequestTimeout time.Duration `yaml:"requestTimeout"`
 	// If true, enables the use of PKCE during the code exchange.
 	// +default false
@@ -242,9 +256,10 @@ func (p *ProviderConfig_OpenIDConnect) SetConfigObject(c *Config) {
 // +displayName Tailscale Whois
 type ProviderConfig_TailscaleWhois struct {
 	// If non-empty, requires the Tailnet of the user to match this value
+	// +example "yourtailnet.ts.net"
 	AllowedTailnet string `yaml:"allowedTailnet"`
 	// Timeout for network requests for Tailscale Whois auth
-	// +default 10s
+	// +default "10s"
 	RequestTimeout time.Duration `yaml:"requestTimeout"`
 }
 

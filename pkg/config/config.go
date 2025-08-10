@@ -39,11 +39,12 @@ type Config struct {
 	// Logs configuration
 	Logs ConfigLogs `yaml:"logs"`
 
-	// List of portals when running in multi-portal mode
-	Portals []ConfigPortal `yaml:"portals"`
-
 	// If set to the name of a portal defined in "portals", it makes the portal available on the root endpoint, without the `portals/<name>/` prefix
 	DefaultPortal string `yaml:"defaultPortal"`
+
+	// List of portals when running in multi-portal mode
+	// +required
+	Portals []ConfigPortal `yaml:"portals"`
 
 	// Dev is meant for development only; it's undocumented
 	Dev ConfigDev `yaml:"-"`
@@ -56,6 +57,7 @@ type ConfigServer struct {
 	// The hostname the application is reached at.
 	// This is used for setting the "redirect_uri" field for OAuth2 callbacks.
 	// +required
+	// +example "auth.example.com"
 	Hostname string `yaml:"hostname"`
 
 	// Port to bind to.
@@ -69,6 +71,7 @@ type ConfigServer struct {
 	// Base path for all routes.
 	// Set this if Traefik is forwarding requests to traefik-forward-auth for specific paths only.
 	// Note: this does not apply to /api and /healthz routes
+	// +example "/auth"
 	BasePath string `yaml:"basePath"`
 
 	// Path where to load TLS certificates from. Within the folder, the files must be named `tls-cert.pem` and `tls-key.pem` (and optionally `tls-ca.pem`).
@@ -102,6 +105,7 @@ type ConfigServer struct {
 	// - `CF-Ray`: when the application is served by a [Cloudflare CDN](https://developers.cloudflare.com/fundamentals/get-started/reference/cloudflare-ray-id/)
 	//
 	// If this option is empty, or if it contains the name of a header that is not found in an incoming request, a random UUID is generated as request ID.
+	// +example "X-Request-ID"
 	TrustedRequestIdHeader string `yaml:"trustedRequestIdHeader"`
 }
 
@@ -110,6 +114,7 @@ type ConfigCookies struct {
 	// If empty, this is set to the value of the `hostname` property.
 	// This value must either be the same as the `hostname` property, or the hostname must be a sub-domain of the cookie domain name.
 	// +recommended
+	// +example "auth.example.com"
 	Domain string `yaml:"domain"`
 
 	// Prefix for the cookies used to store the sessions.
@@ -136,13 +141,13 @@ type ConfigLogs struct {
 	OmitHealthChecks bool `yaml:"omitHealthChecks"`
 
 	// If true, emits logs formatted as JSON, otherwise uses a text-based structured log format.
-	// +default false if a TTY is attached (e.g. in development); true otherwise.
+	// Defaults to false if a TTY is attached (e.g. in development); true otherwise.
 	JSON bool `yaml:"json"`
 }
 
 type ConfigTokens struct {
 	// Lifetime for sessions after a successful authentication.
-	// +default 2h
+	// +default "2h"
 	SessionLifetime time.Duration `yaml:"sessionLifetime"`
 
 	// String used as key to sign state tokens.
@@ -155,17 +160,19 @@ type ConfigTokens struct {
 	SigningKeyFile string `yaml:"signingKeyFile"`
 
 	// Value for the audience claim to expect in session tokens used by Traefik Forward Auth.
-	// This defaults to a value based on `cookies.domain` and `server.basePath` which is appropriate for the majority of cases. Most users should rely on the default value.
+	// Defaults to a value based on `cookies.domain` and `server.basePath` which is appropriate for the majority of cases. Most users should rely on the default value.
 	SessionTokenAudience string `yaml:"sessionTokenAudience"`
 }
 
 type ConfigPortal struct {
 	// Name of the portal, as used in the URL.
 	// +required
+	// +example "default"
 	Name string `yaml:"name"`
 
 	// Optional display name.
-	// Defaults to the `name` property otherwise
+	// Defaults to the `name` property if not set.
+	// +example "My auth portal"
 	DisplayName string `yaml:"displayName"`
 
 	// List of allowed authentication providers.
@@ -198,26 +205,30 @@ type ConfigPortalProvider struct {
 
 	// Name of the authentication provider
 	// If empty, this defaults to the provider type (e.g. `google`)
-	// +default name of the provider type
+	// Defaults to the name of the provider type
+	// +example "google"
 	Name string `yaml:"name"`
 
 	// Optional display name for the provider
-	// +default default display name for the provider
+	// Defaults to the standard display name for the provider
+	// +example "Google"
 	DisplayName string `yaml:"displayName"`
 
 	// Optional icon for the provider
-	// +default default icon for the provider
+	// Defaults to the standard icon for the provider
+	// +example "google"
 	Icon string `yaml:"icon"`
 
-	// Optional color for the provider
-	// +default default color for the provider
+	// Optional color scheme for the provider
+	// Defaults to the standard color for the provider
+	// +example "red-to-yellow"
 	Color string `yaml:"color"`
 
 	// Configuration for the provider.
 	// The properties depend on the provider type.
 	Config map[string]any `yaml:"config"`
 
-	// Parsed config object
+	// Parsed config object - internal
 	configParsed ProviderConfig
 }
 
