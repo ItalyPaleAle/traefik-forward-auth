@@ -114,6 +114,13 @@ func (a *MicrosoftEntraID) UserIDFromProfile(profile *user.Profile) string {
 	return profile.ID
 }
 
+func (a *MicrosoftEntraID) FullNameFromProfile(profile *user.Profile) string {
+	if profile.Name != nil && profile.Name.FullName != "" {
+		return profile.Name.FullName
+	}
+	return ""
+}
+
 func getFederatedIdentity(afi string) (fic azcore.TokenCredential, err error) {
 	// Crete the federated identity credential object depending on the kind of federated identity
 	afi = strings.ToLower(afi)
