@@ -40,6 +40,7 @@ type Config struct {
 	Logs ConfigLogs `yaml:"logs"`
 
 	// If set to the name of a portal defined in "portals", it makes the portal available on the root endpoint, without the `portals/<name>/` prefix
+	// +example "myportal"
 	DefaultPortal string `yaml:"defaultPortal"`
 
 	// List of portals when running in multi-portal mode

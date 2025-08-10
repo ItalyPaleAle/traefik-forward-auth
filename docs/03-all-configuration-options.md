@@ -16,14 +16,14 @@
 | <a id="config-opt-cookies-domain"></a>`cookies.domain` | string | Domain name for setting cookies.<br>If empty, this is set to the value of the `hostname` property.<br>This value must either be the same as the `hostname` property, or the hostname must be a sub-domain of the cookie domain name.| Recommended |
 | <a id="config-opt-cookies-nameprefix"></a>`cookies.namePrefix` | string | Prefix for the cookies used to store the sessions.| Default: _"tf_sess"_ |
 | <a id="config-opt-cookies-insecure"></a>`cookies.insecure` | boolean | If true, sets cookies as "insecure", which are served on HTTP endpoints too.<br>By default, this is false and cookies are sent on HTTPS endpoints only.| Default: _false_ |
-| <a id="config-opt-tokens-sessionlifetime"></a>`tokens.sessionLifetime` | duration | Lifetime for sessions after a successful authentication.| Default: _2h_ |
+| <a id="config-opt-tokens-sessionlifetime"></a>`tokens.sessionLifetime` | duration | Lifetime for sessions after a successful authentication.| Default: _"2h"_ |
 | <a id="config-opt-tokens-signingkey"></a>`tokens.signingKey` | string | String used as key to sign state tokens.<br>Can be generated for example with `openssl rand -base64 32`<br>If left empty, it will be randomly generated every time the app starts (recommended, unless you need user sessions to persist after the application is restarted).|  |
 | <a id="config-opt-tokens-signingkeyfile"></a>`tokens.signingKeyFile` | string | File containing the key used to sign state tokens.<br>This is an alternative to specifying `signingKey` tokens.directly.|  |
-| <a id="config-opt-tokens-sessiontokenaudience"></a>`tokens.sessionTokenAudience` | string | Value for the audience claim to expect in session tokens used by Traefik Forward Auth.<br>This defaults to a value based on `cookies.domain` and `server.basePath` which is appropriate for the majority of cases. Most users should rely on the default value.|  |
+| <a id="config-opt-tokens-sessiontokenaudience"></a>`tokens.sessionTokenAudience` | string | Value for the audience claim to expect in session tokens used by Traefik Forward Auth.<br>Defaults to a value based on `cookies.domain` and `server.basePath` which is appropriate for the majority of cases. Most users should rely on the default value.|  |
 | <a id="config-opt-logs-level"></a>`logs.level` | string | Controls log level and verbosity. Supported values: `debug`, `info` (default), `warn`, `error`.| Default: _"info"_ |
 | <a id="config-opt-logs-omithealthchecks"></a>`logs.omitHealthChecks` | boolean | If true, calls to the healthcheck endpoint (`/healthz`) are not included in the logs.| Default: _true_ |
-| <a id="config-opt-logs-json"></a>`logs.json` | boolean | If true, emits logs formatted as JSON, otherwise uses a text-based structured log format.| Default: _false if a TTY is attached (e.g. in development); true otherwise._ |
-| <a id="config-opt-portals"></a>`portals` | list | List of portals when running in multi-portal mode|  |
+| <a id="config-opt-logs-json"></a>`logs.json` | boolean | If true, emits logs formatted as JSON, otherwise uses a text-based structured log format.<br>Defaults to false if a TTY is attached (e.g. in development); true otherwise.|  |
 | <a id="config-opt-defaultportal"></a>`defaultPortal` | string | If set to the name of a portal defined in "portals", it makes the portal available on the root endpoint, without the `portals/<name>/` prefix|  |
+| <a id="config-opt-portals"></a>`portals` | list | List of portals when running in multi-portal mode| **Required** |
 
 <!-- END CONFIG TABLE -->
