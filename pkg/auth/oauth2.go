@@ -283,6 +283,11 @@ func (a *oAuth2) UserIDFromProfile(profile *user.Profile) string {
 	return profile.ID
 }
 
+func (a *oAuth2) FullNameFromProfile(profile *user.Profile) string {
+	// TODO: To be implemented for this provider
+	return ""
+}
+
 func (a *oAuth2) PopulateAdditionalClaims(claims map[string]any, setClaimFn func(key, val string)) {
 	// Nop in this implementation
 }
