@@ -14,6 +14,8 @@ type Provider interface {
 	GetProviderName() string
 	// UserIDFromProfile returns the user ID to include in the "X-Forwarded-User" header, picking the appropriate value from the profile
 	UserIDFromProfile(profile *user.Profile) string
+	// FullNameFromProfile returns the full name to include in the "X-Forwarded-DisplayName" header, picking the appropriate value from the profile
+	FullNameFromProfile(profile *user.Profile) string
 	// ValidateRequestClaims validates that claims are valid for the incoming request from the client.
 	ValidateRequestClaims(r *http.Request, profile *user.Profile) error
 	// PopulateAdditionalClaims allows a provider to populate the AdditionalClaims property of a Profile object.
