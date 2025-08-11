@@ -20,6 +20,8 @@ const (
 	docsFileDest = "docs/03-all-configuration-options.md"
 )
 
+var structTypes map[string]*ast.StructType
+
 func generateFromStruct(dir string) error {
 	fset := token.NewFileSet()
 	node, err := parser.ParseFile(fset, filepath.Join(dir, "config.go"), nil, parser.ParseComments)
@@ -42,11 +44,8 @@ func generateFromStruct(dir string) error {
 	outBufMD := &bytes.Buffer{}
 	outMD := io.MultiWriter(outBufMD, outFileMD)
 
-	fmt.Fprint(outMD, "| Name | Type | Description | |\n")
-	fmt.Fprint(outMD, "| --- | --- | --- | --- |\n")
-
 	// Map to store struct types defined in the file
-	structTypes := make(map[string]*ast.StructType)
+	structTypes = make(map[string]*ast.StructType)
 
 	// First pass: collect all struct types
 	ast.Inspect(node, func(n ast.Node) bool {
@@ -76,7 +75,7 @@ func generateFromStruct(dir string) error {
 			return true
 		}
 
-		processStruct(structType, "", "", outYAML, outMD, structTypes)
+		processStruct(structType, "", "", "", outYAML, outMD)
 		return false
 	})
 
@@ -108,7 +107,22 @@ func generateFromStruct(dir string) error {
 }
 
 // processStruct processes a struct type recursively, generating documentation for each field
-func processStruct(structType *ast.StructType, prefix string, parentYamlPath string, outYAML io.Writer, outMD io.Writer, structTypes map[string]*ast.StructType) {
+func processStruct(structType *ast.StructType, yamlPrefix string, parentYamlPath string, sectionName string, outYAML io.Writer, outMD io.Writer) {
+	y := func(format string, a ...any) { fmt.Fprintf(outYAML, yamlPrefix+format, a...) }
+
+	if parentYamlPath == "" {
+		switch sectionName {
+		case "":
+			printMarkdownHeader("Root configuration object", outMD)
+		case "portals":
+			fmt.Fprint(outMD, "\n")
+			printMarkdownHeader("Portal configuration", outMD)
+		case "providers":
+			fmt.Fprint(outMD, "\n")
+			printMarkdownHeader("Provider configuration", outMD)
+		}
+	}
+
 	for _, field := range structType.Fields.List {
 		// Skip fields without tags
 		if field.Tag == nil {
@@ -144,9 +158,21 @@ func processStruct(structType *ast.StructType, prefix string, parentYamlPath str
 			_, isStructField = structTypes[structName]
 		}
 
+		// Handle the special "portals" field
+		if fullYamlPath == "portals" && sectionName == "" {
+			processPortalsField(outYAML, outMD, yamlPrefix)
+			continue
+		}
+
+		// Handle the special "providers" field
+		if fullYamlPath == "providers" && sectionName == "portals" {
+			processProvidersField(outYAML, outMD, yamlPrefix)
+			continue
+		}
+
+		// Handle regular (non-struct) fields
 		if !isStructField {
-			// Handle regular field
-			processField(field, fullYamlPath, outYAML, outMD, prefix)
+			processField(field, fullYamlPath, sectionName, outYAML, outMD, yamlPrefix)
 			continue
 		}
 
@@ -155,34 +181,36 @@ func processStruct(structType *ast.StructType, prefix string, parentYamlPath str
 		if nestedStruct != nil {
 			// Only output a header for this struct if it's not the root
 			if parentYamlPath != "" {
-				fmt.Fprintf(outYAML, "## %s\n", fullYamlPath)
+				y("## %s\n", fullYamlPath)
 				if field.Doc != nil && field.Doc.Text() != "" {
-					fmt.Fprintf(outYAML, "## Description:\n")
+					y("## Description:\n")
 					for _, line := range strings.Split(field.Doc.Text(), "\n") {
 						if line != "" {
-							fmt.Fprintf(outYAML, "##   %s\n", line)
+							y("##   %s\n", line)
 						}
 					}
 				}
 				// Generate proper YAML indentation for nested structures
-				fmt.Fprintf(outYAML, "%s:\n", yamlTag)
+				y("%s:\n", yamlTag)
 			} else {
 				// For top-level fields
-				fmt.Fprintf(outYAML, "%s:\n", yamlTag)
+				y("%s:\n", yamlTag)
 			}
 
 			// Process nested fields with appropriate indentation
-			processStruct(nestedStruct, prefix+"  ", fullYamlPath, outYAML, outMD, structTypes)
+			processStruct(nestedStruct, yamlPrefix+"  ", fullYamlPath, sectionName, outYAML, outMD)
 		}
 	}
 }
 
 // processField handles a single field, generating documentation
-func processField(field *ast.Field, yamlTag string, outYAML io.Writer, outMD io.Writer, prefix string) {
+func processField(field *ast.Field, yamlTag string, sectionName string, outYAML io.Writer, outMD io.Writer, yamlPrefix string) {
 	var (
 		defaultText, doc, example, value string
 		required, recommended, lastEmpty bool
 	)
+
+	y := func(format string, a ...any) { fmt.Fprintf(outYAML, yamlPrefix+format, a...) }
 
 	// Get the last part of the YAML path for field name (after the last dot)
 	fieldName := yamlTag
@@ -193,15 +221,20 @@ func processField(field *ast.Field, yamlTag string, outYAML io.Writer, outMD io.
 	// Field type
 	typ := fieldTypeName(field)
 
+	anchor := strings.ReplaceAll(yamlTag, ".", "-")
+	if sectionName != "" {
+		anchor = sectionName + "-" + anchor
+	}
+
 	// Parse field documentation
-	fmt.Fprintf(outYAML, "%s## %s (%s)\n", prefix, yamlTag, typ)
-	fmt.Fprintf(outMD, "| <a id=\"config-opt-%s\"></a>`%s` | %s | ", strings.ToLower(strings.ReplaceAll(yamlTag, ".", "-")), yamlTag, typ)
+	y("## %s (%s)\n", yamlTag, typ)
+	fmt.Fprintf(outMD, "| <a id=\"config-opt-%s\"></a>`%s` | %s | ", strings.ToLower(anchor), yamlTag, typ)
 	if field.Doc != nil {
 		doc = field.Doc.Text()
 	}
 	var mdFooter string
 	if doc != "" {
-		fmt.Fprintf(outYAML, "%s## Description:\n", prefix)
+		y("## Description:\n")
 		for i, line := range strings.Split(doc, "\n") {
 			if line == "" {
 				lastEmpty = true
@@ -219,10 +252,10 @@ func processField(field *ast.Field, yamlTag string, outYAML io.Writer, outMD io.
 				example = strings.TrimPrefix(line, "+example ")
 			default:
 				if lastEmpty {
-					fmt.Fprintf(outYAML, "%s##\n", prefix)
+					y("##\n")
 					fmt.Fprint(outMD, "<br>")
 				}
-				fmt.Fprintf(outYAML, "%s##   %s\n", prefix, line)
+				y("##   %s\n", line)
 				if i > 0 {
 					fmt.Fprint(outMD, "<br>"+line)
 				} else {
@@ -233,7 +266,7 @@ func processField(field *ast.Field, yamlTag string, outYAML io.Writer, outMD io.
 		}
 
 		if defaultText != "" {
-			fmt.Fprintf(outYAML, "%s## Default: %s\n", prefix, defaultText)
+			y("## Default: %s\n", defaultText)
 			mdFooter = "Default: _" + defaultText + "_"
 		}
 	}
@@ -249,7 +282,8 @@ func processField(field *ast.Field, yamlTag string, outYAML io.Writer, outMD io.
 	}
 
 	if required {
-		fmt.Fprintf(outYAML, "%s## Required\n%s%s: %s\n\n", prefix, prefix, fieldName, value)
+		y("## Required\n")
+		y("%s: %s\n\n", fieldName, value)
 		mdFooter = "**Required**"
 	} else {
 		if recommended {
@@ -259,9 +293,46 @@ func processField(field *ast.Field, yamlTag string, outYAML io.Writer, outMD io.
 				mdFooter = "Recommended"
 			}
 		}
-		fmt.Fprintf(outYAML, "%s#%s: %s\n\n", prefix, fieldName, value)
+		y("#%s: %s\n\n", fieldName, value)
 	}
 	fmt.Fprintf(outMD, "| %s |\n", mdFooter)
+}
+
+// processPortalsField handles the special "portals" field
+func processPortalsField(outYAML io.Writer, outMD io.Writer, yamlPrefix string) {
+	y := func(format string, a ...any) { fmt.Fprintf(outYAML, yamlPrefix+format, a...) }
+	y("## portals (list of portals)\n")
+	y("## Description:\n")
+	y("##   List of portals\n")
+	y("##   At least one configured portal and provider is required\n")
+	y("portals:\n")
+	y("  - ## Example portal configuration\n")
+	y("    ## Configure the portal with the required fields and at least one provider\n\n")
+
+	fmt.Fprintln(outMD, `| <a id="config-opt-portals"></a>`+"`portals`"+`| list of [portal configurations](#portal-configuration) | List of portals.<br>See the [portal configuration](#portal-configuration) section for more details. | **Required**<br>At least one configured portal and provider is required |`)
+
+	processStruct(structTypes["ConfigPortal"], "    ", "", "portals", outYAML, outMD)
+}
+
+// processProvidersField handles the special "providers" field
+func processProvidersField(outYAML io.Writer, outMD io.Writer, yamlPrefix string) {
+	y := func(format string, a ...any) { fmt.Fprintf(outYAML, yamlPrefix+format, a...) }
+	y("## providers (list of provider configurations)\n")
+	y("## Description:\n")
+	y("##   List of allowed authentication providers\n")
+	y("##   At least one provider is required.\n")
+	y("providers:\n")
+	y("  - ## Example provider configuration\n\n")
+
+	fmt.Fprintln(outMD, `| <a id="config-opt-providers"></a>`+"`providers`"+`| list of [provider configurations](#provider-configuration) | List of allowed authentication providers<br>See the [provider configuration](#provider-configuration) section for more details. | **Required**<br>At least one provider is required. |`)
+
+	processStruct(structTypes["ConfigPortalProvider"], "        ", "", "providers", outYAML, outMD)
+}
+
+func printMarkdownHeader(header string, outMD io.Writer) {
+	fmt.Fprintf(outMD, "## %s\n\n", header)
+	fmt.Fprint(outMD, "| Name | Type | Description | |\n")
+	fmt.Fprint(outMD, "| --- | --- | --- | --- |\n")
 }
 
 // fieldTypeName returns a human-readable name for a field type

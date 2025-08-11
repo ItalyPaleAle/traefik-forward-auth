@@ -141,9 +141,87 @@ logs:
 ##   If set to the name of a portal defined in "portals", it makes the portal available on the root endpoint, without the `portals/<name>/` prefix
 #defaultPortal: "myportal"
 
-## portals (list)
+## portals (list of portals)
 ## Description:
-##   List of portals when running in multi-portal mode
-## Required
-portals: []
+##   List of portals
+##   At least one configured portal and provider is required
+portals:
+  - ## Example portal configuration
+    ## Configure the portal with the required fields and at least one provider
+
+    ## name (string)
+    ## Description:
+    ##   Name of the portal, as used in the URL.
+    ## Required
+    name: "default"
+
+    ## displayName (string)
+    ## Description:
+    ##   Optional display name.
+    ##   Defaults to the `name` property if not set.
+    #displayName: "My auth portal"
+
+    ## alwaysShowProvidersPage (boolean)
+    ## Description:
+    ##   If true, always shows the providers selection page, even when there's a single provider configured.
+    ##   Has no effect when there's more than one provider configured.
+    ## Default: false
+    #alwaysShowProvidersPage: false
+
+    ## authenticationTimeout (duration)
+    ## Description:
+    ##   Timeout for authenticating with the authentication provider.
+    ## Default: 5m
+    #authenticationTimeout: 5m
+
+    ## providers (list of provider configurations)
+    ## Description:
+    ##   List of allowed authentication providers
+    ##   At least one provider is required.
+    providers:
+      - ## Example provider configuration
+
+        ## provider (string)
+        ## Description:
+        ##   Authentication provider to use
+        ##   Currently supported providers:
+        ##
+        ##   - `github`
+        ##   - `google`
+        ##   - `microsoftentraid`
+        ##   - `openidconnect`
+        ##   - `tailscalewhois`
+        ## Required
+        provider: ""
+
+        ## name (string)
+        ## Description:
+        ##   Name of the authentication provider
+        ##   If empty, this defaults to the provider type (e.g. `google`)
+        ##   Defaults to the name of the provider type
+        #name: "google"
+
+        ## displayName (string)
+        ## Description:
+        ##   Optional display name for the provider
+        ##   Defaults to the standard display name for the provider
+        #displayName: "Google"
+
+        ## icon (string)
+        ## Description:
+        ##   Optional icon for the provider
+        ##   Defaults to the standard icon for the provider
+        #icon: "google"
+
+        ## color (string)
+        ## Description:
+        ##   Optional color scheme for the provider
+        ##   Defaults to the standard color for the provider
+        #color: "red-to-yellow"
+
+        ## config (map)
+        ## Description:
+        ##   Configuration for the provider.
+        ##   The properties depend on the provider type.
+        #config: 
 

@@ -43,7 +43,8 @@ type Config struct {
 	// +example "myportal"
 	DefaultPortal string `yaml:"defaultPortal"`
 
-	// List of portals when running in multi-portal mode
+	// List of portals
+	// At least one configured portal and provider is required
 	// +required
 	Portals []ConfigPortal `yaml:"portals"`
 
@@ -176,11 +177,6 @@ type ConfigPortal struct {
 	// +example "My auth portal"
 	DisplayName string `yaml:"displayName"`
 
-	// List of allowed authentication providers.
-	// At least one provider is required.
-	// +required
-	Providers []ConfigPortalProvider `yaml:"providers"`
-
 	// If true, always shows the providers selection page, even when there's a single provider configured.
 	// Has no effect when there's more than one provider configured.
 	// +default false
@@ -189,6 +185,11 @@ type ConfigPortal struct {
 	// Timeout for authenticating with the authentication provider.
 	// +default 5m
 	AuthenticationTimeout time.Duration `yaml:"authenticationTimeout"`
+
+	// List of allowed authentication providers.
+	// At least one provider is required.
+	// +required
+	Providers []ConfigPortalProvider `yaml:"providers"`
 }
 
 type ConfigPortalProvider struct {
