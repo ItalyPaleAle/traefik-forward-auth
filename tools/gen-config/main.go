@@ -12,6 +12,7 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
+	"slices"
 	"strconv"
 	"strings"
 )
@@ -20,15 +21,14 @@ const (
 	docsFileDest = "docs/03-all-configuration-options.md"
 )
 
-var structTypes map[string]*ast.StructType
+type structDef struct {
+	Tags       map[string]string
+	StructType *ast.StructType
+}
+
+var structTypes map[string]structDef
 
 func generateFromStruct(dir string) error {
-	fset := token.NewFileSet()
-	node, err := parser.ParseFile(fset, filepath.Join(dir, "config.go"), nil, parser.ParseComments)
-	if err != nil {
-		return err
-	}
-
 	outYAML, err := os.Create("config.sample.yaml")
 	if err != nil {
 		return err
@@ -45,39 +45,20 @@ func generateFromStruct(dir string) error {
 	outMD := io.MultiWriter(outBufMD, outFileMD)
 
 	// Map to store struct types defined in the file
-	structTypes = make(map[string]*ast.StructType)
+	structTypes = make(map[string]structDef)
 
-	// First pass: collect all struct types
-	ast.Inspect(node, func(n ast.Node) bool {
-		typeSpec, ok := n.(*ast.TypeSpec)
-		if !ok {
-			return true
-		}
+	// Collect all struct types in the main config.go file
+	err = parseStructsInFile(filepath.Join(dir, "config.go"))
+	if err != nil {
+		return fmt.Errorf("failed to parse structs in config.go file: %w", err)
+	}
+	err = parseStructsInFile(filepath.Join(dir, "providers-config.go"))
+	if err != nil {
+		return fmt.Errorf("failed to parse structs in providers-config.go file: %w", err)
+	}
 
-		structType, ok := typeSpec.Type.(*ast.StructType)
-		if !ok {
-			return true
-		}
-
-		structTypes[typeSpec.Name.Name] = structType
-		return true
-	})
-
-	// Process the Config struct
-	ast.Inspect(node, func(n ast.Node) bool {
-		typeSpec, ok := n.(*ast.TypeSpec)
-		if !ok || typeSpec.Name.Name != "Config" {
-			return true
-		}
-
-		structType, ok := typeSpec.Type.(*ast.StructType)
-		if !ok {
-			return true
-		}
-
-		processStruct(structType, "", "", "", outYAML, outMD)
-		return false
-	})
+	// Process the root Config struct
+	processStruct(structTypes["Config"], "", "", "", outYAML, outMD)
 
 	// Replace the configuration table in the docs file file
 	readme, err := os.ReadFile(filepath.Join(".", docsFileDest))
@@ -106,8 +87,57 @@ func generateFromStruct(dir string) error {
 	return nil
 }
 
+func parseStructsInFile(fileName string) error {
+	fset := token.NewFileSet()
+	node, err := parser.ParseFile(fset, fileName, nil, parser.ParseComments)
+	if err != nil {
+		return err
+	}
+
+	// Collect all struct types in the file
+	ast.Inspect(node, func(n ast.Node) bool {
+		x, ok := n.(*ast.GenDecl)
+		if !ok {
+			return true
+		}
+
+		if len(x.Specs) == 0 {
+			return true
+		}
+
+		typeSpec, ok := x.Specs[0].(*ast.TypeSpec)
+		if !ok {
+			return true
+		}
+
+		structType, ok := typeSpec.Type.(*ast.StructType)
+		if !ok {
+			return true
+		}
+
+		def := structDef{
+			Tags:       map[string]string{},
+			StructType: structType,
+		}
+		for _, line := range strings.Split(x.Doc.Text(), "\n") {
+			switch {
+			case strings.HasPrefix(line, "+name "):
+				def.Tags["name"] = strings.TrimPrefix(line, "+name ")
+			case strings.HasPrefix(line, "+displayName "):
+				def.Tags["displayName"] = strings.TrimPrefix(line, "+displayName ")
+			}
+		}
+
+		structTypes[typeSpec.Name.Name] = def
+
+		return true
+	})
+
+	return nil
+}
+
 // processStruct processes a struct type recursively, generating documentation for each field
-func processStruct(structType *ast.StructType, yamlPrefix string, parentYamlPath string, sectionName string, outYAML io.Writer, outMD io.Writer) {
+func processStruct(structDef structDef, yamlPrefix string, parentYamlPath string, sectionName string, outYAML io.Writer, outMD io.Writer) {
 	y := func(format string, a ...any) { fmt.Fprintf(outYAML, yamlPrefix+format, a...) }
 
 	if parentYamlPath == "" {
@@ -123,7 +153,7 @@ func processStruct(structType *ast.StructType, yamlPrefix string, parentYamlPath
 		}
 	}
 
-	for _, field := range structType.Fields.List {
+	for _, field := range structDef.StructType.Fields.List {
 		// Skip fields without tags
 		if field.Tag == nil {
 			continue
@@ -158,47 +188,44 @@ func processStruct(structType *ast.StructType, yamlPrefix string, parentYamlPath
 			_, isStructField = structTypes[structName]
 		}
 
+		switch {
 		// Handle the special "portals" field
-		if fullYamlPath == "portals" && sectionName == "" {
+		case fullYamlPath == "portals" && sectionName == "":
 			processPortalsField(outYAML, outMD, yamlPrefix)
-			continue
-		}
 
 		// Handle the special "providers" field
-		if fullYamlPath == "providers" && sectionName == "portals" {
+		case fullYamlPath == "providers" && sectionName == "portals":
 			processProvidersField(outYAML, outMD, yamlPrefix)
-			continue
-		}
 
 		// Handle regular (non-struct) fields
-		if !isStructField {
+		case !isStructField:
 			processField(field, fullYamlPath, sectionName, outYAML, outMD, yamlPrefix)
-			continue
-		}
 
 		// Process nested struct
-		nestedStruct := structTypes[structName]
-		if nestedStruct != nil {
-			// Only output a header for this struct if it's not the root
-			if parentYamlPath != "" {
-				y("## %s\n", fullYamlPath)
-				if field.Doc != nil && field.Doc.Text() != "" {
-					y("## Description:\n")
-					for _, line := range strings.Split(field.Doc.Text(), "\n") {
-						if line != "" {
-							y("##   %s\n", line)
+		case isStructField:
+			nestedStruct := structTypes[structName]
+			if nestedStruct.StructType != nil {
+				// Only output a header for this struct if it's not the root
+				if parentYamlPath != "" {
+					y("## %s\n", fullYamlPath)
+					if field.Doc != nil && field.Doc.Text() != "" {
+						y("## Description:\n")
+						for _, line := range strings.Split(field.Doc.Text(), "\n") {
+							if line != "" {
+								y("##   %s\n", line)
+							}
 						}
 					}
+					// Generate proper YAML indentation for nested structures
+					y("%s:\n", yamlTag)
+				} else {
+					// For top-level fields
+					y("%s:\n", yamlTag)
 				}
-				// Generate proper YAML indentation for nested structures
-				y("%s:\n", yamlTag)
-			} else {
-				// For top-level fields
-				y("%s:\n", yamlTag)
-			}
 
-			// Process nested fields with appropriate indentation
-			processStruct(nestedStruct, yamlPrefix+"  ", fullYamlPath, sectionName, outYAML, outMD)
+				// Process nested fields with appropriate indentation
+				processStruct(nestedStruct, yamlPrefix+"  ", fullYamlPath, sectionName, outYAML, outMD)
+			}
 		}
 	}
 }
@@ -322,11 +349,28 @@ func processProvidersField(outYAML io.Writer, outMD io.Writer, yamlPrefix string
 	y("##   List of allowed authentication providers\n")
 	y("##   At least one provider is required.\n")
 	y("providers:\n")
-	y("  - ## Example provider configuration\n\n")
 
-	fmt.Fprintln(outMD, `| <a id="config-opt-providers"></a>`+"`providers`"+`| list of [provider configurations](#provider-configuration) | List of allowed authentication providers<br>See the [provider configuration](#provider-configuration) section for more details. | **Required**<br>At least one provider is required. |`)
+	fmt.Fprint(outMD, "\n")
+	printMarkdownHeader("Provider configuration", outMD)
 
-	processStruct(structTypes["ConfigPortalProvider"], "        ", "", "providers", outYAML, outMD)
+	providerConfigs := make([]string, 0)
+	for k := range structTypes {
+		if strings.HasPrefix(k, "ProviderConfig_") {
+			providerConfigs = append(providerConfigs, k)
+		}
+	}
+
+	slices.Sort(providerConfigs)
+
+	for _, structName := range providerConfigs {
+		provider := strings.TrimPrefix(structName, "ProviderConfig_")
+		y("  - ## Example provider configuration for %s\n", provider)
+		y("    ##\n\n")
+
+		fmt.Fprintln(outMD, `| <a id="config-opt-providers"></a>`+"`providers`"+`| list of [provider configurations](#provider-configuration) | List of allowed authentication providers<br>See the [provider configuration](#provider-configuration) section for more details. | **Required**<br>At least one provider is required. |`)
+
+		processStruct(structTypes["ConfigPortalProvider"], "        ", "", "providers", outYAML, outMD)
+	}
 }
 
 func printMarkdownHeader(header string, outMD io.Writer) {

@@ -36,6 +36,59 @@
 | <a id="config-opt-portals-displayname"></a>`displayName` | string | Optional display name.<br>Defaults to the `name` property if not set.|  |
 | <a id="config-opt-portals-alwaysshowproviderspage"></a>`alwaysShowProvidersPage` | boolean | If true, always shows the providers selection page, even when there's a single provider configured.<br>Has no effect when there's more than one provider configured.| Default: _false_ |
 | <a id="config-opt-portals-authenticationtimeout"></a>`authenticationTimeout` | duration | Timeout for authenticating with the authentication provider.| Default: _5m_ |
+
+## Provider configuration
+
+| Name | Type | Description | |
+| --- | --- | --- | --- |
+| <a id="config-opt-providers"></a>`providers`| list of [provider configurations](#provider-configuration) | List of allowed authentication providers<br>See the [provider configuration](#provider-configuration) section for more details. | **Required**<br>At least one provider is required. |
+
+## Provider configuration
+
+| Name | Type | Description | |
+| --- | --- | --- | --- |
+| <a id="config-opt-providers-provider"></a>`provider` | string | Authentication provider to use<br>Currently supported providers:<br><br>- `github`<br>- `google`<br>- `microsoftentraid`<br>- `openidconnect`<br>- `tailscalewhois`| **Required** |
+| <a id="config-opt-providers-name"></a>`name` | string | Name of the authentication provider<br>If empty, this defaults to the provider type (e.g. `google`)<br>Defaults to the name of the provider type|  |
+| <a id="config-opt-providers-displayname"></a>`displayName` | string | Optional display name for the provider<br>Defaults to the standard display name for the provider|  |
+| <a id="config-opt-providers-icon"></a>`icon` | string | Optional icon for the provider<br>Defaults to the standard icon for the provider|  |
+| <a id="config-opt-providers-color"></a>`color` | string | Optional color scheme for the provider<br>Defaults to the standard color for the provider|  |
+| <a id="config-opt-providers-config"></a>`config` | map | Configuration for the provider.<br>The properties depend on the provider type.|  |
+| <a id="config-opt-providers"></a>`providers`| list of [provider configurations](#provider-configuration) | List of allowed authentication providers<br>See the [provider configuration](#provider-configuration) section for more details. | **Required**<br>At least one provider is required. |
+
+## Provider configuration
+
+| Name | Type | Description | |
+| --- | --- | --- | --- |
+| <a id="config-opt-providers-provider"></a>`provider` | string | Authentication provider to use<br>Currently supported providers:<br><br>- `github`<br>- `google`<br>- `microsoftentraid`<br>- `openidconnect`<br>- `tailscalewhois`| **Required** |
+| <a id="config-opt-providers-name"></a>`name` | string | Name of the authentication provider<br>If empty, this defaults to the provider type (e.g. `google`)<br>Defaults to the name of the provider type|  |
+| <a id="config-opt-providers-displayname"></a>`displayName` | string | Optional display name for the provider<br>Defaults to the standard display name for the provider|  |
+| <a id="config-opt-providers-icon"></a>`icon` | string | Optional icon for the provider<br>Defaults to the standard icon for the provider|  |
+| <a id="config-opt-providers-color"></a>`color` | string | Optional color scheme for the provider<br>Defaults to the standard color for the provider|  |
+| <a id="config-opt-providers-config"></a>`config` | map | Configuration for the provider.<br>The properties depend on the provider type.|  |
+| <a id="config-opt-providers"></a>`providers`| list of [provider configurations](#provider-configuration) | List of allowed authentication providers<br>See the [provider configuration](#provider-configuration) section for more details. | **Required**<br>At least one provider is required. |
+
+## Provider configuration
+
+| Name | Type | Description | |
+| --- | --- | --- | --- |
+| <a id="config-opt-providers-provider"></a>`provider` | string | Authentication provider to use<br>Currently supported providers:<br><br>- `github`<br>- `google`<br>- `microsoftentraid`<br>- `openidconnect`<br>- `tailscalewhois`| **Required** |
+| <a id="config-opt-providers-name"></a>`name` | string | Name of the authentication provider<br>If empty, this defaults to the provider type (e.g. `google`)<br>Defaults to the name of the provider type|  |
+| <a id="config-opt-providers-displayname"></a>`displayName` | string | Optional display name for the provider<br>Defaults to the standard display name for the provider|  |
+| <a id="config-opt-providers-icon"></a>`icon` | string | Optional icon for the provider<br>Defaults to the standard icon for the provider|  |
+| <a id="config-opt-providers-color"></a>`color` | string | Optional color scheme for the provider<br>Defaults to the standard color for the provider|  |
+| <a id="config-opt-providers-config"></a>`config` | map | Configuration for the provider.<br>The properties depend on the provider type.|  |
+| <a id="config-opt-providers"></a>`providers`| list of [provider configurations](#provider-configuration) | List of allowed authentication providers<br>See the [provider configuration](#provider-configuration) section for more details. | **Required**<br>At least one provider is required. |
+
+## Provider configuration
+
+| Name | Type | Description | |
+| --- | --- | --- | --- |
+| <a id="config-opt-providers-provider"></a>`provider` | string | Authentication provider to use<br>Currently supported providers:<br><br>- `github`<br>- `google`<br>- `microsoftentraid`<br>- `openidconnect`<br>- `tailscalewhois`| **Required** |
+| <a id="config-opt-providers-name"></a>`name` | string | Name of the authentication provider<br>If empty, this defaults to the provider type (e.g. `google`)<br>Defaults to the name of the provider type|  |
+| <a id="config-opt-providers-displayname"></a>`displayName` | string | Optional display name for the provider<br>Defaults to the standard display name for the provider|  |
+| <a id="config-opt-providers-icon"></a>`icon` | string | Optional icon for the provider<br>Defaults to the standard icon for the provider|  |
+| <a id="config-opt-providers-color"></a>`color` | string | Optional color scheme for the provider<br>Defaults to the standard color for the provider|  |
+| <a id="config-opt-providers-config"></a>`config` | map | Configuration for the provider.<br>The properties depend on the provider type.|  |
 | <a id="config-opt-providers"></a>`providers`| list of [provider configurations](#provider-configuration) | List of allowed authentication providers<br>See the [provider configuration](#provider-configuration) section for more details. | **Required**<br>At least one provider is required. |
 
 ## Provider configuration
