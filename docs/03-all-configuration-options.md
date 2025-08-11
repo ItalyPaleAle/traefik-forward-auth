@@ -43,63 +43,63 @@
 | --- | --- | --- | --- |
 | <a id="config-opt-providers"></a>`providers`| list of [provider configurations](#provider-configuration) | List of allowed authentication providers<br>See the [provider configuration](#provider-configuration) section for more details. | **Required**<br>At least one provider is required. |
 
-## Provider configuration
+## Provider configuration github
 
 | Name | Type | Description | |
 | --- | --- | --- | --- |
-| <a id="config-opt-providers-provider"></a>`provider` | string | Authentication provider to use<br>Currently supported providers:<br><br>- `github`<br>- `google`<br>- `microsoftentraid`<br>- `openidconnect`<br>- `tailscalewhois`| **Required** |
-| <a id="config-opt-providers-name"></a>`name` | string | Name of the authentication provider<br>If empty, this defaults to the provider type (e.g. `google`)<br>Defaults to the name of the provider type|  |
-| <a id="config-opt-providers-displayname"></a>`displayName` | string | Optional display name for the provider<br>Defaults to the standard display name for the provider|  |
-| <a id="config-opt-providers-icon"></a>`icon` | string | Optional icon for the provider<br>Defaults to the standard icon for the provider|  |
-| <a id="config-opt-providers-color"></a>`color` | string | Optional color scheme for the provider<br>Defaults to the standard color for the provider|  |
-| <a id="config-opt-providers-config"></a>`config` | map | Configuration for the provider.<br>The properties depend on the provider type.|  |
+| <a id="config-opt-providers-github-provider"></a>`provider` | string | Authentication provider to use<br>+example(github) "github"<br>+example(google) "google"<br>+example(microsoftentraid) "microsoftentraid"<br>+example(openidconnect) "openidconnect"<br>+example(tailscalewhois) "tailscalewhois"| **Required** |
+| <a id="config-opt-providers-github-name"></a>`name` | string | Name of the authentication provider<br>Defaults to the name of the provider type<br>+example(github) "my-github-auth"<br>+example(google) "my-google-auth"<br>+example(microsoftentraid) "my-microsoft-entra-id-auth"<br>+example(openidconnect) "my-openid-auth"<br>+example(tailscalewhois) "my-tailscale-whois-auth"|  |
+| <a id="config-opt-providers-github-displayname"></a>`displayName` | string | Optional display name for the provider<br>Defaults to the standard display name for the provider<br>+example(github) "GitHub"<br>+example(google) "Google"<br>+example(microsoftentraid) "Microsoft Entra ID"<br>+example(openidconnect) "OpenID Connect"<br>+example(tailscalewhois) "Tailscale Whois"|  |
+| <a id="config-opt-providers-github-icon"></a>`icon` | string | Optional icon for the provider<br>Defaults to the standard icon for the provider<br>+example(github) "github"<br>+example(google) "google"<br>+example(microsoftentraid) "microsoft"<br>+example(openidconnect) "openid"<br>+example(tailscalewhois) "tailscale"|  |
+| <a id="config-opt-providers-github-color"></a>`color` | string | Optional color scheme for the provider<br>Defaults to the standard color for the provider<br>+example(github) "green-to-blue"<br>+example(google) "red-to-yellow"<br>+example(microsoftentraid) "teal-to-lime"<br>+example(openidconnect) "purple-to-pink"<br>+example(tailscalewhois) "cyan-to-blue"|  |
+| <a id="config-opt-providers-github-config"></a>`config` | map | Configuration for the provider.<br>The properties depend on the provider type.|  |
 | <a id="config-opt-providers"></a>`providers`| list of [provider configurations](#provider-configuration) | List of allowed authentication providers<br>See the [provider configuration](#provider-configuration) section for more details. | **Required**<br>At least one provider is required. |
 
-## Provider configuration
+## Provider configuration google
 
 | Name | Type | Description | |
 | --- | --- | --- | --- |
-| <a id="config-opt-providers-provider"></a>`provider` | string | Authentication provider to use<br>Currently supported providers:<br><br>- `github`<br>- `google`<br>- `microsoftentraid`<br>- `openidconnect`<br>- `tailscalewhois`| **Required** |
-| <a id="config-opt-providers-name"></a>`name` | string | Name of the authentication provider<br>If empty, this defaults to the provider type (e.g. `google`)<br>Defaults to the name of the provider type|  |
-| <a id="config-opt-providers-displayname"></a>`displayName` | string | Optional display name for the provider<br>Defaults to the standard display name for the provider|  |
-| <a id="config-opt-providers-icon"></a>`icon` | string | Optional icon for the provider<br>Defaults to the standard icon for the provider|  |
-| <a id="config-opt-providers-color"></a>`color` | string | Optional color scheme for the provider<br>Defaults to the standard color for the provider|  |
-| <a id="config-opt-providers-config"></a>`config` | map | Configuration for the provider.<br>The properties depend on the provider type.|  |
+| <a id="config-opt-providers-google-provider"></a>`provider` | string | Authentication provider to use<br>+example(github) "github"<br>+example(google) "google"<br>+example(microsoftentraid) "microsoftentraid"<br>+example(openidconnect) "openidconnect"<br>+example(tailscalewhois) "tailscalewhois"| **Required** |
+| <a id="config-opt-providers-google-name"></a>`name` | string | Name of the authentication provider<br>Defaults to the name of the provider type<br>+example(github) "my-github-auth"<br>+example(google) "my-google-auth"<br>+example(microsoftentraid) "my-microsoft-entra-id-auth"<br>+example(openidconnect) "my-openid-auth"<br>+example(tailscalewhois) "my-tailscale-whois-auth"|  |
+| <a id="config-opt-providers-google-displayname"></a>`displayName` | string | Optional display name for the provider<br>Defaults to the standard display name for the provider<br>+example(github) "GitHub"<br>+example(google) "Google"<br>+example(microsoftentraid) "Microsoft Entra ID"<br>+example(openidconnect) "OpenID Connect"<br>+example(tailscalewhois) "Tailscale Whois"|  |
+| <a id="config-opt-providers-google-icon"></a>`icon` | string | Optional icon for the provider<br>Defaults to the standard icon for the provider<br>+example(github) "github"<br>+example(google) "google"<br>+example(microsoftentraid) "microsoft"<br>+example(openidconnect) "openid"<br>+example(tailscalewhois) "tailscale"|  |
+| <a id="config-opt-providers-google-color"></a>`color` | string | Optional color scheme for the provider<br>Defaults to the standard color for the provider<br>+example(github) "green-to-blue"<br>+example(google) "red-to-yellow"<br>+example(microsoftentraid) "teal-to-lime"<br>+example(openidconnect) "purple-to-pink"<br>+example(tailscalewhois) "cyan-to-blue"|  |
+| <a id="config-opt-providers-google-config"></a>`config` | map | Configuration for the provider.<br>The properties depend on the provider type.|  |
 | <a id="config-opt-providers"></a>`providers`| list of [provider configurations](#provider-configuration) | List of allowed authentication providers<br>See the [provider configuration](#provider-configuration) section for more details. | **Required**<br>At least one provider is required. |
 
-## Provider configuration
+## Provider configuration microsoftentraid
 
 | Name | Type | Description | |
 | --- | --- | --- | --- |
-| <a id="config-opt-providers-provider"></a>`provider` | string | Authentication provider to use<br>Currently supported providers:<br><br>- `github`<br>- `google`<br>- `microsoftentraid`<br>- `openidconnect`<br>- `tailscalewhois`| **Required** |
-| <a id="config-opt-providers-name"></a>`name` | string | Name of the authentication provider<br>If empty, this defaults to the provider type (e.g. `google`)<br>Defaults to the name of the provider type|  |
-| <a id="config-opt-providers-displayname"></a>`displayName` | string | Optional display name for the provider<br>Defaults to the standard display name for the provider|  |
-| <a id="config-opt-providers-icon"></a>`icon` | string | Optional icon for the provider<br>Defaults to the standard icon for the provider|  |
-| <a id="config-opt-providers-color"></a>`color` | string | Optional color scheme for the provider<br>Defaults to the standard color for the provider|  |
-| <a id="config-opt-providers-config"></a>`config` | map | Configuration for the provider.<br>The properties depend on the provider type.|  |
+| <a id="config-opt-providers-microsoftentraid-provider"></a>`provider` | string | Authentication provider to use<br>+example(github) "github"<br>+example(google) "google"<br>+example(microsoftentraid) "microsoftentraid"<br>+example(openidconnect) "openidconnect"<br>+example(tailscalewhois) "tailscalewhois"| **Required** |
+| <a id="config-opt-providers-microsoftentraid-name"></a>`name` | string | Name of the authentication provider<br>Defaults to the name of the provider type<br>+example(github) "my-github-auth"<br>+example(google) "my-google-auth"<br>+example(microsoftentraid) "my-microsoft-entra-id-auth"<br>+example(openidconnect) "my-openid-auth"<br>+example(tailscalewhois) "my-tailscale-whois-auth"|  |
+| <a id="config-opt-providers-microsoftentraid-displayname"></a>`displayName` | string | Optional display name for the provider<br>Defaults to the standard display name for the provider<br>+example(github) "GitHub"<br>+example(google) "Google"<br>+example(microsoftentraid) "Microsoft Entra ID"<br>+example(openidconnect) "OpenID Connect"<br>+example(tailscalewhois) "Tailscale Whois"|  |
+| <a id="config-opt-providers-microsoftentraid-icon"></a>`icon` | string | Optional icon for the provider<br>Defaults to the standard icon for the provider<br>+example(github) "github"<br>+example(google) "google"<br>+example(microsoftentraid) "microsoft"<br>+example(openidconnect) "openid"<br>+example(tailscalewhois) "tailscale"|  |
+| <a id="config-opt-providers-microsoftentraid-color"></a>`color` | string | Optional color scheme for the provider<br>Defaults to the standard color for the provider<br>+example(github) "green-to-blue"<br>+example(google) "red-to-yellow"<br>+example(microsoftentraid) "teal-to-lime"<br>+example(openidconnect) "purple-to-pink"<br>+example(tailscalewhois) "cyan-to-blue"|  |
+| <a id="config-opt-providers-microsoftentraid-config"></a>`config` | map | Configuration for the provider.<br>The properties depend on the provider type.|  |
 | <a id="config-opt-providers"></a>`providers`| list of [provider configurations](#provider-configuration) | List of allowed authentication providers<br>See the [provider configuration](#provider-configuration) section for more details. | **Required**<br>At least one provider is required. |
 
-## Provider configuration
+## Provider configuration openidconnect
 
 | Name | Type | Description | |
 | --- | --- | --- | --- |
-| <a id="config-opt-providers-provider"></a>`provider` | string | Authentication provider to use<br>Currently supported providers:<br><br>- `github`<br>- `google`<br>- `microsoftentraid`<br>- `openidconnect`<br>- `tailscalewhois`| **Required** |
-| <a id="config-opt-providers-name"></a>`name` | string | Name of the authentication provider<br>If empty, this defaults to the provider type (e.g. `google`)<br>Defaults to the name of the provider type|  |
-| <a id="config-opt-providers-displayname"></a>`displayName` | string | Optional display name for the provider<br>Defaults to the standard display name for the provider|  |
-| <a id="config-opt-providers-icon"></a>`icon` | string | Optional icon for the provider<br>Defaults to the standard icon for the provider|  |
-| <a id="config-opt-providers-color"></a>`color` | string | Optional color scheme for the provider<br>Defaults to the standard color for the provider|  |
-| <a id="config-opt-providers-config"></a>`config` | map | Configuration for the provider.<br>The properties depend on the provider type.|  |
+| <a id="config-opt-providers-openidconnect-provider"></a>`provider` | string | Authentication provider to use<br>+example(github) "github"<br>+example(google) "google"<br>+example(microsoftentraid) "microsoftentraid"<br>+example(openidconnect) "openidconnect"<br>+example(tailscalewhois) "tailscalewhois"| **Required** |
+| <a id="config-opt-providers-openidconnect-name"></a>`name` | string | Name of the authentication provider<br>Defaults to the name of the provider type<br>+example(github) "my-github-auth"<br>+example(google) "my-google-auth"<br>+example(microsoftentraid) "my-microsoft-entra-id-auth"<br>+example(openidconnect) "my-openid-auth"<br>+example(tailscalewhois) "my-tailscale-whois-auth"|  |
+| <a id="config-opt-providers-openidconnect-displayname"></a>`displayName` | string | Optional display name for the provider<br>Defaults to the standard display name for the provider<br>+example(github) "GitHub"<br>+example(google) "Google"<br>+example(microsoftentraid) "Microsoft Entra ID"<br>+example(openidconnect) "OpenID Connect"<br>+example(tailscalewhois) "Tailscale Whois"|  |
+| <a id="config-opt-providers-openidconnect-icon"></a>`icon` | string | Optional icon for the provider<br>Defaults to the standard icon for the provider<br>+example(github) "github"<br>+example(google) "google"<br>+example(microsoftentraid) "microsoft"<br>+example(openidconnect) "openid"<br>+example(tailscalewhois) "tailscale"|  |
+| <a id="config-opt-providers-openidconnect-color"></a>`color` | string | Optional color scheme for the provider<br>Defaults to the standard color for the provider<br>+example(github) "green-to-blue"<br>+example(google) "red-to-yellow"<br>+example(microsoftentraid) "teal-to-lime"<br>+example(openidconnect) "purple-to-pink"<br>+example(tailscalewhois) "cyan-to-blue"|  |
+| <a id="config-opt-providers-openidconnect-config"></a>`config` | map | Configuration for the provider.<br>The properties depend on the provider type.|  |
 | <a id="config-opt-providers"></a>`providers`| list of [provider configurations](#provider-configuration) | List of allowed authentication providers<br>See the [provider configuration](#provider-configuration) section for more details. | **Required**<br>At least one provider is required. |
 
-## Provider configuration
+## Provider configuration tailscalewhois
 
 | Name | Type | Description | |
 | --- | --- | --- | --- |
-| <a id="config-opt-providers-provider"></a>`provider` | string | Authentication provider to use<br>Currently supported providers:<br><br>- `github`<br>- `google`<br>- `microsoftentraid`<br>- `openidconnect`<br>- `tailscalewhois`| **Required** |
-| <a id="config-opt-providers-name"></a>`name` | string | Name of the authentication provider<br>If empty, this defaults to the provider type (e.g. `google`)<br>Defaults to the name of the provider type|  |
-| <a id="config-opt-providers-displayname"></a>`displayName` | string | Optional display name for the provider<br>Defaults to the standard display name for the provider|  |
-| <a id="config-opt-providers-icon"></a>`icon` | string | Optional icon for the provider<br>Defaults to the standard icon for the provider|  |
-| <a id="config-opt-providers-color"></a>`color` | string | Optional color scheme for the provider<br>Defaults to the standard color for the provider|  |
-| <a id="config-opt-providers-config"></a>`config` | map | Configuration for the provider.<br>The properties depend on the provider type.|  |
+| <a id="config-opt-providers-tailscalewhois-provider"></a>`provider` | string | Authentication provider to use<br>+example(github) "github"<br>+example(google) "google"<br>+example(microsoftentraid) "microsoftentraid"<br>+example(openidconnect) "openidconnect"<br>+example(tailscalewhois) "tailscalewhois"| **Required** |
+| <a id="config-opt-providers-tailscalewhois-name"></a>`name` | string | Name of the authentication provider<br>Defaults to the name of the provider type<br>+example(github) "my-github-auth"<br>+example(google) "my-google-auth"<br>+example(microsoftentraid) "my-microsoft-entra-id-auth"<br>+example(openidconnect) "my-openid-auth"<br>+example(tailscalewhois) "my-tailscale-whois-auth"|  |
+| <a id="config-opt-providers-tailscalewhois-displayname"></a>`displayName` | string | Optional display name for the provider<br>Defaults to the standard display name for the provider<br>+example(github) "GitHub"<br>+example(google) "Google"<br>+example(microsoftentraid) "Microsoft Entra ID"<br>+example(openidconnect) "OpenID Connect"<br>+example(tailscalewhois) "Tailscale Whois"|  |
+| <a id="config-opt-providers-tailscalewhois-icon"></a>`icon` | string | Optional icon for the provider<br>Defaults to the standard icon for the provider<br>+example(github) "github"<br>+example(google) "google"<br>+example(microsoftentraid) "microsoft"<br>+example(openidconnect) "openid"<br>+example(tailscalewhois) "tailscale"|  |
+| <a id="config-opt-providers-tailscalewhois-color"></a>`color` | string | Optional color scheme for the provider<br>Defaults to the standard color for the provider<br>+example(github) "green-to-blue"<br>+example(google) "red-to-yellow"<br>+example(microsoftentraid) "teal-to-lime"<br>+example(openidconnect) "purple-to-pink"<br>+example(tailscalewhois) "cyan-to-blue"|  |
+| <a id="config-opt-providers-tailscalewhois-config"></a>`config` | map | Configuration for the provider.<br>The properties depend on the provider type.|  |
 
 <!-- END CONFIG TABLE -->

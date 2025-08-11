@@ -194,36 +194,48 @@ type ConfigPortal struct {
 
 type ConfigPortalProvider struct {
 	// Authentication provider to use
-	// Currently supported providers:
-	//
-	// - `github`
-	// - `google`
-	// - `microsoftentraid`
-	// - `openidconnect`
-	// - `tailscalewhois`
-	//
 	// +required
+	// +example(github) "github"
+	// +example(google) "google"
+	// +example(microsoftentraid) "microsoftentraid"
+	// +example(openidconnect) "openidconnect"
+	// +example(tailscalewhois) "tailscalewhois"
 	Provider string `yaml:"provider"`
 
 	// Name of the authentication provider
-	// If empty, this defaults to the provider type (e.g. `google`)
 	// Defaults to the name of the provider type
-	// +example "google"
+	// +example(github) "my-github-auth"
+	// +example(google) "my-google-auth"
+	// +example(microsoftentraid) "my-microsoft-entra-id-auth"
+	// +example(openidconnect) "my-openid-auth"
+	// +example(tailscalewhois) "my-tailscale-whois-auth"
 	Name string `yaml:"name"`
 
 	// Optional display name for the provider
 	// Defaults to the standard display name for the provider
-	// +example "Google"
+	// +example(github) "GitHub"
+	// +example(google) "Google"
+	// +example(microsoftentraid) "Microsoft Entra ID"
+	// +example(openidconnect) "OpenID Connect"
+	// +example(tailscalewhois) "Tailscale Whois"
 	DisplayName string `yaml:"displayName"`
 
 	// Optional icon for the provider
 	// Defaults to the standard icon for the provider
-	// +example "google"
+	// +example(github) "github"
+	// +example(google) "google"
+	// +example(microsoftentraid) "microsoft"
+	// +example(openidconnect) "openid"
+	// +example(tailscalewhois) "tailscale"
 	Icon string `yaml:"icon"`
 
 	// Optional color scheme for the provider
 	// Defaults to the standard color for the provider
-	// +example "red-to-yellow"
+	// +example(github) "green-to-blue"
+	// +example(google) "red-to-yellow"
+	// +example(microsoftentraid) "teal-to-lime"
+	// +example(openidconnect) "purple-to-pink"
+	// +example(tailscalewhois) "cyan-to-blue"
 	Color string `yaml:"color"`
 
 	// Configuration for the provider.
