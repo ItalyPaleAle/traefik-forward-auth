@@ -36,9 +36,16 @@
 | <a id="config-opt-portals-portals-$-alwaysshowproviderspage"></a>`portals.$.alwaysShowProvidersPage` | boolean | If true, always shows the providers selection page, even when there's a single provider configured.<br>Has no effect when there's more than one provider configured.| Default: _false_ |
 | <a id="config-opt-portals-portals-$-authenticationtimeout"></a>`portals.$.authenticationTimeout` | duration | Timeout for authenticating with the authentication provider.| Default: _5m_ |
 | <a id="config-opt-providers"></a>`providers`| list of [provider configurations](#provider-configuration) | List of allowed authentication providers<br>See the [provider configuration](#provider-configuration) section for more details. | **Required**<br>At least one provider is required. |
+
 ## Provider Configuration
 
-The configuration depends on the kind of provider used
+The configuration depends on the kind of provider used. Currently, the following providers are supported:
+
+- [GitHub](#using-github)
+- [Google](#using-google)
+- [Microsoft Entra ID](#using-microsoft-entra-id)
+- [OpenID Connect](#using-openid-connect)
+- [Tailscale Whois](#using-tailscale-whois)
 
 ### Using GitHub
 
@@ -53,6 +60,25 @@ The configuration depends on the kind of provider used
 | <a id="config-opt-portals.$.providers.$-github-portals-$-providers-$-github-icon"></a>`portals.$.providers.$.github.icon` | string | Optional icon for the provider<br>Defaults to the standard icon for the provider|  |
 | <a id="config-opt-portals.$.providers.$-github-portals-$-providers-$-github-color"></a>`portals.$.providers.$.github.color` | string | Optional color scheme for the provider<br>Defaults to the standard color for the provider|  |
 
+Example:
+
+```yaml
+portals:
+  name: "default"
+  providers:
+    -
+        github:
+          #name: "my-github-auth"
+          #displayName: "GitHub"
+          clientID: "your-client-id"
+          clientSecret: "your-client-secret"
+          #clientSecretFile: "/var/run/secrets/traefik-forward-auth/github/client-secret"
+          ## Default: "10s"
+          #requestTimeout: "10s"
+          #icon: "github"
+          #color: "green-to-blue"
+```
+
 ### Using Google
 
 | Name | Type | Description | |
@@ -65,6 +91,25 @@ The configuration depends on the kind of provider used
 | <a id="config-opt-portals.$.providers.$-google-portals-$-providers-$-google-requesttimeout"></a>`portals.$.providers.$.google.requestTimeout` | duration | Timeout for network requests for Google auth| Default: _"10s"_ |
 | <a id="config-opt-portals.$.providers.$-google-portals-$-providers-$-google-icon"></a>`portals.$.providers.$.google.icon` | string | Optional icon for the provider<br>Defaults to the standard icon for the provider|  |
 | <a id="config-opt-portals.$.providers.$-google-portals-$-providers-$-google-color"></a>`portals.$.providers.$.google.color` | string | Optional color scheme for the provider<br>Defaults to the standard color for the provider|  |
+
+Example:
+
+```yaml
+portals:
+  name: "default"
+  providers:
+    -
+        google:
+          #name: "my-google-auth"
+          #displayName: "Google"
+          clientID: "your-google-client-id.apps.googleusercontent.com"
+          clientSecret: "your-client-secret"
+          #clientSecretFile: "/var/run/secrets/traefik-forward-auth/google/client-secret"
+          ## Default: "10s"
+          #requestTimeout: "10s"
+          #icon: "google"
+          #color: "red-to-yellow"
+```
 
 ### Using Microsoft Entra ID
 
@@ -80,6 +125,27 @@ The configuration depends on the kind of provider used
 | <a id="config-opt-portals.$.providers.$-microsoftentraid-portals-$-providers-$-microsoftentraid-requesttimeout"></a>`portals.$.providers.$.microsoftEntraID.requestTimeout` | duration | Timeout for network requests for Microsoft Entra ID auth| Default: _"10s"_ |
 | <a id="config-opt-portals.$.providers.$-microsoftentraid-portals-$-providers-$-microsoftentraid-icon"></a>`portals.$.providers.$.microsoftEntraID.icon` | string | Optional icon for the provider<br>Defaults to the standard icon for the provider|  |
 | <a id="config-opt-portals.$.providers.$-microsoftentraid-portals-$-providers-$-microsoftentraid-color"></a>`portals.$.providers.$.microsoftEntraID.color` | string | Optional color scheme for the provider<br>Defaults to the standard color for the provider|  |
+
+Example:
+
+```yaml
+portals:
+  name: "default"
+  providers:
+    -
+        microsoftEntraID:
+          #name: "my-microsoft-entra-id-auth"
+          #displayName: "Microsoft Entra ID"
+          tenantID: ""
+          clientID: "your-client-id"
+          #clientSecret: "your-client-secret"
+          #clientSecretFile: "/var/run/secrets/traefik-forward-auth/client-secret"
+          #azureFederatedIdentity: ""
+          ## Default: "10s"
+          #requestTimeout: "10s"
+          #icon: "microsoft"
+          #color: "teal-to-lime"
+```
 
 ### Using OpenID Connect
 
@@ -99,6 +165,32 @@ The configuration depends on the kind of provider used
 | <a id="config-opt-portals.$.providers.$-openidconnect-portals-$-providers-$-openidconnect-icon"></a>`portals.$.providers.$.openIDConnect.icon` | string | Optional icon for the provider<br>Defaults to the standard icon for the provider|  |
 | <a id="config-opt-portals.$.providers.$-openidconnect-portals-$-providers-$-openidconnect-color"></a>`portals.$.providers.$.openIDConnect.color` | string | Optional color scheme for the provider<br>Defaults to the standard color for the provider|  |
 
+Example:
+
+```yaml
+portals:
+  name: "default"
+  providers:
+    -
+        openIDConnect:
+          #name: "my-openid-auth"
+          #displayName: "OpenID Connect"
+          clientID: "your-client-id"
+          clientSecret: "your-client-secret"
+          #clientSecretFile: "/var/run/secrets/traefik-forward-auth/openidconnect/client-secret"
+          tokenIssuer: "https://id.external-example.com"
+          ## Default: "10s"
+          #requestTimeout: "10s"
+          ## Default: false
+          #enablePKCE: false
+          ## Default: false
+          #tlsInsecureSkipVerify: false
+          #tlsCACertificatePEM: ""
+          #tlsCACertificatePath: ""
+          #icon: "openid"
+          #color: "purple-to-pink"
+```
+
 ### Using Tailscale Whois
 
 | Name | Type | Description | |
@@ -109,5 +201,22 @@ The configuration depends on the kind of provider used
 | <a id="config-opt-portals.$.providers.$-tailscalewhois-portals-$-providers-$-tailscalewhois-requesttimeout"></a>`portals.$.providers.$.tailscaleWhois.requestTimeout` | duration | Timeout for network requests for Tailscale Whois auth| Default: _"10s"_ |
 | <a id="config-opt-portals.$.providers.$-tailscalewhois-portals-$-providers-$-tailscalewhois-icon"></a>`portals.$.providers.$.tailscaleWhois.icon` | string | Optional icon for the provider<br>Defaults to the standard icon for the provider|  |
 | <a id="config-opt-portals.$.providers.$-tailscalewhois-portals-$-providers-$-tailscalewhois-color"></a>`portals.$.providers.$.tailscaleWhois.color` | string | Optional color scheme for the provider<br>Defaults to the standard color for the provider|  |
+
+Example:
+
+```yaml
+portals:
+  name: "default"
+  providers:
+    -
+        tailscaleWhois:
+          #name: "my-tailscale-whois-auth"
+          #displayName: "Tailscale Whois"
+          #allowedTailnet: "yourtailnet.ts.net"
+          ## Default: "10s"
+          #requestTimeout: "10s"
+          #icon: "tailscale"
+          #color: "cyan-to-blue"
+```
 
 <!-- END CONFIG TABLE -->
