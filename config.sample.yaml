@@ -149,26 +149,26 @@ portals:
   ## Example portal configuration
   ## Configure the portal with the required fields and at least one provider
   -
-    ## name (string)
+    ## portals.$.name (string)
     ## Description:
     ##   Name of the portal, as used in the URL.
     ## Required
     name: "default"
 
-    ## displayName (string)
+    ## portals.$.displayName (string)
     ## Description:
     ##   Optional display name.
     ##   Defaults to the `name` property if not set.
     #displayName: "My auth portal"
 
-    ## alwaysShowProvidersPage (boolean)
+    ## portals.$.alwaysShowProvidersPage (boolean)
     ## Description:
     ##   If true, always shows the providers selection page, even when there's a single provider configured.
     ##   Has no effect when there's more than one provider configured.
     ## Default: false
     #alwaysShowProvidersPage: false
 
-    ## authenticationTimeout (duration)
+    ## portals.$.authenticationTimeout (duration)
     ## Description:
     ##   Timeout for authenticating with the authentication provider.
     ## Default: 5m
@@ -180,322 +180,315 @@ portals:
     ##   At least one provider is required.
     providers:
       ## GitHub provider
-      ## Example configuration for provider 'github'
+      ## Example configuration for provider GitHub
       - 
-        ## provider (string)
+        ## portals.$.providers.$.github
         ## Description:
-        ##   Authentication provider to use
-        ##   +example(github) "github"
-        ##   +example(google) "google"
-        ##   +example(microsoftentraid) "microsoftentraid"
-        ##   +example(openidconnect) "openidconnect"
-        ##   +example(tailscalewhois) "tailscalewhois"
-        ## Required
-        provider: ""
+        ##   Use GitHub as authentication provider
+        github:
+          ## portals.$.providers.$.github.name (string)
+          ## Description:
+          ##   Name of the authentication provider
+          ##   Defaults to the name of the provider type
+          #name: "my-github-auth"
 
-        ## name (string)
-        ## Description:
-        ##   Name of the authentication provider
-        ##   Defaults to the name of the provider type
-        ##   +example(github) "my-github-auth"
-        ##   +example(google) "my-google-auth"
-        ##   +example(microsoftentraid) "my-microsoft-entra-id-auth"
-        ##   +example(openidconnect) "my-openid-auth"
-        ##   +example(tailscalewhois) "my-tailscale-whois-auth"
-        #name: ""
+          ## portals.$.providers.$.github.displayName (string)
+          ## Description:
+          ##   Optional display name for the provider
+          ##   Defaults to the standard display name for the provider
+          #displayName: "GitHub"
 
-        ## displayName (string)
-        ## Description:
-        ##   Optional display name for the provider
-        ##   Defaults to the standard display name for the provider
-        ##   +example(github) "GitHub"
-        ##   +example(google) "Google"
-        ##   +example(microsoftentraid) "Microsoft Entra ID"
-        ##   +example(openidconnect) "OpenID Connect"
-        ##   +example(tailscalewhois) "Tailscale Whois"
-        #displayName: ""
+          ## portals.$.providers.$.github.clientID (string)
+          ## Description:
+          ##   Client ID for the GitHub auth application
+          ## Required
+          clientID: "your-client-id"
 
-        ## icon (string)
-        ## Description:
-        ##   Optional icon for the provider
-        ##   Defaults to the standard icon for the provider
-        ##   +example(github) "github"
-        ##   +example(google) "google"
-        ##   +example(microsoftentraid) "microsoft"
-        ##   +example(openidconnect) "openid"
-        ##   +example(tailscalewhois) "tailscale"
-        #icon: ""
+          ## portals.$.providers.$.github.clientSecret (string)
+          ## Description:
+          ##   Client secret for the GitHub application
+          ##   One of `clientSecret` and `clientSecretFile` is required.
+          ## Required
+          clientSecret: "your-client-secret"
 
-        ## color (string)
-        ## Description:
-        ##   Optional color scheme for the provider
-        ##   Defaults to the standard color for the provider
-        ##   +example(github) "green-to-blue"
-        ##   +example(google) "red-to-yellow"
-        ##   +example(microsoftentraid) "teal-to-lime"
-        ##   +example(openidconnect) "purple-to-pink"
-        ##   +example(tailscalewhois) "cyan-to-blue"
-        #color: ""
+          ## portals.$.providers.$.github.clientSecretFile (string)
+          ## Description:
+          ##   File containing the client secret for the GitHub application
+          ##   This is an alternative to passing the secret as `clientSecret`
+          ##   One of `clientSecret` and `clientSecretFile` is required.
+          #clientSecretFile: "/var/run/secrets/traefik-forward-auth/github/client-secret"
 
-        ## config (map)
-        ## Description:
-        ##   Configuration for the provider.
-        ##   The properties depend on the provider type.
-        #config: 
+          ## portals.$.providers.$.github.requestTimeout (duration)
+          ## Description:
+          ##   Timeout for network requests for GitHub auth
+          ## Default: "10s"
+          #requestTimeout: "10s"
+
+          ## portals.$.providers.$.github.icon (string)
+          ## Description:
+          ##   Optional icon for the provider
+          ##   Defaults to the standard icon for the provider
+          #icon: "github"
+
+          ## portals.$.providers.$.github.color (string)
+          ## Description:
+          ##   Optional color scheme for the provider
+          ##   Defaults to the standard color for the provider
+          #color: "green-to-blue"
 
       ## Google provider
-      ## Example configuration for provider 'google'
+      ## Example configuration for provider Google
       - 
-        ## provider (string)
+        ## portals.$.providers.$.google
         ## Description:
-        ##   Authentication provider to use
-        ##   +example(github) "github"
-        ##   +example(google) "google"
-        ##   +example(microsoftentraid) "microsoftentraid"
-        ##   +example(openidconnect) "openidconnect"
-        ##   +example(tailscalewhois) "tailscalewhois"
-        ## Required
-        provider: ""
+        ##   Use Google as authentication provider
+        google:
+          ## portals.$.providers.$.google.name (string)
+          ## Description:
+          ##   Name of the authentication provider
+          ##   Defaults to the name of the provider type
+          #name: "my-google-auth"
 
-        ## name (string)
-        ## Description:
-        ##   Name of the authentication provider
-        ##   Defaults to the name of the provider type
-        ##   +example(github) "my-github-auth"
-        ##   +example(google) "my-google-auth"
-        ##   +example(microsoftentraid) "my-microsoft-entra-id-auth"
-        ##   +example(openidconnect) "my-openid-auth"
-        ##   +example(tailscalewhois) "my-tailscale-whois-auth"
-        #name: ""
+          ## portals.$.providers.$.google.displayName (string)
+          ## Description:
+          ##   Optional display name for the provider
+          ##   Defaults to the standard display name for the provider
+          #displayName: "Google"
 
-        ## displayName (string)
-        ## Description:
-        ##   Optional display name for the provider
-        ##   Defaults to the standard display name for the provider
-        ##   +example(github) "GitHub"
-        ##   +example(google) "Google"
-        ##   +example(microsoftentraid) "Microsoft Entra ID"
-        ##   +example(openidconnect) "OpenID Connect"
-        ##   +example(tailscalewhois) "Tailscale Whois"
-        #displayName: ""
+          ## portals.$.providers.$.google.clientID (string)
+          ## Description:
+          ##   Client ID for the Google auth application
+          ## Required
+          clientID: "your-google-client-id.apps.googleusercontent.com"
 
-        ## icon (string)
-        ## Description:
-        ##   Optional icon for the provider
-        ##   Defaults to the standard icon for the provider
-        ##   +example(github) "github"
-        ##   +example(google) "google"
-        ##   +example(microsoftentraid) "microsoft"
-        ##   +example(openidconnect) "openid"
-        ##   +example(tailscalewhois) "tailscale"
-        #icon: ""
+          ## portals.$.providers.$.google.clientSecret (string)
+          ## Description:
+          ##   Client secret for the Google auth application
+          ##   One of `clientSecret` and `clientSecretFile` is required.
+          ## Required
+          clientSecret: "your-client-secret"
 
-        ## color (string)
-        ## Description:
-        ##   Optional color scheme for the provider
-        ##   Defaults to the standard color for the provider
-        ##   +example(github) "green-to-blue"
-        ##   +example(google) "red-to-yellow"
-        ##   +example(microsoftentraid) "teal-to-lime"
-        ##   +example(openidconnect) "purple-to-pink"
-        ##   +example(tailscalewhois) "cyan-to-blue"
-        #color: ""
+          ## portals.$.providers.$.google.clientSecretFile (string)
+          ## Description:
+          ##   File containing the client secret for the Google auth application
+          ##   This is an alternative to passing the secret as `clientSecret`
+          ##   One of `clientSecret` and `clientSecretFile` is required.
+          #clientSecretFile: "/var/run/secrets/traefik-forward-auth/google/client-secret"
 
-        ## config (map)
-        ## Description:
-        ##   Configuration for the provider.
-        ##   The properties depend on the provider type.
-        #config: 
+          ## portals.$.providers.$.google.requestTimeout (duration)
+          ## Description:
+          ##   Timeout for network requests for Google auth
+          ## Default: "10s"
+          #requestTimeout: "10s"
+
+          ## portals.$.providers.$.google.icon (string)
+          ## Description:
+          ##   Optional icon for the provider
+          ##   Defaults to the standard icon for the provider
+          #icon: "google"
+
+          ## portals.$.providers.$.google.color (string)
+          ## Description:
+          ##   Optional color scheme for the provider
+          ##   Defaults to the standard color for the provider
+          #color: "red-to-yellow"
 
       ## Microsoft Entra ID provider
-      ## Example configuration for provider 'microsoftentraid'
+      ## Example configuration for provider Microsoft Entra ID
       - 
-        ## provider (string)
+        ## portals.$.providers.$.microsoftEntraID
         ## Description:
-        ##   Authentication provider to use
-        ##   +example(github) "github"
-        ##   +example(google) "google"
-        ##   +example(microsoftentraid) "microsoftentraid"
-        ##   +example(openidconnect) "openidconnect"
-        ##   +example(tailscalewhois) "tailscalewhois"
-        ## Required
-        provider: ""
+        ##   Use MicrosoftEntraID as authentication provider
+        microsoftEntraID:
+          ## portals.$.providers.$.microsoftEntraID.name (string)
+          ## Description:
+          ##   Name of the authentication provider
+          ##   Defaults to the name of the provider type
+          #name: "my-microsoft-entra-id-auth"
 
-        ## name (string)
-        ## Description:
-        ##   Name of the authentication provider
-        ##   Defaults to the name of the provider type
-        ##   +example(github) "my-github-auth"
-        ##   +example(google) "my-google-auth"
-        ##   +example(microsoftentraid) "my-microsoft-entra-id-auth"
-        ##   +example(openidconnect) "my-openid-auth"
-        ##   +example(tailscalewhois) "my-tailscale-whois-auth"
-        #name: ""
+          ## portals.$.providers.$.microsoftEntraID.displayName (string)
+          ## Description:
+          ##   Optional display name for the provider
+          ##   Defaults to the standard display name for the provider
+          #displayName: "Microsoft Entra ID"
 
-        ## displayName (string)
-        ## Description:
-        ##   Optional display name for the provider
-        ##   Defaults to the standard display name for the provider
-        ##   +example(github) "GitHub"
-        ##   +example(google) "Google"
-        ##   +example(microsoftentraid) "Microsoft Entra ID"
-        ##   +example(openidconnect) "OpenID Connect"
-        ##   +example(tailscalewhois) "Tailscale Whois"
-        #displayName: ""
+          ## portals.$.providers.$.microsoftEntraID.tenantID (string)
+          ## Description:
+          ##   Tenant ID for the Microsoft Entra ID auth application
+          ##   +example
+          ## Required
+          tenantID: ""
 
-        ## icon (string)
-        ## Description:
-        ##   Optional icon for the provider
-        ##   Defaults to the standard icon for the provider
-        ##   +example(github) "github"
-        ##   +example(google) "google"
-        ##   +example(microsoftentraid) "microsoft"
-        ##   +example(openidconnect) "openid"
-        ##   +example(tailscalewhois) "tailscale"
-        #icon: ""
+          ## portals.$.providers.$.microsoftEntraID.clientID (string)
+          ## Description:
+          ##   Client ID for the Microsoft Entra ID auth application
+          ## Required
+          clientID: "your-client-id"
 
-        ## color (string)
-        ## Description:
-        ##   Optional color scheme for the provider
-        ##   Defaults to the standard color for the provider
-        ##   +example(github) "green-to-blue"
-        ##   +example(google) "red-to-yellow"
-        ##   +example(microsoftentraid) "teal-to-lime"
-        ##   +example(openidconnect) "purple-to-pink"
-        ##   +example(tailscalewhois) "cyan-to-blue"
-        #color: ""
+          ## portals.$.providers.$.microsoftEntraID.clientSecret (string)
+          ## Description:
+          ##   Client secret for the Microsoft Entra ID auth application
+          ##   Required when not using Federated Identity Credentials
+          #clientSecret: "your-client-secret"
 
-        ## config (map)
-        ## Description:
-        ##   Configuration for the provider.
-        ##   The properties depend on the provider type.
-        #config: 
+          ## portals.$.providers.$.microsoftEntraID.clientSecretFile (string)
+          ## Description:
+          ##   File containing the client secret for the Microsoft Entra ID application.
+          ##   This is an alternative to passing the secret as `clientSecret`
+          #clientSecretFile: "/var/run/secrets/traefik-forward-auth/client-secret"
+
+          ## portals.$.providers.$.microsoftEntraID.azureFederatedIdentity (string)
+          ## Description:
+          ##   Enables the usage of Federated Identity Credentials to obtain assertions for confidential clients for Microsoft Entra ID applications.
+          ##   This is an alternative to using client secrets, when the application is running in Azure in an environment that supports Managed Identity, or in an environment that supports Workload Identity Federation with Microsoft Entra ID.
+          ##   Currently, these values are supported:
+          ##
+          ##   - `ManagedIdentity`: uses a system-assigned managed identity
+          ##   - `ManagedIdentity=client-id`: uses a user-assigned managed identity with client id "client-id" (e.g. "ManagedIdentity=00000000-0000-0000-0000-000000000000")
+          ##   - `WorkloadIdentity`: uses workload identity, e.g. for Kubernetes
+          #azureFederatedIdentity: ""
+
+          ## portals.$.providers.$.microsoftEntraID.requestTimeout (duration)
+          ## Description:
+          ##   Timeout for network requests for Microsoft Entra ID auth
+          ## Default: "10s"
+          #requestTimeout: "10s"
+
+          ## portals.$.providers.$.microsoftEntraID.icon (string)
+          ## Description:
+          ##   Optional icon for the provider
+          ##   Defaults to the standard icon for the provider
+          #icon: "microsoft"
+
+          ## portals.$.providers.$.microsoftEntraID.color (string)
+          ## Description:
+          ##   Optional color scheme for the provider
+          ##   Defaults to the standard color for the provider
+          #color: "teal-to-lime"
 
       ## OpenID Connect provider
-      ## Example configuration for provider 'openidconnect'
+      ## Example configuration for provider OpenID Connect
       - 
-        ## provider (string)
+        ## portals.$.providers.$.openIDConnect
         ## Description:
-        ##   Authentication provider to use
-        ##   +example(github) "github"
-        ##   +example(google) "google"
-        ##   +example(microsoftentraid) "microsoftentraid"
-        ##   +example(openidconnect) "openidconnect"
-        ##   +example(tailscalewhois) "tailscalewhois"
-        ## Required
-        provider: ""
+        ##   Use OpenIDConnect as authentication provider
+        openIDConnect:
+          ## portals.$.providers.$.openIDConnect.name (string)
+          ## Description:
+          ##   Name of the authentication provider
+          ##   Defaults to the name of the provider type
+          #name: "my-openid-auth"
 
-        ## name (string)
-        ## Description:
-        ##   Name of the authentication provider
-        ##   Defaults to the name of the provider type
-        ##   +example(github) "my-github-auth"
-        ##   +example(google) "my-google-auth"
-        ##   +example(microsoftentraid) "my-microsoft-entra-id-auth"
-        ##   +example(openidconnect) "my-openid-auth"
-        ##   +example(tailscalewhois) "my-tailscale-whois-auth"
-        #name: ""
+          ## portals.$.providers.$.openIDConnect.displayName (string)
+          ## Description:
+          ##   Optional display name for the provider
+          ##   Defaults to the standard display name for the provider
+          #displayName: "OpenID Connect"
 
-        ## displayName (string)
-        ## Description:
-        ##   Optional display name for the provider
-        ##   Defaults to the standard display name for the provider
-        ##   +example(github) "GitHub"
-        ##   +example(google) "Google"
-        ##   +example(microsoftentraid) "Microsoft Entra ID"
-        ##   +example(openidconnect) "OpenID Connect"
-        ##   +example(tailscalewhois) "Tailscale Whois"
-        #displayName: ""
+          ## portals.$.providers.$.openIDConnect.clientID (string)
+          ## Description:
+          ##   Client ID for the OpenID Connect application
+          ## Required
+          clientID: "your-client-id"
 
-        ## icon (string)
-        ## Description:
-        ##   Optional icon for the provider
-        ##   Defaults to the standard icon for the provider
-        ##   +example(github) "github"
-        ##   +example(google) "google"
-        ##   +example(microsoftentraid) "microsoft"
-        ##   +example(openidconnect) "openid"
-        ##   +example(tailscalewhois) "tailscale"
-        #icon: ""
+          ## portals.$.providers.$.openIDConnect.clientSecret (string)
+          ## Description:
+          ##   Client secret for the OpenID Connect application
+          ## Required
+          clientSecret: "your-client-secret"
 
-        ## color (string)
-        ## Description:
-        ##   Optional color scheme for the provider
-        ##   Defaults to the standard color for the provider
-        ##   +example(github) "green-to-blue"
-        ##   +example(google) "red-to-yellow"
-        ##   +example(microsoftentraid) "teal-to-lime"
-        ##   +example(openidconnect) "purple-to-pink"
-        ##   +example(tailscalewhois) "cyan-to-blue"
-        #color: ""
+          ## portals.$.providers.$.openIDConnect.clientSecretFile (string)
+          ## Description:
+          ##   File containing the client secret for the OpenID Connect application
+          ##   This is an alternative to passing the secret as `clientSecret`
+          #clientSecretFile: "/var/run/secrets/traefik-forward-auth/openidconnect/client-secret"
 
-        ## config (map)
-        ## Description:
-        ##   Configuration for the provider.
-        ##   The properties depend on the provider type.
-        #config: 
+          ## portals.$.providers.$.openIDConnect.tokenIssuer (string)
+          ## Description:
+          ##   OpenID Connect token issuer
+          ##   The OpenID Connect configuration document will be fetched at `<token-issuer>/.well-known/openid-configuration`
+          ## Required
+          tokenIssuer: "https://id.external-example.com"
+
+          ## portals.$.providers.$.openIDConnect.requestTimeout (duration)
+          ## Description:
+          ##   Timeout for network requests for OpenID Connect auth
+          ## Default: "10s"
+          #requestTimeout: "10s"
+
+          ## portals.$.providers.$.openIDConnect.enablePKCE (boolean)
+          ## Description:
+          ##   If true, enables the use of PKCE during the code exchange.
+          ## Default: false
+          #enablePKCE: false
+
+          ## portals.$.providers.$.openIDConnect.tlsInsecureSkipVerify (boolean)
+          ## Description:
+          ##   If true, skips validating TLS certificates when connecting to the OpenID Connect Identity Provider.
+          ## Default: false
+          #tlsInsecureSkipVerify: false
+
+          ## portals.$.providers.$.openIDConnect.tlsCACertificatePEM (string)
+          ## Description:
+          ##   Optional PEM-encoded CA certificate to trust when connecting to the OpenID Connect Identity Provider.
+          #tlsCACertificatePEM: ""
+
+          ## portals.$.providers.$.openIDConnect.tlsCACertificatePath (string)
+          ## Description:
+          ##   Optional path to a CA certificate to trust when connecting to the OpenID Connect Identity Provider.
+          #tlsCACertificatePath: ""
+
+          ## portals.$.providers.$.openIDConnect.icon (string)
+          ## Description:
+          ##   Optional icon for the provider
+          ##   Defaults to the standard icon for the provider
+          #icon: "openid"
+
+          ## portals.$.providers.$.openIDConnect.color (string)
+          ## Description:
+          ##   Optional color scheme for the provider
+          ##   Defaults to the standard color for the provider
+          #color: "purple-to-pink"
 
       ## Tailscale Whois provider
-      ## Example configuration for provider 'tailscalewhois'
+      ## Example configuration for provider Tailscale Whois
       - 
-        ## provider (string)
+        ## portals.$.providers.$.tailscaleWhois
         ## Description:
-        ##   Authentication provider to use
-        ##   +example(github) "github"
-        ##   +example(google) "google"
-        ##   +example(microsoftentraid) "microsoftentraid"
-        ##   +example(openidconnect) "openidconnect"
-        ##   +example(tailscalewhois) "tailscalewhois"
-        ## Required
-        provider: ""
+        ##   Use TailscaleWhois as authentication provider
+        tailscaleWhois:
+          ## portals.$.providers.$.tailscaleWhois.name (string)
+          ## Description:
+          ##   Name of the authentication provider
+          ##   Defaults to the name of the provider type
+          #name: "my-tailscale-whois-auth"
 
-        ## name (string)
-        ## Description:
-        ##   Name of the authentication provider
-        ##   Defaults to the name of the provider type
-        ##   +example(github) "my-github-auth"
-        ##   +example(google) "my-google-auth"
-        ##   +example(microsoftentraid) "my-microsoft-entra-id-auth"
-        ##   +example(openidconnect) "my-openid-auth"
-        ##   +example(tailscalewhois) "my-tailscale-whois-auth"
-        #name: ""
+          ## portals.$.providers.$.tailscaleWhois.displayName (string)
+          ## Description:
+          ##   Optional display name for the provider
+          ##   Defaults to the standard display name for the provider
+          #displayName: "Tailscale Whois"
 
-        ## displayName (string)
-        ## Description:
-        ##   Optional display name for the provider
-        ##   Defaults to the standard display name for the provider
-        ##   +example(github) "GitHub"
-        ##   +example(google) "Google"
-        ##   +example(microsoftentraid) "Microsoft Entra ID"
-        ##   +example(openidconnect) "OpenID Connect"
-        ##   +example(tailscalewhois) "Tailscale Whois"
-        #displayName: ""
+          ## portals.$.providers.$.tailscaleWhois.allowedTailnet (string)
+          ## Description:
+          ##   If non-empty, requires the Tailnet of the user to match this value
+          #allowedTailnet: "yourtailnet.ts.net"
 
-        ## icon (string)
-        ## Description:
-        ##   Optional icon for the provider
-        ##   Defaults to the standard icon for the provider
-        ##   +example(github) "github"
-        ##   +example(google) "google"
-        ##   +example(microsoftentraid) "microsoft"
-        ##   +example(openidconnect) "openid"
-        ##   +example(tailscalewhois) "tailscale"
-        #icon: ""
+          ## portals.$.providers.$.tailscaleWhois.requestTimeout (duration)
+          ## Description:
+          ##   Timeout for network requests for Tailscale Whois auth
+          ## Default: "10s"
+          #requestTimeout: "10s"
 
-        ## color (string)
-        ## Description:
-        ##   Optional color scheme for the provider
-        ##   Defaults to the standard color for the provider
-        ##   +example(github) "green-to-blue"
-        ##   +example(google) "red-to-yellow"
-        ##   +example(microsoftentraid) "teal-to-lime"
-        ##   +example(openidconnect) "purple-to-pink"
-        ##   +example(tailscalewhois) "cyan-to-blue"
-        #color: ""
+          ## portals.$.providers.$.tailscaleWhois.icon (string)
+          ## Description:
+          ##   Optional icon for the provider
+          ##   Defaults to the standard icon for the provider
+          #icon: "tailscale"
 
-        ## config (map)
-        ## Description:
-        ##   Configuration for the provider.
-        ##   The properties depend on the provider type.
-        #config: 
+          ## portals.$.providers.$.tailscaleWhois.color (string)
+          ## Description:
+          ##   Optional color scheme for the provider
+          ##   Defaults to the standard color for the provider
+          #color: "cyan-to-blue"
 

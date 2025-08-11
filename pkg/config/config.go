@@ -205,8 +205,7 @@ type ConfigPortalProvider struct {
 	// Use TailscaleWhois as authentication provider
 	TailscaleWhois *ProviderConfig_TailscaleWhois `yaml:"tailscaleWhois"`
 	// Name of a test provider; used in tests only
-	// +ignore
-	TestProvider *string `yaml:"testProvider"`
+	TestProvider *string `yaml:"testProvider" ignoredocs:"true"`
 
 	// Parsed config object - internal
 	configParsed ProviderConfig

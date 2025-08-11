@@ -26,80 +26,88 @@
 | <a id="config-opt-logs-omithealthchecks"></a>`logs.omitHealthChecks` | boolean | If true, calls to the healthcheck endpoint (`/healthz`) are not included in the logs.| Default: _true_ |
 | <a id="config-opt-logs-json"></a>`logs.json` | boolean | If true, emits logs formatted as JSON, otherwise uses a text-based structured log format.<br>Defaults to false if a TTY is attached (e.g. in development); true otherwise.|  |
 | <a id="config-opt-defaultportal"></a>`defaultPortal` | string | If set to the name of a portal defined in "portals", it makes the portal available on the root endpoint, without the `portals/<name>/` prefix|  |
-| <a id="config-opt-portals"></a>`portals`| list of [portal configurations](#portal-configuration) | List of portals.<br>See the [portal configuration](#portal-configuration) section for more details. | **Required**<br>At least one configured portal and provider is required |
 
 ## Portal configuration
 
 | Name | Type | Description | |
 | --- | --- | --- | --- |
-| <a id="config-opt-portals-name"></a>`name` | string | Name of the portal, as used in the URL.| **Required** |
-| <a id="config-opt-portals-displayname"></a>`displayName` | string | Optional display name.<br>Defaults to the `name` property if not set.|  |
-| <a id="config-opt-portals-alwaysshowproviderspage"></a>`alwaysShowProvidersPage` | boolean | If true, always shows the providers selection page, even when there's a single provider configured.<br>Has no effect when there's more than one provider configured.| Default: _false_ |
-| <a id="config-opt-portals-authenticationtimeout"></a>`authenticationTimeout` | duration | Timeout for authenticating with the authentication provider.| Default: _5m_ |
-
-## Provider configuration
-
-| Name | Type | Description | |
-| --- | --- | --- | --- |
+| <a id="config-opt-portals-portals-$-name"></a>`portals.$.name` | string | Name of the portal, as used in the URL.| **Required** |
+| <a id="config-opt-portals-portals-$-displayname"></a>`portals.$.displayName` | string | Optional display name.<br>Defaults to the `name` property if not set.|  |
+| <a id="config-opt-portals-portals-$-alwaysshowproviderspage"></a>`portals.$.alwaysShowProvidersPage` | boolean | If true, always shows the providers selection page, even when there's a single provider configured.<br>Has no effect when there's more than one provider configured.| Default: _false_ |
+| <a id="config-opt-portals-portals-$-authenticationtimeout"></a>`portals.$.authenticationTimeout` | duration | Timeout for authenticating with the authentication provider.| Default: _5m_ |
 | <a id="config-opt-providers"></a>`providers`| list of [provider configurations](#provider-configuration) | List of allowed authentication providers<br>See the [provider configuration](#provider-configuration) section for more details. | **Required**<br>At least one provider is required. |
+## Provider Configuration
 
-## Provider configuration github
+The configuration depends on the kind of provider used
 
-| Name | Type | Description | |
-| --- | --- | --- | --- |
-| <a id="config-opt-providers-github-provider"></a>`provider` | string | Authentication provider to use<br>+example(github) "github"<br>+example(google) "google"<br>+example(microsoftentraid) "microsoftentraid"<br>+example(openidconnect) "openidconnect"<br>+example(tailscalewhois) "tailscalewhois"| **Required** |
-| <a id="config-opt-providers-github-name"></a>`name` | string | Name of the authentication provider<br>Defaults to the name of the provider type<br>+example(github) "my-github-auth"<br>+example(google) "my-google-auth"<br>+example(microsoftentraid) "my-microsoft-entra-id-auth"<br>+example(openidconnect) "my-openid-auth"<br>+example(tailscalewhois) "my-tailscale-whois-auth"|  |
-| <a id="config-opt-providers-github-displayname"></a>`displayName` | string | Optional display name for the provider<br>Defaults to the standard display name for the provider<br>+example(github) "GitHub"<br>+example(google) "Google"<br>+example(microsoftentraid) "Microsoft Entra ID"<br>+example(openidconnect) "OpenID Connect"<br>+example(tailscalewhois) "Tailscale Whois"|  |
-| <a id="config-opt-providers-github-icon"></a>`icon` | string | Optional icon for the provider<br>Defaults to the standard icon for the provider<br>+example(github) "github"<br>+example(google) "google"<br>+example(microsoftentraid) "microsoft"<br>+example(openidconnect) "openid"<br>+example(tailscalewhois) "tailscale"|  |
-| <a id="config-opt-providers-github-color"></a>`color` | string | Optional color scheme for the provider<br>Defaults to the standard color for the provider<br>+example(github) "green-to-blue"<br>+example(google) "red-to-yellow"<br>+example(microsoftentraid) "teal-to-lime"<br>+example(openidconnect) "purple-to-pink"<br>+example(tailscalewhois) "cyan-to-blue"|  |
-| <a id="config-opt-providers-github-config"></a>`config` | map | Configuration for the provider.<br>The properties depend on the provider type.|  |
-| <a id="config-opt-providers"></a>`providers`| list of [provider configurations](#provider-configuration) | List of allowed authentication providers<br>See the [provider configuration](#provider-configuration) section for more details. | **Required**<br>At least one provider is required. |
-
-## Provider configuration google
+### Using GitHub
 
 | Name | Type | Description | |
 | --- | --- | --- | --- |
-| <a id="config-opt-providers-google-provider"></a>`provider` | string | Authentication provider to use<br>+example(github) "github"<br>+example(google) "google"<br>+example(microsoftentraid) "microsoftentraid"<br>+example(openidconnect) "openidconnect"<br>+example(tailscalewhois) "tailscalewhois"| **Required** |
-| <a id="config-opt-providers-google-name"></a>`name` | string | Name of the authentication provider<br>Defaults to the name of the provider type<br>+example(github) "my-github-auth"<br>+example(google) "my-google-auth"<br>+example(microsoftentraid) "my-microsoft-entra-id-auth"<br>+example(openidconnect) "my-openid-auth"<br>+example(tailscalewhois) "my-tailscale-whois-auth"|  |
-| <a id="config-opt-providers-google-displayname"></a>`displayName` | string | Optional display name for the provider<br>Defaults to the standard display name for the provider<br>+example(github) "GitHub"<br>+example(google) "Google"<br>+example(microsoftentraid) "Microsoft Entra ID"<br>+example(openidconnect) "OpenID Connect"<br>+example(tailscalewhois) "Tailscale Whois"|  |
-| <a id="config-opt-providers-google-icon"></a>`icon` | string | Optional icon for the provider<br>Defaults to the standard icon for the provider<br>+example(github) "github"<br>+example(google) "google"<br>+example(microsoftentraid) "microsoft"<br>+example(openidconnect) "openid"<br>+example(tailscalewhois) "tailscale"|  |
-| <a id="config-opt-providers-google-color"></a>`color` | string | Optional color scheme for the provider<br>Defaults to the standard color for the provider<br>+example(github) "green-to-blue"<br>+example(google) "red-to-yellow"<br>+example(microsoftentraid) "teal-to-lime"<br>+example(openidconnect) "purple-to-pink"<br>+example(tailscalewhois) "cyan-to-blue"|  |
-| <a id="config-opt-providers-google-config"></a>`config` | map | Configuration for the provider.<br>The properties depend on the provider type.|  |
-| <a id="config-opt-providers"></a>`providers`| list of [provider configurations](#provider-configuration) | List of allowed authentication providers<br>See the [provider configuration](#provider-configuration) section for more details. | **Required**<br>At least one provider is required. |
+| <a id="config-opt-portals.$.providers.$-github-portals-$-providers-$-github-name"></a>`portals.$.providers.$.github.name` | string | Name of the authentication provider<br>Defaults to the name of the provider type|  |
+| <a id="config-opt-portals.$.providers.$-github-portals-$-providers-$-github-displayname"></a>`portals.$.providers.$.github.displayName` | string | Optional display name for the provider<br>Defaults to the standard display name for the provider|  |
+| <a id="config-opt-portals.$.providers.$-github-portals-$-providers-$-github-clientid"></a>`portals.$.providers.$.github.clientID` | string | Client ID for the GitHub auth application| **Required** |
+| <a id="config-opt-portals.$.providers.$-github-portals-$-providers-$-github-clientsecret"></a>`portals.$.providers.$.github.clientSecret` | string | Client secret for the GitHub application<br>One of `clientSecret` and `clientSecretFile` is required.| **Required** |
+| <a id="config-opt-portals.$.providers.$-github-portals-$-providers-$-github-clientsecretfile"></a>`portals.$.providers.$.github.clientSecretFile` | string | File containing the client secret for the GitHub application<br>This is an alternative to passing the secret as `clientSecret`<br>One of `clientSecret` and `clientSecretFile` is required.|  |
+| <a id="config-opt-portals.$.providers.$-github-portals-$-providers-$-github-requesttimeout"></a>`portals.$.providers.$.github.requestTimeout` | duration | Timeout for network requests for GitHub auth| Default: _"10s"_ |
+| <a id="config-opt-portals.$.providers.$-github-portals-$-providers-$-github-icon"></a>`portals.$.providers.$.github.icon` | string | Optional icon for the provider<br>Defaults to the standard icon for the provider|  |
+| <a id="config-opt-portals.$.providers.$-github-portals-$-providers-$-github-color"></a>`portals.$.providers.$.github.color` | string | Optional color scheme for the provider<br>Defaults to the standard color for the provider|  |
 
-## Provider configuration microsoftentraid
-
-| Name | Type | Description | |
-| --- | --- | --- | --- |
-| <a id="config-opt-providers-microsoftentraid-provider"></a>`provider` | string | Authentication provider to use<br>+example(github) "github"<br>+example(google) "google"<br>+example(microsoftentraid) "microsoftentraid"<br>+example(openidconnect) "openidconnect"<br>+example(tailscalewhois) "tailscalewhois"| **Required** |
-| <a id="config-opt-providers-microsoftentraid-name"></a>`name` | string | Name of the authentication provider<br>Defaults to the name of the provider type<br>+example(github) "my-github-auth"<br>+example(google) "my-google-auth"<br>+example(microsoftentraid) "my-microsoft-entra-id-auth"<br>+example(openidconnect) "my-openid-auth"<br>+example(tailscalewhois) "my-tailscale-whois-auth"|  |
-| <a id="config-opt-providers-microsoftentraid-displayname"></a>`displayName` | string | Optional display name for the provider<br>Defaults to the standard display name for the provider<br>+example(github) "GitHub"<br>+example(google) "Google"<br>+example(microsoftentraid) "Microsoft Entra ID"<br>+example(openidconnect) "OpenID Connect"<br>+example(tailscalewhois) "Tailscale Whois"|  |
-| <a id="config-opt-providers-microsoftentraid-icon"></a>`icon` | string | Optional icon for the provider<br>Defaults to the standard icon for the provider<br>+example(github) "github"<br>+example(google) "google"<br>+example(microsoftentraid) "microsoft"<br>+example(openidconnect) "openid"<br>+example(tailscalewhois) "tailscale"|  |
-| <a id="config-opt-providers-microsoftentraid-color"></a>`color` | string | Optional color scheme for the provider<br>Defaults to the standard color for the provider<br>+example(github) "green-to-blue"<br>+example(google) "red-to-yellow"<br>+example(microsoftentraid) "teal-to-lime"<br>+example(openidconnect) "purple-to-pink"<br>+example(tailscalewhois) "cyan-to-blue"|  |
-| <a id="config-opt-providers-microsoftentraid-config"></a>`config` | map | Configuration for the provider.<br>The properties depend on the provider type.|  |
-| <a id="config-opt-providers"></a>`providers`| list of [provider configurations](#provider-configuration) | List of allowed authentication providers<br>See the [provider configuration](#provider-configuration) section for more details. | **Required**<br>At least one provider is required. |
-
-## Provider configuration openidconnect
+### Using Google
 
 | Name | Type | Description | |
 | --- | --- | --- | --- |
-| <a id="config-opt-providers-openidconnect-provider"></a>`provider` | string | Authentication provider to use<br>+example(github) "github"<br>+example(google) "google"<br>+example(microsoftentraid) "microsoftentraid"<br>+example(openidconnect) "openidconnect"<br>+example(tailscalewhois) "tailscalewhois"| **Required** |
-| <a id="config-opt-providers-openidconnect-name"></a>`name` | string | Name of the authentication provider<br>Defaults to the name of the provider type<br>+example(github) "my-github-auth"<br>+example(google) "my-google-auth"<br>+example(microsoftentraid) "my-microsoft-entra-id-auth"<br>+example(openidconnect) "my-openid-auth"<br>+example(tailscalewhois) "my-tailscale-whois-auth"|  |
-| <a id="config-opt-providers-openidconnect-displayname"></a>`displayName` | string | Optional display name for the provider<br>Defaults to the standard display name for the provider<br>+example(github) "GitHub"<br>+example(google) "Google"<br>+example(microsoftentraid) "Microsoft Entra ID"<br>+example(openidconnect) "OpenID Connect"<br>+example(tailscalewhois) "Tailscale Whois"|  |
-| <a id="config-opt-providers-openidconnect-icon"></a>`icon` | string | Optional icon for the provider<br>Defaults to the standard icon for the provider<br>+example(github) "github"<br>+example(google) "google"<br>+example(microsoftentraid) "microsoft"<br>+example(openidconnect) "openid"<br>+example(tailscalewhois) "tailscale"|  |
-| <a id="config-opt-providers-openidconnect-color"></a>`color` | string | Optional color scheme for the provider<br>Defaults to the standard color for the provider<br>+example(github) "green-to-blue"<br>+example(google) "red-to-yellow"<br>+example(microsoftentraid) "teal-to-lime"<br>+example(openidconnect) "purple-to-pink"<br>+example(tailscalewhois) "cyan-to-blue"|  |
-| <a id="config-opt-providers-openidconnect-config"></a>`config` | map | Configuration for the provider.<br>The properties depend on the provider type.|  |
-| <a id="config-opt-providers"></a>`providers`| list of [provider configurations](#provider-configuration) | List of allowed authentication providers<br>See the [provider configuration](#provider-configuration) section for more details. | **Required**<br>At least one provider is required. |
+| <a id="config-opt-portals.$.providers.$-google-portals-$-providers-$-google-name"></a>`portals.$.providers.$.google.name` | string | Name of the authentication provider<br>Defaults to the name of the provider type|  |
+| <a id="config-opt-portals.$.providers.$-google-portals-$-providers-$-google-displayname"></a>`portals.$.providers.$.google.displayName` | string | Optional display name for the provider<br>Defaults to the standard display name for the provider|  |
+| <a id="config-opt-portals.$.providers.$-google-portals-$-providers-$-google-clientid"></a>`portals.$.providers.$.google.clientID` | string | Client ID for the Google auth application| **Required** |
+| <a id="config-opt-portals.$.providers.$-google-portals-$-providers-$-google-clientsecret"></a>`portals.$.providers.$.google.clientSecret` | string | Client secret for the Google auth application<br>One of `clientSecret` and `clientSecretFile` is required.| **Required** |
+| <a id="config-opt-portals.$.providers.$-google-portals-$-providers-$-google-clientsecretfile"></a>`portals.$.providers.$.google.clientSecretFile` | string | File containing the client secret for the Google auth application<br>This is an alternative to passing the secret as `clientSecret`<br>One of `clientSecret` and `clientSecretFile` is required.|  |
+| <a id="config-opt-portals.$.providers.$-google-portals-$-providers-$-google-requesttimeout"></a>`portals.$.providers.$.google.requestTimeout` | duration | Timeout for network requests for Google auth| Default: _"10s"_ |
+| <a id="config-opt-portals.$.providers.$-google-portals-$-providers-$-google-icon"></a>`portals.$.providers.$.google.icon` | string | Optional icon for the provider<br>Defaults to the standard icon for the provider|  |
+| <a id="config-opt-portals.$.providers.$-google-portals-$-providers-$-google-color"></a>`portals.$.providers.$.google.color` | string | Optional color scheme for the provider<br>Defaults to the standard color for the provider|  |
 
-## Provider configuration tailscalewhois
+### Using Microsoft Entra ID
 
 | Name | Type | Description | |
 | --- | --- | --- | --- |
-| <a id="config-opt-providers-tailscalewhois-provider"></a>`provider` | string | Authentication provider to use<br>+example(github) "github"<br>+example(google) "google"<br>+example(microsoftentraid) "microsoftentraid"<br>+example(openidconnect) "openidconnect"<br>+example(tailscalewhois) "tailscalewhois"| **Required** |
-| <a id="config-opt-providers-tailscalewhois-name"></a>`name` | string | Name of the authentication provider<br>Defaults to the name of the provider type<br>+example(github) "my-github-auth"<br>+example(google) "my-google-auth"<br>+example(microsoftentraid) "my-microsoft-entra-id-auth"<br>+example(openidconnect) "my-openid-auth"<br>+example(tailscalewhois) "my-tailscale-whois-auth"|  |
-| <a id="config-opt-providers-tailscalewhois-displayname"></a>`displayName` | string | Optional display name for the provider<br>Defaults to the standard display name for the provider<br>+example(github) "GitHub"<br>+example(google) "Google"<br>+example(microsoftentraid) "Microsoft Entra ID"<br>+example(openidconnect) "OpenID Connect"<br>+example(tailscalewhois) "Tailscale Whois"|  |
-| <a id="config-opt-providers-tailscalewhois-icon"></a>`icon` | string | Optional icon for the provider<br>Defaults to the standard icon for the provider<br>+example(github) "github"<br>+example(google) "google"<br>+example(microsoftentraid) "microsoft"<br>+example(openidconnect) "openid"<br>+example(tailscalewhois) "tailscale"|  |
-| <a id="config-opt-providers-tailscalewhois-color"></a>`color` | string | Optional color scheme for the provider<br>Defaults to the standard color for the provider<br>+example(github) "green-to-blue"<br>+example(google) "red-to-yellow"<br>+example(microsoftentraid) "teal-to-lime"<br>+example(openidconnect) "purple-to-pink"<br>+example(tailscalewhois) "cyan-to-blue"|  |
-| <a id="config-opt-providers-tailscalewhois-config"></a>`config` | map | Configuration for the provider.<br>The properties depend on the provider type.|  |
+| <a id="config-opt-portals.$.providers.$-microsoftentraid-portals-$-providers-$-microsoftentraid-name"></a>`portals.$.providers.$.microsoftEntraID.name` | string | Name of the authentication provider<br>Defaults to the name of the provider type|  |
+| <a id="config-opt-portals.$.providers.$-microsoftentraid-portals-$-providers-$-microsoftentraid-displayname"></a>`portals.$.providers.$.microsoftEntraID.displayName` | string | Optional display name for the provider<br>Defaults to the standard display name for the provider|  |
+| <a id="config-opt-portals.$.providers.$-microsoftentraid-portals-$-providers-$-microsoftentraid-tenantid"></a>`portals.$.providers.$.microsoftEntraID.tenantID` | string | Tenant ID for the Microsoft Entra ID auth application<br>+example| **Required** |
+| <a id="config-opt-portals.$.providers.$-microsoftentraid-portals-$-providers-$-microsoftentraid-clientid"></a>`portals.$.providers.$.microsoftEntraID.clientID` | string | Client ID for the Microsoft Entra ID auth application| **Required** |
+| <a id="config-opt-portals.$.providers.$-microsoftentraid-portals-$-providers-$-microsoftentraid-clientsecret"></a>`portals.$.providers.$.microsoftEntraID.clientSecret` | string | Client secret for the Microsoft Entra ID auth application<br>Required when not using Federated Identity Credentials|  |
+| <a id="config-opt-portals.$.providers.$-microsoftentraid-portals-$-providers-$-microsoftentraid-clientsecretfile"></a>`portals.$.providers.$.microsoftEntraID.clientSecretFile` | string | File containing the client secret for the Microsoft Entra ID application.<br>This is an alternative to passing the secret as `clientSecret`|  |
+| <a id="config-opt-portals.$.providers.$-microsoftentraid-portals-$-providers-$-microsoftentraid-azurefederatedidentity"></a>`portals.$.providers.$.microsoftEntraID.azureFederatedIdentity` | string | Enables the usage of Federated Identity Credentials to obtain assertions for confidential clients for Microsoft Entra ID applications.<br>This is an alternative to using client secrets, when the application is running in Azure in an environment that supports Managed Identity, or in an environment that supports Workload Identity Federation with Microsoft Entra ID.<br>Currently, these values are supported:<br><br>- `ManagedIdentity`: uses a system-assigned managed identity<br>- `ManagedIdentity=client-id`: uses a user-assigned managed identity with client id "client-id" (e.g. "ManagedIdentity=00000000-0000-0000-0000-000000000000")<br>- `WorkloadIdentity`: uses workload identity, e.g. for Kubernetes|  |
+| <a id="config-opt-portals.$.providers.$-microsoftentraid-portals-$-providers-$-microsoftentraid-requesttimeout"></a>`portals.$.providers.$.microsoftEntraID.requestTimeout` | duration | Timeout for network requests for Microsoft Entra ID auth| Default: _"10s"_ |
+| <a id="config-opt-portals.$.providers.$-microsoftentraid-portals-$-providers-$-microsoftentraid-icon"></a>`portals.$.providers.$.microsoftEntraID.icon` | string | Optional icon for the provider<br>Defaults to the standard icon for the provider|  |
+| <a id="config-opt-portals.$.providers.$-microsoftentraid-portals-$-providers-$-microsoftentraid-color"></a>`portals.$.providers.$.microsoftEntraID.color` | string | Optional color scheme for the provider<br>Defaults to the standard color for the provider|  |
+
+### Using OpenID Connect
+
+| Name | Type | Description | |
+| --- | --- | --- | --- |
+| <a id="config-opt-portals.$.providers.$-openidconnect-portals-$-providers-$-openidconnect-name"></a>`portals.$.providers.$.openIDConnect.name` | string | Name of the authentication provider<br>Defaults to the name of the provider type|  |
+| <a id="config-opt-portals.$.providers.$-openidconnect-portals-$-providers-$-openidconnect-displayname"></a>`portals.$.providers.$.openIDConnect.displayName` | string | Optional display name for the provider<br>Defaults to the standard display name for the provider|  |
+| <a id="config-opt-portals.$.providers.$-openidconnect-portals-$-providers-$-openidconnect-clientid"></a>`portals.$.providers.$.openIDConnect.clientID` | string | Client ID for the OpenID Connect application| **Required** |
+| <a id="config-opt-portals.$.providers.$-openidconnect-portals-$-providers-$-openidconnect-clientsecret"></a>`portals.$.providers.$.openIDConnect.clientSecret` | string | Client secret for the OpenID Connect application| **Required** |
+| <a id="config-opt-portals.$.providers.$-openidconnect-portals-$-providers-$-openidconnect-clientsecretfile"></a>`portals.$.providers.$.openIDConnect.clientSecretFile` | string | File containing the client secret for the OpenID Connect application<br>This is an alternative to passing the secret as `clientSecret`|  |
+| <a id="config-opt-portals.$.providers.$-openidconnect-portals-$-providers-$-openidconnect-tokenissuer"></a>`portals.$.providers.$.openIDConnect.tokenIssuer` | string | OpenID Connect token issuer<br>The OpenID Connect configuration document will be fetched at `<token-issuer>/.well-known/openid-configuration`| **Required** |
+| <a id="config-opt-portals.$.providers.$-openidconnect-portals-$-providers-$-openidconnect-requesttimeout"></a>`portals.$.providers.$.openIDConnect.requestTimeout` | duration | Timeout for network requests for OpenID Connect auth| Default: _"10s"_ |
+| <a id="config-opt-portals.$.providers.$-openidconnect-portals-$-providers-$-openidconnect-enablepkce"></a>`portals.$.providers.$.openIDConnect.enablePKCE` | boolean | If true, enables the use of PKCE during the code exchange.| Default: _false_ |
+| <a id="config-opt-portals.$.providers.$-openidconnect-portals-$-providers-$-openidconnect-tlsinsecureskipverify"></a>`portals.$.providers.$.openIDConnect.tlsInsecureSkipVerify` | boolean | If true, skips validating TLS certificates when connecting to the OpenID Connect Identity Provider.| Default: _false_ |
+| <a id="config-opt-portals.$.providers.$-openidconnect-portals-$-providers-$-openidconnect-tlscacertificatepem"></a>`portals.$.providers.$.openIDConnect.tlsCACertificatePEM` | string | Optional PEM-encoded CA certificate to trust when connecting to the OpenID Connect Identity Provider.|  |
+| <a id="config-opt-portals.$.providers.$-openidconnect-portals-$-providers-$-openidconnect-tlscacertificatepath"></a>`portals.$.providers.$.openIDConnect.tlsCACertificatePath` | string | Optional path to a CA certificate to trust when connecting to the OpenID Connect Identity Provider.|  |
+| <a id="config-opt-portals.$.providers.$-openidconnect-portals-$-providers-$-openidconnect-icon"></a>`portals.$.providers.$.openIDConnect.icon` | string | Optional icon for the provider<br>Defaults to the standard icon for the provider|  |
+| <a id="config-opt-portals.$.providers.$-openidconnect-portals-$-providers-$-openidconnect-color"></a>`portals.$.providers.$.openIDConnect.color` | string | Optional color scheme for the provider<br>Defaults to the standard color for the provider|  |
+
+### Using Tailscale Whois
+
+| Name | Type | Description | |
+| --- | --- | --- | --- |
+| <a id="config-opt-portals.$.providers.$-tailscalewhois-portals-$-providers-$-tailscalewhois-name"></a>`portals.$.providers.$.tailscaleWhois.name` | string | Name of the authentication provider<br>Defaults to the name of the provider type|  |
+| <a id="config-opt-portals.$.providers.$-tailscalewhois-portals-$-providers-$-tailscalewhois-displayname"></a>`portals.$.providers.$.tailscaleWhois.displayName` | string | Optional display name for the provider<br>Defaults to the standard display name for the provider|  |
+| <a id="config-opt-portals.$.providers.$-tailscalewhois-portals-$-providers-$-tailscalewhois-allowedtailnet"></a>`portals.$.providers.$.tailscaleWhois.allowedTailnet` | string | If non-empty, requires the Tailnet of the user to match this value|  |
+| <a id="config-opt-portals.$.providers.$-tailscalewhois-portals-$-providers-$-tailscalewhois-requesttimeout"></a>`portals.$.providers.$.tailscaleWhois.requestTimeout` | duration | Timeout for network requests for Tailscale Whois auth| Default: _"10s"_ |
+| <a id="config-opt-portals.$.providers.$-tailscalewhois-portals-$-providers-$-tailscalewhois-icon"></a>`portals.$.providers.$.tailscaleWhois.icon` | string | Optional icon for the provider<br>Defaults to the standard icon for the provider|  |
+| <a id="config-opt-portals.$.providers.$-tailscalewhois-portals-$-providers-$-tailscalewhois-color"></a>`portals.$.providers.$.tailscaleWhois.color` | string | Optional color scheme for the provider<br>Defaults to the standard color for the provider|  |
 
 <!-- END CONFIG TABLE -->
