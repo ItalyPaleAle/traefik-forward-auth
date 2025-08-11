@@ -14,6 +14,7 @@ import (
 	"log/slog"
 	"net"
 	"os"
+	"reflect"
 	"regexp"
 	"strings"
 	"time"
@@ -193,54 +194,19 @@ type ConfigPortal struct {
 }
 
 type ConfigPortalProvider struct {
-	// Authentication provider to use
-	// +required
-	// +example(github) "github"
-	// +example(google) "google"
-	// +example(microsoftentraid) "microsoftentraid"
-	// +example(openidconnect) "openidconnect"
-	// +example(tailscalewhois) "tailscalewhois"
-	Provider string `yaml:"provider"`
-
-	// Name of the authentication provider
-	// Defaults to the name of the provider type
-	// +example(github) "my-github-auth"
-	// +example(google) "my-google-auth"
-	// +example(microsoftentraid) "my-microsoft-entra-id-auth"
-	// +example(openidconnect) "my-openid-auth"
-	// +example(tailscalewhois) "my-tailscale-whois-auth"
-	Name string `yaml:"name"`
-
-	// Optional display name for the provider
-	// Defaults to the standard display name for the provider
-	// +example(github) "GitHub"
-	// +example(google) "Google"
-	// +example(microsoftentraid) "Microsoft Entra ID"
-	// +example(openidconnect) "OpenID Connect"
-	// +example(tailscalewhois) "Tailscale Whois"
-	DisplayName string `yaml:"displayName"`
-
-	// Optional icon for the provider
-	// Defaults to the standard icon for the provider
-	// +example(github) "github"
-	// +example(google) "google"
-	// +example(microsoftentraid) "microsoft"
-	// +example(openidconnect) "openid"
-	// +example(tailscalewhois) "tailscale"
-	Icon string `yaml:"icon"`
-
-	// Optional color scheme for the provider
-	// Defaults to the standard color for the provider
-	// +example(github) "green-to-blue"
-	// +example(google) "red-to-yellow"
-	// +example(microsoftentraid) "teal-to-lime"
-	// +example(openidconnect) "purple-to-pink"
-	// +example(tailscalewhois) "cyan-to-blue"
-	Color string `yaml:"color"`
-
-	// Configuration for the provider.
-	// The properties depend on the provider type.
-	Config map[string]any `yaml:"config"`
+	// Use GitHub as authentication provider
+	GitHub *ProviderConfig_GitHub `yaml:"github"`
+	// Use Google as authentication provider
+	Google *ProviderConfig_Google `yaml:"google"`
+	// Use MicrosoftEntraID as authentication provider
+	MicrosoftEntraID *ProviderConfig_MicrosoftEntraID `yaml:"microsoftEntraID"`
+	// Use OpenIDConnect as authentication provider
+	OpenIDConnect *ProviderConfig_OpenIDConnect `yaml:"openIDConnect"`
+	// Use TailscaleWhois as authentication provider
+	TailscaleWhois *ProviderConfig_TailscaleWhois `yaml:"tailscaleWhois"`
+	// Name of a test provider; used in tests only
+	// +ignore
+	TestProvider *string `yaml:"testProvider"`
 
 	// Parsed config object - internal
 	configParsed ProviderConfig
@@ -413,12 +379,14 @@ func (p *ConfigPortal) GetAuthProviders(ctx context.Context) ([]auth.Provider, e
 		if err != nil {
 			return nil, err
 		}
-		ap.SetProviderMetadata(v.GetProviderMetadata())
+
+		md := v.configParsed.GetProviderMetadata()
+		ap.SetProviderMetadata(md)
 
 		name := ap.GetProviderName()
 		_, ok := providerNames[name]
 		if ok {
-			return nil, fmt.Errorf("duplicate provider '%s' found in portal '%s'", name, v.Name)
+			return nil, fmt.Errorf("duplicate provider '%s' found in portal '%s'", name, md.Name)
 		}
 		providers[i] = ap
 		providerNames[name] = struct{}{}
@@ -451,6 +419,11 @@ func (p *ConfigPortal) Parse(c *Config) error {
 		return errors.New("property 'authenticationTimeout' is invalid: must be at least 5 seconds")
 	}
 
+	// Ensure there's at least one provider
+	if len(p.Providers) == 0 {
+		return errors.New("at least one authentication provider must be configured")
+	}
+
 	// Parse the providers' config
 	for i := range p.Providers {
 		err := p.Providers[i].Parse(c)
@@ -462,43 +435,61 @@ func (p *ConfigPortal) Parse(c *Config) error {
 	return nil
 }
 
-func (v *ConfigPortalProvider) GetProviderMetadata() auth.ProviderMetadata {
-	return auth.ProviderMetadata{
-		Name:        v.Name,
-		DisplayName: v.DisplayName,
-		Icon:        v.Icon,
-		Color:       v.Color,
-	}
-}
-
-func (v *ConfigPortalProvider) Parse(c *Config) error {
-	// Sanitize the provider type
-	v.Provider = strings.ReplaceAll(strings.ToLower(v.Provider), "-", "")
-	if v.Provider == "" {
-		return errors.New("property 'provider' is required")
+func (v *ConfigPortalProvider) Parse(c *Config) (err error) {
+	// Ensure there's one and only one provider defined
+	count := countSetProperties(v)
+	if count == 0 {
+		return errors.New("no provider type configured for the provider")
+	} else if count > 1 {
+		return errors.New("cannot configure more than one provider type in each provider")
 	}
 
-	// Sanitize the provider name if set
-	if v.Name != "" {
-		if !portalProviderNameRegex.MatchString(v.Name) {
-			return errPortalProvider
+	// At this point, we know one and only one of the switch cases will be true
+	switch {
+	case v.GitHub != nil:
+		v.GitHub.Name, err = sanitizeProviderName(v.GitHub.Name)
+		v.configParsed = v.GitHub
+	case v.Google != nil:
+		v.Google.Name, err = sanitizeProviderName(v.Google.Name)
+		v.configParsed = v.Google
+	case v.MicrosoftEntraID != nil:
+		v.MicrosoftEntraID.Name, err = sanitizeProviderName(v.MicrosoftEntraID.Name)
+		v.configParsed = v.MicrosoftEntraID
+	case v.OpenIDConnect != nil:
+		v.OpenIDConnect.Name, err = sanitizeProviderName(v.OpenIDConnect.Name)
+		v.configParsed = v.OpenIDConnect
+	case v.TailscaleWhois != nil:
+		v.TailscaleWhois.Name, err = sanitizeProviderName(v.TailscaleWhois.Name)
+		v.configParsed = v.TailscaleWhois
+	case v.TestProvider != nil:
+		fn, ok := testProviderConfigFactory[*v.TestProvider]
+		if !ok {
+			return fmt.Errorf("invalid test provider '%s'", *v.TestProvider)
 		}
-		v.Name = strings.ToLower(v.Name)
+		v.configParsed = fn()
+	default:
+		// Indicates a development time error
+		panic("Unhandled case")
 	}
-
-	fn, ok := providerConfigFactory[v.Provider]
-	if !ok {
-		return fmt.Errorf("invalid value for 'provider': %s", v.Provider)
+	if err != nil {
+		v.configParsed = nil
+		return err
 	}
-	v.configParsed = fn()
 
 	v.configParsed.SetConfigObject(c)
-	err := ApplyProviderConfig(v.Config, v.configParsed)
-	if err != nil {
-		return fmt.Errorf("invalid config for provider '%s': %w", v.Provider, err)
-	}
 
 	return nil
+}
+
+func sanitizeProviderName(name string) (string, error) {
+	// Sanitize the provider name if set
+	if name != "" {
+		if !portalProviderNameRegex.MatchString(name) {
+			return "", errPortalProvider
+		}
+		name = strings.ToLower(name)
+	}
+	return name, nil
 }
 
 // SetTokenSigningKey parses the token signing key.
@@ -568,4 +559,28 @@ func (c *Config) SetTokenSigningKey(logger *slog.Logger) (err error) {
 func computeKeyId(k []byte) string {
 	h := sha256.Sum256(k)
 	return base64.RawURLEncoding.EncodeToString(h[0:12])
+}
+
+func countSetProperties(s any) int {
+	typ := reflect.TypeOf(s)
+	val := reflect.ValueOf(s)
+
+	if typ.Kind() == reflect.Pointer {
+		typ = typ.Elem()
+		val = val.Elem()
+	}
+	if typ.Kind() != reflect.Struct {
+		// Indicates a development-time error
+		panic("param must be a struct")
+	}
+
+	var count int
+	for i := 0; i < val.NumField(); i++ {
+		field := val.Field(i)
+		if field.IsValid() && !field.IsZero() {
+			count++
+		}
+	}
+
+	return count
 }

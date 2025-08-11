@@ -7,41 +7,29 @@ import (
 	"os"
 	"time"
 
-	yaml "sigs.k8s.io/yaml/goyaml.v3"
-
 	"github.com/italypaleale/traefik-forward-auth/pkg/auth"
 )
 
-var providerConfigFactory map[string]func() ProviderConfig
-
-func init() {
-	entraIDFn := func() ProviderConfig { return &ProviderConfig_MicrosoftEntraID{} }
-	oidcFn := func() ProviderConfig { return &ProviderConfig_OpenIDConnect{} }
-	tailscaleFn := func() ProviderConfig { return &ProviderConfig_TailscaleWhois{} }
-
-	providerConfigFactory = map[string]func() ProviderConfig{
-		"github":           func() ProviderConfig { return &ProviderConfig_GitHub{} },
-		"google":           func() ProviderConfig { return &ProviderConfig_Google{} },
-		"microsoftentraid": entraIDFn,
-		"azuread":          entraIDFn,
-		"aad":              entraIDFn,
-		"entraid":          entraIDFn,
-		"openidconnect":    oidcFn,
-		"oidc":             oidcFn,
-		"tailscalewhois":   tailscaleFn,
-		"tailscale":        tailscaleFn,
-	}
-}
+var testProviderConfigFactory map[string]func() ProviderConfig
 
 type ProviderConfig interface {
 	GetAuthProvider(ctx context.Context) (auth.Provider, error)
 	SetConfigObject(c *Config)
+	GetProviderMetadata() auth.ProviderMetadata
 }
 
 // ProviderConfig_GitHub is the configuration for the GitHub provider
 // +name github
 // +displayName GitHub
 type ProviderConfig_GitHub struct {
+	// Name of the authentication provider
+	// Defaults to the name of the provider type
+	// +example "my-github-auth"
+	Name string `yaml:"name"`
+	// Optional display name for the provider
+	// Defaults to the standard display name for the provider
+	// +example "GitHub"
+	DisplayName string `yaml:"displayName"`
 	// Client ID for the GitHub auth application
 	// +required
 	// +example "your-client-id"
@@ -59,6 +47,14 @@ type ProviderConfig_GitHub struct {
 	// Timeout for network requests for GitHub auth
 	// +default "10s"
 	RequestTimeout time.Duration `yaml:"requestTimeout"`
+	// Optional icon for the provider
+	// Defaults to the standard icon for the provider
+	// +example "github"
+	Icon string `yaml:"icon"`
+	// Optional color scheme for the provider
+	// Defaults to the standard color for the provider
+	// +example "green-to-blue"
+	Color string `yaml:"color"`
 }
 
 func (p *ProviderConfig_GitHub) GetAuthProvider(_ context.Context) (auth.Provider, error) {
@@ -73,10 +69,27 @@ func (p *ProviderConfig_GitHub) SetConfigObject(_ *Config) {
 	// Nop for this provider
 }
 
+func (p *ProviderConfig_GitHub) GetProviderMetadata() auth.ProviderMetadata {
+	return auth.ProviderMetadata{
+		Name:        p.Name,
+		DisplayName: p.DisplayName,
+		Icon:        p.Icon,
+		Color:       p.Color,
+	}
+}
+
 // ProviderConfig_Google is the configuration for the Google provider
 // +name google
 // +displayName Google
 type ProviderConfig_Google struct {
+	// Name of the authentication provider
+	// Defaults to the name of the provider type
+	// +example "my-google-auth"
+	Name string `yaml:"name"`
+	// Optional display name for the provider
+	// Defaults to the standard display name for the provider
+	// +example "Google"
+	DisplayName string `yaml:"displayName"`
 	// Client ID for the Google auth application
 	// +required
 	// +example "your-google-client-id.apps.googleusercontent.com"
@@ -94,6 +107,14 @@ type ProviderConfig_Google struct {
 	// Timeout for network requests for Google auth
 	// +default "10s"
 	RequestTimeout time.Duration `yaml:"requestTimeout"`
+	// Optional icon for the provider
+	// Defaults to the standard icon for the provider
+	// +example "google"
+	Icon string `yaml:"icon"`
+	// Optional color scheme for the provider
+	// Defaults to the standard color for the provider
+	// +example "red-to-yellow"
+	Color string `yaml:"color"`
 }
 
 func (p *ProviderConfig_Google) GetAuthProvider(_ context.Context) (auth.Provider, error) {
@@ -114,10 +135,27 @@ func (p *ProviderConfig_Google) SetConfigObject(_ *Config) {
 	// Nop for this provider
 }
 
+func (p *ProviderConfig_Google) GetProviderMetadata() auth.ProviderMetadata {
+	return auth.ProviderMetadata{
+		Name:        p.Name,
+		DisplayName: p.DisplayName,
+		Icon:        p.Icon,
+		Color:       p.Color,
+	}
+}
+
 // ProviderConfig_MicrosoftEntraID is the configuration for the Microsoft Entra ID provider
 // +name microsoftentraid
 // +displayName Microsoft Entra ID
 type ProviderConfig_MicrosoftEntraID struct {
+	// Name of the authentication provider
+	// Defaults to the name of the provider type
+	// +example "my-microsoft-entra-id-auth"
+	Name string `yaml:"name"`
+	// Optional display name for the provider
+	// Defaults to the standard display name for the provider
+	// +example "Microsoft Entra ID"
+	DisplayName string `yaml:"displayName"`
 	// Tenant ID for the Microsoft Entra ID auth application
 	// +required
 	// +example
@@ -145,6 +183,14 @@ type ProviderConfig_MicrosoftEntraID struct {
 	// Timeout for network requests for Microsoft Entra ID auth
 	// +default "10s"
 	RequestTimeout time.Duration `yaml:"requestTimeout"`
+	// Optional icon for the provider
+	// Defaults to the standard icon for the provider
+	// +example "microsoft"
+	Icon string `yaml:"icon"`
+	// Optional color scheme for the provider
+	// Defaults to the standard color for the provider
+	// +example "teal-to-lime"
+	Color string `yaml:"color"`
 
 	config *Config
 }
@@ -170,10 +216,27 @@ func (p *ProviderConfig_MicrosoftEntraID) SetConfigObject(c *Config) {
 	p.config = c
 }
 
+func (p *ProviderConfig_MicrosoftEntraID) GetProviderMetadata() auth.ProviderMetadata {
+	return auth.ProviderMetadata{
+		Name:        p.Name,
+		DisplayName: p.DisplayName,
+		Icon:        p.Icon,
+		Color:       p.Color,
+	}
+}
+
 // ProviderConfig_OpenIDConnect is the configuration for the OpenID Connect provider
 // +name openidconnect
 // +displayName OpenID Connect
 type ProviderConfig_OpenIDConnect struct {
+	// Name of the authentication provider
+	// Defaults to the name of the provider type
+	// +example "my-openid-auth"
+	Name string `yaml:"name"`
+	// Optional display name for the provider
+	// Defaults to the standard display name for the provider
+	// +example "OpenID Connect"
+	DisplayName string `yaml:"displayName"`
 	// Client ID for the OpenID Connect application
 	// +required
 	// +example "your-client-id"
@@ -204,6 +267,14 @@ type ProviderConfig_OpenIDConnect struct {
 	TLSCACertificatePEM string `yaml:"tlsCACertificatePEM"`
 	// Optional path to a CA certificate to trust when connecting to the OpenID Connect Identity Provider.
 	TLSCACertificatePath string `yaml:"tlsCACertificatePath"`
+	// Optional icon for the provider
+	// Defaults to the standard icon for the provider
+	// +example "openid"
+	Icon string `yaml:"icon"`
+	// Optional color scheme for the provider
+	// Defaults to the standard color for the provider
+	// +example "purple-to-pink"
+	Color string `yaml:"color"`
 
 	config *Config
 }
@@ -251,16 +322,41 @@ func (p *ProviderConfig_OpenIDConnect) SetConfigObject(c *Config) {
 	p.config = c
 }
 
+func (p *ProviderConfig_OpenIDConnect) GetProviderMetadata() auth.ProviderMetadata {
+	return auth.ProviderMetadata{
+		Name:        p.Name,
+		DisplayName: p.DisplayName,
+		Icon:        p.Icon,
+		Color:       p.Color,
+	}
+}
+
 // ProviderConfig_TailscaleWhois is the configuration for the Tailscale Whois provider
 // +name tailscalewhois
 // +displayName Tailscale Whois
 type ProviderConfig_TailscaleWhois struct {
+	// Name of the authentication provider
+	// Defaults to the name of the provider type
+	// +example "my-tailscale-whois-auth"
+	Name string `yaml:"name"`
+	// Optional display name for the provider
+	// Defaults to the standard display name for the provider
+	// +example "Tailscale Whois"
+	DisplayName string `yaml:"displayName"`
 	// If non-empty, requires the Tailnet of the user to match this value
 	// +example "yourtailnet.ts.net"
 	AllowedTailnet string `yaml:"allowedTailnet"`
 	// Timeout for network requests for Tailscale Whois auth
 	// +default "10s"
 	RequestTimeout time.Duration `yaml:"requestTimeout"`
+	// Optional icon for the provider
+	// Defaults to the standard icon for the provider
+	// +example "tailscale"
+	Icon string `yaml:"icon"`
+	// Optional color scheme for the provider
+	// Defaults to the standard color for the provider
+	// +example "cyan-to-blue"
+	Color string `yaml:"color"`
 }
 
 func (p *ProviderConfig_TailscaleWhois) GetAuthProvider(_ context.Context) (auth.Provider, error) {
@@ -274,24 +370,13 @@ func (p *ProviderConfig_TailscaleWhois) SetConfigObject(_ *Config) {
 	// Nop for this provider
 }
 
-func ApplyProviderConfig(props map[string]any, dest any) error {
-	if len(props) == 0 {
-		return nil
+func (p *ProviderConfig_TailscaleWhois) GetProviderMetadata() auth.ProviderMetadata {
+	return auth.ProviderMetadata{
+		Name:        p.Name,
+		DisplayName: p.DisplayName,
+		Icon:        p.Icon,
+		Color:       p.Color,
 	}
-
-	// Re-encode provider config to YAML
-	enc, err := yaml.Marshal(props)
-	if err != nil {
-		return fmt.Errorf("failed to re-encode provider config to YAML: %w", err)
-	}
-
-	// Unmarshal into p
-	err = yaml.Unmarshal(enc, dest)
-	if err != nil {
-		return fmt.Errorf("failed to decode provider config: %w", err)
-	}
-
-	return nil
 }
 
 func populateSecretFromFile(secret *string, secretFile string) error {

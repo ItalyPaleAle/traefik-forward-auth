@@ -25,7 +25,7 @@ func TestValidateConfig(t *testing.T) {
 			{
 				Name: "github1",
 				Providers: []ConfigPortalProvider{
-					{Provider: "github"},
+					{GitHub: &ProviderConfig_GitHub{}},
 				},
 			},
 		}
@@ -65,7 +65,7 @@ func TestValidateConfig(t *testing.T) {
 				{
 					Name: "1",
 					Providers: []ConfigPortalProvider{
-						{Provider: "github"},
+						{GitHub: &ProviderConfig_GitHub{}},
 					},
 				},
 			}
@@ -77,13 +77,31 @@ func TestValidateConfig(t *testing.T) {
 			assert.ErrorContains(t, err, "property 'name' is invalid")
 	})
 
-	t.Run("fails when portal has invalid provider", func(t *testing.T) {
+	t.Run("fails when portal has no provider in list", func(t *testing.T) {
+		t.Cleanup(SetTestConfig(func(c *Config) {
+			c.Portals = []ConfigPortal{
+				{
+					Name: "foo",
+					// In this test, the slice is empty
+					Providers: []ConfigPortalProvider{},
+				},
+			}
+		}))
+
+		err := config.Validate(log)
+		require.Error(t, err)
+		_ = assert.ErrorContains(t, err, "invalid portal 'foo'") &&
+			assert.ErrorContains(t, err, "at least one authentication provider must be configured")
+	})
+
+	t.Run("fails when portal has no providers in object", func(t *testing.T) {
 		t.Cleanup(SetTestConfig(func(c *Config) {
 			c.Portals = []ConfigPortal{
 				{
 					Name: "foo",
 					Providers: []ConfigPortalProvider{
-						{Provider: "bad"},
+						// In this test, the slice has 1 element which has no provider configured
+						{},
 					},
 				},
 			}
@@ -92,7 +110,28 @@ func TestValidateConfig(t *testing.T) {
 		err := config.Validate(log)
 		require.Error(t, err)
 		_ = assert.ErrorContains(t, err, "invalid portal 'foo'") &&
-			assert.ErrorContains(t, err, "invalid value for 'provider': bad")
+			assert.ErrorContains(t, err, "no provider type configured for the provider")
+	})
+
+	t.Run("fails when portal has too many providers", func(t *testing.T) {
+		t.Cleanup(SetTestConfig(func(c *Config) {
+			c.Portals = []ConfigPortal{
+				{
+					Name: "foo",
+					Providers: []ConfigPortalProvider{
+						{
+							GitHub: &ProviderConfig_GitHub{},
+							Google: &ProviderConfig_Google{},
+						},
+					},
+				},
+			}
+		}))
+
+		err := config.Validate(log)
+		require.Error(t, err)
+		_ = assert.ErrorContains(t, err, "invalid portal 'foo'") &&
+			assert.ErrorContains(t, err, "cannot configure more than one provider type in each provider")
 	})
 
 	t.Run("parse provider config", func(t *testing.T) {
@@ -102,11 +141,10 @@ func TestValidateConfig(t *testing.T) {
 					Name: "github1",
 					Providers: []ConfigPortalProvider{
 						{
-							Provider: "github",
-							Config: map[string]any{
-								"clientID":       "abcdef123456",
-								"clientSecret":   "000-000-000",
-								"requestTimeout": "30s",
+							GitHub: &ProviderConfig_GitHub{
+								ClientID:       "abcdef123456",
+								ClientSecret:   "000-000-000",
+								RequestTimeout: 40 * time.Second,
 							},
 						},
 					},
@@ -117,7 +155,7 @@ func TestValidateConfig(t *testing.T) {
 		expectProviderConfig := &ProviderConfig_GitHub{
 			ClientID:       "abcdef123456",
 			ClientSecret:   "000-000-000",
-			RequestTimeout: 30 * time.Second,
+			RequestTimeout: 40 * time.Second,
 		}
 
 		err := config.Validate(log)
@@ -136,7 +174,7 @@ func TestSetTokenSigningKey(t *testing.T) {
 
 	t.Run("tokenSigningKey present", func(t *testing.T) {
 		t.Cleanup(SetTestConfig(func(c *Config) {
-			c.Tokens.SigningKey = "hello-world"
+			c.Tokens.SigningKey = "hello-world-1234567890"
 		}))
 
 		err := config.SetTokenSigningKey(logger)
@@ -146,7 +184,7 @@ func TestSetTokenSigningKey(t *testing.T) {
 		var tskRaw []byte
 		err = jwk.Export(tsk, &tskRaw)
 		require.NoError(t, err)
-		assert.Equal(t, "b0c4b5e9cd81511ee72e7ecfcaee8fae84de71bc02e575960928cc606f6622fb", hex.EncodeToString(tskRaw))
+		assert.Equal(t, "ab5150d6fd45693503c863ff3fb6e5c51890efbc094bef810d8ae79f5139aa81", hex.EncodeToString(tskRaw))
 	})
 
 	t.Run("tokenSigningKey not present", func(t *testing.T) {

@@ -168,10 +168,15 @@ func processStruct(structDef structDef, yamlPrefix string, parentYamlPath string
 			continue
 		}
 
-		// Skip deprecated fields
+		// Skip deprecated or ignored fields
 		deprecatedTag, _ := tags.Lookup("deprecated")
 		deprecated, _ := strconv.ParseBool(deprecatedTag)
 		if deprecated {
+			continue
+		}
+		ignoreTag, _ := tags.Lookup("ignore")
+		ignore, _ := strconv.ParseBool(ignoreTag)
+		if ignore {
 			continue
 		}
 
