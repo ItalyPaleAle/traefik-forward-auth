@@ -574,7 +574,7 @@ func countSetProperties(s any) int {
 	}
 
 	var count int
-	for i := 0; i < val.NumField(); i++ {
+	for i := range val.NumField() {
 		field := val.Field(i)
 		if field.IsValid() && !field.IsZero() {
 			count++

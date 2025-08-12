@@ -3,6 +3,7 @@
 // This file is only built when the "unit" tag is set
 // Note: this file must sort after "providers-config.go"
 
+//nolint:revive
 package config
 
 import (

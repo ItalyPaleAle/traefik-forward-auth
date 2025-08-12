@@ -20,6 +20,7 @@ import (
 
 	"github.com/italypaleale/traefik-forward-auth/pkg/config"
 	"github.com/italypaleale/traefik-forward-auth/pkg/utils/bufconn"
+	"github.com/italypaleale/traefik-forward-auth/pkg/utils/ptr"
 )
 
 const (
@@ -42,7 +43,7 @@ func TestMain(m *testing.M) {
 				Name:        "test1",
 				DisplayName: "Test 1",
 				Providers: []config.ConfigPortalProvider{
-					{Provider: "testoauth2"},
+					{TestProvider: ptr.Of("testoauth2")},
 				},
 				AuthenticationTimeout:   10 * time.Second,
 				AlwaysShowProvidersPage: false,

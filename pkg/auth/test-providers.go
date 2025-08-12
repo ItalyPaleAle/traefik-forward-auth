@@ -116,8 +116,10 @@ func (a *TestProviderSeamless) SeamlessAuth(r *http.Request) (*user.Profile, err
 }
 
 // Compile-time interface assertions
-var _ OAuth2Provider = &TestProviderOAuth2{}
-var _ SeamlessProvider = &TestProviderSeamless{}
+var (
+	_ OAuth2Provider   = &TestProviderOAuth2{}
+	_ SeamlessProvider = &TestProviderSeamless{}
+)
 
 func getTestUserProfile(template string, provider string) *user.Profile {
 	switch template {
@@ -130,6 +132,20 @@ func getTestUserProfile(template string, provider string) *user.Profile {
 			},
 			Email: &user.ProfileEmail{
 				Value:    "test1@example.com",
+				Verified: true,
+			},
+			Groups: []string{"test-users"},
+			Roles:  []string{"test-users"},
+		}
+	case "test-user-2":
+		return &user.Profile{
+			Provider: provider,
+			ID:       "test-user-2",
+			Name: user.ProfileName{
+				FullName: "Test User 2",
+			},
+			Email: &user.ProfileEmail{
+				Value:    "test2@example.com",
 				Verified: true,
 			},
 			Groups: []string{"test-users"},
