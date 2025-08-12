@@ -73,7 +73,7 @@ type ConfigServer struct {
 
 	// Base path for all routes.
 	// Set this if Traefik is forwarding requests to traefik-forward-auth for specific paths only.
-	// Note: this does not apply to /api and /healthz routes
+	// Note: this does not apply to /healthz routes
 	// +example "/auth"
 	BasePath string `yaml:"basePath"`
 

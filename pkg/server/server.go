@@ -211,9 +211,15 @@ func (s *Server) initAppServer(log *slog.Logger) (err error) {
 	}
 
 	// API Routes
-	// These do not follow BasePath and do not require a client certificate, or loading the auth cookie, or the proxy headers
-	apiRoutes := s.appRouter.Group("/api/portals/:portal")
-	apiRoutes.GET("/verify", s.RouteGetAPIVerify)
+	// These do not require a client certificate, or loading the auth cookie, or the proxy headers
+	// They are available both with the basePath and without
+	registerAPIRoutes := func(r *gin.RouterGroup) {
+		r.GET("/verify", s.RouteGetAPIVerify)
+	}
+	registerAPIRoutes(s.appRouter.Group("/api/portals/:portal"))
+	if conf.Server.BasePath != "" && conf.Server.BasePath != "/" {
+		registerAPIRoutes(s.appRouter.Group(path.Join(conf.Server.BasePath, "/api/portals/:portal")))
+	}
 
 	// Test routes, that are enabled when running tests only
 	if s.addTestRoutes != nil {
