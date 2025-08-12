@@ -1,4 +1,4 @@
-# 🔑 Authentication providers
+# 🔑 Supported providers
 
 - [GitHub](#github)
 - [Google](#google)

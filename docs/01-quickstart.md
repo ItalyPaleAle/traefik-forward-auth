@@ -69,10 +69,10 @@ cookies:
 portals:
   - name: "main"
     providers:
-      # Configure authentication with Google
-      google:
-        clientID: "your-client-id"
-        clientSecret: "your-client-secret"
+      - # Configure authentication with Google
+        google:
+          clientID: "your-client-id"
+          clientSecret: "your-client-secret"
 ```
 
 ## Authenticate with Tailscale
@@ -142,8 +142,8 @@ cookies:
 portals:
   - name: "main"
     providers:
-      # Configure authentication with Tailscale Whois
-      tailscaleWhois:
-        # Optionally restrict to one Tailnet only
-        # allowedTailnet: "yourtailnet.ts.net"
+      - # Configure authentication with Tailscale Whois
+        tailscaleWhois:
+          # Optionally restrict to one Tailnet only
+          # allowedTailnet: "yourtailnet.ts.net"
 ```

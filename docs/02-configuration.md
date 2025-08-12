@@ -143,12 +143,12 @@ cookies:
 portals:
   - name: "main"
     providers:
-      # Configure one provider
-      # github: {}
-      # google: {}
-      # microsoftEntraID: {}
-      # openIDConnect: {}
-      # tailscaleWhois: {}
+      - # Configure one provider
+        # github: {}
+        # google: {}
+        # microsoftEntraID: {}
+        # openIDConnect: {}
+        # tailscaleWhois: {}
 ```
 
 ### Using a sub-path
@@ -244,10 +244,10 @@ cookies:
 portals:
   - name: "main"
     providers:
-      # Configure one provider
-      # github: {}
-      # google: {}
-      # microsoftEntraID: {}
-      # openIDConnect: {}
-      # tailscaleWhois: {}
+      - # Configure one provider
+        # github: {}
+        # google: {}
+        # microsoftEntraID: {}
+        # openIDConnect: {}
+        # tailscaleWhois: {}
 ```
