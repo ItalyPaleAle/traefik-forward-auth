@@ -558,12 +558,6 @@ func getPortalURI(c *gin.Context, portal string) string {
 	return baseURI + "/portals/" + portal
 }
 
-type authenticatedUserHeaderValue struct {
-	Provider string `json:"provider"`
-	Portal   string `json:"portal"`
-	User     string `json:"user"`
-}
-
 // Returns the user information to include in the "X-Authenticated-User" header
 func authenticatedUserFromProfile(provider auth.Provider, portal string, profile *user.Profile) string {
 	userID, _ := json.Marshal(profile.ID)
