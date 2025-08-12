@@ -85,7 +85,7 @@ jobs:
       - name: Build client
         working-directory: ./client
         run: |
-          npm ci
+          npm install
           ./build.sh
 
       - name: Build app for all architectures
