@@ -30,7 +30,20 @@ func (s *Server) RouteGetOAuth2Root(provider auth.OAuth2Provider) func(c *gin.Co
 		s.metrics.RecordAuthentication(true)
 		user := s.auth.UserIDFromProfile(profile)
 		c.Header("X-Forwarded-User", user)
-		c.Data(http.StatusOK, "text/plain; charset=utf-8", []byte(`You're authenticated as '`+user+`'`))
+
+		// Include full name in the response body and header if available
+		fullName := s.auth.FullNameFromProfile(profile)
+		if fullName != "" {
+			c.Header("X-Forwarded-DisplayName", fullName)
+		}
+
+		var response string
+		if fullName != "" {
+			response = "You're authenticated as '" + user + "' (" + fullName + ")"
+		} else {
+			response = "You're authenticated as '" + user + "'"
+		}
+		c.Data(http.StatusOK, "text/plain; charset=utf-8", []byte(response))
 	}
 }
 
@@ -162,8 +175,20 @@ func (s *Server) RouteGetSeamlessAuthRoot(provider auth.SeamlessProvider) func(c
 		s.metrics.RecordAuthentication(true)
 		user := s.auth.UserIDFromProfile(profile)
 		c.Header("X-Forwarded-User", user)
+
+		// Include full name in the response body and header if available
+		fullName := s.auth.FullNameFromProfile(profile)
+		if fullName != "" {
+			c.Header("X-Forwarded-DisplayName", fullName)
+		}
+
+		if fullName != "" {
+			_, _ = c.Writer.WriteString("You're authenticated as '" + user + "' (" + fullName + ")")
+		} else {
+			_, _ = c.Writer.WriteString("You're authenticated as '" + user + "'")
+		}
+
 		c.Header("Content-Type", "text/plain; charset=utf-8")
-		_, _ = c.Writer.WriteString("You're authenticated as '" + user + "'")
 	}
 }
 

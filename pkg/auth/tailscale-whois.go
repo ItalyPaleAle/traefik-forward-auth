@@ -168,6 +168,11 @@ func (a *TailscaleWhois) UserIDFromProfile(profile *user.Profile) string {
 	return profile.ID
 }
 
+func (a *TailscaleWhois) FullNameFromProfile(profile *user.Profile) string {
+	// TODO: To be implemented for this provider
+	return ""
+}
+
 func (a *TailscaleWhois) PopulateAdditionalClaims(claims map[string]any, setClaimFn func(key, val string)) {
 	if v := cast.ToString(claims[tailscaleWhoisClaimIP]); v != "" {
 		setClaimFn(tailscaleWhoisClaimIP, v)
