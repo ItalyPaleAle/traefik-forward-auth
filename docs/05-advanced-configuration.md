@@ -14,13 +14,27 @@ Calls to the `/healthz` endpoint do not appear in access logs unless the configu
 
 > The `/healthz` endpoint is unchanged regardless of the value of the [`server.basePath`](./03-all-configuration-options.md#config-opt-server-basepath) configuration.
 
-## Metrics
+## Observability: Logs, Traces, Metrics
 
-Traefik Forward Auth can expose metrics in a Prometheus-compatible format on a separate endpoint.
+Traefik Forward Auth offers supprot for observability using OpenTelemetry.
 
-The metrics server is disabled by default. To enable it, set [`enableMetrics`](./03-all-configuration-options.md#config-opt-enablemetrics) (env: `TFA_ENABLEMETRICS`) to `true`.
+Observability features are configured with the [OpenTelemetry SDK's standard `OTEL_*` environmental variables](https://opentelemetry.io/docs/specs/otel/configuration/sdk-environment-variables/). To send logs, metrics, and traces to a collector using the OTLP protocol, you will need to set environmental variables similar to these ([full docs](https://opentelemetry.io/docs/specs/otel/protocol/exporter/)):
 
-The metrics server listens on port `2112` by default, which can be configured with [`metricsPort`](./03-all-configuration-options.md#config-opt-metricsport) (env: `TFA_METRICSPORT`). Metrics are exposed on the `/metrics` path. For example: `http://<endpoint>:2112/metrics`.
+```sh
+export OTEL_LOGS_EXPORTER="otlp"
+export OTEL_METRICS_EXPORTER="otlp"
+export OTEL_TRACES_EXPORTER="otlp"
+export OTEL_EXPORTER_OTLP_PROTOCOL="" # "grpc" or "http/protobuf" or "http/json"
+export OTEL_EXPORTER_OTLP_ENDPOINT="http://collector:4318"
+```
+
+Metrics can also be exposed on a Prometheus-compatible endpoint, which can be enabled using environmental variables similar to:
+
+```sh
+export OTEL_METRICS_EXPORTER="prometheus"
+export OTEL_EXPORTER_PROMETHEUS_HOST="0.0.0.0"
+export OTEL_EXPORTER_PROMETHEUS_PORT="9464"
+```
 
 ## Token signing keys
 
@@ -36,9 +50,11 @@ In certain situations, for example when:
 - You auto-scale Traefik Forward Auth, and/or
 - You want tokens to remain valid even after a restart of Traefik Forward Auth
 
-You can set an explicit value for the [`tokenSigningKey`](./03-all-configuration-options.md#config-opt-tokensigningkey) (env: `TFA_TOKENSIGNINGKEY`) option. For example, you can generate a random string with `openssl rand -base64 32`.
+You can set an explicit value for the [`tokens.signingKey`](./03-all-configuration-options.md#config-opt-tokens-signingkey) option. For example, you can generate a random string with `openssl rand -base64 32`.
 
-> Note that Traefik Forward Auth does not use the value provided in `tokenSigningKey` as-is to sign JWTs. Instead, the actual token signing key is derived using a key derivation function on the value provided in the configuration option.
+The token signing key can also be written to a file (including a Docker/Kubernetes secret mounted inside the container), whose path is passed using the [`tokens.signingKeyFile`](./03-all-configuration-options.md#config-opt-tokens-signingkeyfile) configuration option.
+
+> Note that Traefik Forward Auth does not use the value provided in `tokens.signingKey` as-is to sign JWTs. Instead, the actual token signing key is derived using a key derivation function on the value provided in the configuration option.
 
 ## Configure session lifetime
 
@@ -46,7 +62,7 @@ When Traefik Forward Auth authenticates a user, it issues a JWT, saved in a cook
 
 By default, sessions are valid for 2 hours.
 
-You can configure the lifetime of a session using the option [`sessionLifetime`](./03-all-configuration-options.md#config-opt-sessionlifetime) (env: `TFA_SESSIONLIFETIME`), which accepts a Go duration (such as `2h` for 2 hours, or `30m` for 30 minutes).
+You can configure the lifetime of a session using the option [`tokens.sessionLifetime`](./03-all-configuration-options.md#config-opt-tokens-sessionlifetime), which accepts a Go duration (such as `2h` for 2 hours, or `30m` for 30 minutes).
 
 ## Security hardening
 
@@ -107,25 +123,25 @@ Traefik Forward Auth's root endpoint (`/`) is meant to be invoked by Traefik onl
 
 3. Configure Traefik Forward Auth to use mTLS by setting these options:
 
-   - [`tlsPath`](./03-all-configuration-options.md#config-opt-tlspath) (env: `TFA_TLSPATH`): `/etc/traefik-forward-auth`
-   - [`tlsClientAuth`](./03-all-configuration-options.md#config-opt-tlsclientauth) (env: `TFA_TLSCLIENTAUTH`): `true`
+   - [`server.tlsPath`](./03-all-configuration-options.md#config-opt-server-tlspath): `/etc/traefik-forward-auth`
+   - [`server.tlsClientAuth`](./03-all-configuration-options.md#config-opt-server-tlsclientauth): `true`
 
-4. Configure Traefik to present a client certificate when connecting to Traefik Forward Auth. For example, using this Docker Compose (unrelated properties are omitted):
+4. Configure Traefik to present a client certificate when connecting to Traefik Forward Auth. For example, using this Docker Compose and Traefik Forward Auth configuration (unrelated properties are omitted):
 
    ```yaml
-   # docker-compose.yaml
+   ### docker-compose.yaml
    version: '3'
      traefik:
        volumes:
          - "/path/on/host:/mnt/tls"
 
      traefik-forward-auth:
-       environment:
-         - TFA_TLSPATH=/etc/traefik-forward-auth
-         - TFA_TLSCLIENTAUTH=true
+       secrets:
+         - source: "tfa_config"
+           target: "/etc/traefik-forward-auth/config.yaml"
        labels:
          # Note the use of "https"
-         - "traefik.http.middlewares.traefik-forward-auth.forwardauth.address=https://traefik-forward-auth:4181"
+         - "traefik.http.middlewares.traefik-forward-auth.forwardauth.address=https://traefik-forward-auth:4181/portals/main"
          # Set the client certificates
          - "traefik.http.middlewares.traefik-forward-auth.forwardauth.tls.ca=/mnt/tls/tls-ca.pem"
          - "traefik.http.middlewares.traefik-forward-auth.forwardauth.tls.cert=/mnt/tls/tls-cert.pem"
@@ -136,6 +152,15 @@ Traefik Forward Auth's root endpoint (`/`) is meant to be invoked by Traefik onl
          - "traefik.http.routers.traefik-forward-auth.rule=Host(`auth.example.com`)"
          - "traefik.http.routers.traefik-forward-auth.entrypoints=websecure"
          - "traefik.http.routers.traefik-forward-auth.tls=true"
+
+   secrets:
+     tfa_config:
+       file: tfa-config.yaml
+
+   ### tfa-config.yaml
+   server:
+      tlsPath: "/etc/traefik-forward-auth"
+      tlsClientAuth: true
    ```
 
 5. Set the [server transport](https://doc.traefik.io/traefik/routing/services/#serverstransport_1) in the Traefik configuration using a [File provider](https://doc.traefik.io/traefik/providers/file/):
@@ -150,6 +175,6 @@ Traefik Forward Auth's root endpoint (`/`) is meant to be invoked by Traefik onl
 
 If the certificates are updated on disk, Traefik Forward Auth automatically reloads them.
 
-> When mTLS is used, only the root endpoint (`/`) authenticates the client certificate. Other endpoints will be served over TLS, but will not require the callers to present a valid client certificate.
+> When mTLS is used, only the portal's root endpoint (`/portal/<name>`) authenticates the client certificate. Other endpoints will be served over TLS, but will not require the callers to present a valid client certificate.
 
 > Note: you can enable TLS in Traefik Forward Auth without configuring mTLS for authenticating Traefik. In this case, set `tlsClientAuth` to `false`, but nonetheless mount the server certificates in the Traefik Forward Auth containers. When configuring Traefik, do not include client certificates.
