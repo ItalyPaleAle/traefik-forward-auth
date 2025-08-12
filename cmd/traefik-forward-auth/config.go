@@ -86,7 +86,7 @@ func getLogger(cfg *config.Config) (log *slog.Logger, shutdownFn func(ctx contex
 	case isatty.IsTerminal(os.Stdout.Fd()):
 		// Enable colors if we have a TTY
 		handler = tint.NewHandler(os.Stdout, &tint.Options{
-			Level:      slog.LevelDebug,
+			Level:      level,
 			TimeFormat: time.StampMilli,
 		})
 	default:
