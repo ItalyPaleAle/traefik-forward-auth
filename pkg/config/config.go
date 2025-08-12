@@ -435,6 +435,9 @@ func (p *ConfigPortal) Parse(c *Config) error {
 }
 
 func (v *ConfigPortalProvider) Parse(c *Config) (err error) {
+	// Reset configParsed before anything
+	v.configParsed = nil
+
 	// Ensure there's one and only one provider defined
 	count := countSetProperties(v)
 	if count == 0 {
