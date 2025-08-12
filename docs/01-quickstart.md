@@ -7,7 +7,7 @@
 
 This example uses Docker Compose to add Google authentication to an application exposed via Traefik.
 
-In this example, your OAuth2 application should be configured to redirect users to `https://auth.example.com/oauth2/callback`.
+In this example, your OAuth2 application should be configured to redirect users to `https://auth.example.com/portals/main/oauth2/callback`.
 
 ```yaml
 # docker-compose.yaml
@@ -15,7 +15,7 @@ version: '3'
 
 services:
   traefik:
-    image: traefik:v2.10
+    image: traefik:v3
     command:
       - "--providers.docker=true"
       - "--entrypoints.websecure.address=:443"
@@ -25,18 +25,13 @@ services:
       - /var/run/docker.sock:/var/run/docker.sock
 
   traefik-forward-auth:
-    image: ghcr.io/italypaleale/traefik-forward-auth:3
-    environment:
-      # Hostname where the application can be reached at externally
-      - TFA_HOSTNAME=auth.example.com
-      # Domain for setting cookies
-      - TFA_COOKIEDOMAIN=example.com
-      # Configure authentication with Google
-      - TFA_AUTHPROVIDER=google
-      - TFA_AUTHGOOGLE_CLIENTID=...
-      - TFA_AUTHGOOGLE_CLIENTSECRET=...
+    image: ghcr.io/italypaleale/traefik-forward-auth:4
+    secrets:
+      # Load the configuration from the secret
+      - source: "tfa_config"
+        target: "/etc/traefik-forward-auth/config.yaml"
     labels:
-      - "traefik.http.middlewares.traefik-forward-auth.forwardauth.address=http://traefik-forward-auth:4181"
+      - "traefik.http.middlewares.traefik-forward-auth.forwardauth.address=http://traefik-forward-auth:4181/portals/main"
       - "traefik.http.middlewares.traefik-forward-auth.forwardauth.authResponseHeaders=X-Forwarded-User,X-Authenticated-User"
       - "traefik.http.services.traefik-forward-auth.loadbalancer.server.port=4181"
       - "traefik.http.routers.traefik-forward-auth.rule=Host(`auth.example.com`)"
@@ -53,6 +48,31 @@ services:
       - "traefik.http.services.whoami.loadbalancer.server.port=4545"
       - "traefik.http.routers.whoami.entrypoints=websecure"
       - "traefik.http.routers.whoami.tls=true"
+
+secrets:
+   tfa_config:
+     file: tfa-config.yaml
+```
+
+The configuration file for Traefik Forward Auth `tfa-config.yaml` is:
+
+```yaml
+# tfa-config.yaml
+server:
+  # Hostname where the application can be reached at externally
+  hostname: "auth.example.com"
+
+cookies:
+  # Domain for setting cookies
+  domain: "example.com"
+
+portals:
+  - name: "main"
+    providers:
+      # Configure authentication with Google
+      google:
+        clientID: "your-client-id"
+        clientSecret: "your-client-secret"
 ```
 
 ## Authenticate with Tailscale
@@ -65,7 +85,7 @@ version: '3'
 
 services:
   traefik:
-    image: traefik:v2.10
+    image: traefik:v3
     command:
       - "--providers.docker=true"
       - "--entrypoints.websecure.address=:443"
@@ -75,19 +95,16 @@ services:
       - /var/run/docker.sock:/var/run/docker.sock
 
   traefik-forward-auth:
-    image: ghcr.io/italypaleale/traefik-forward-auth:3
+    image: ghcr.io/italypaleale/traefik-forward-auth:4
     volumes:
       # Note the Tailscale socket must be mounted in the container
       - /var/run/tailscale/:/var/run/tailscale
-    environment:
-      # Hostname where the application can be reached at externally
-      - TFA_HOSTNAME=auth.example.com
-      # Domain for setting cookies
-      - TFA_COOKIEDOMAIN=example.com
-      # Configure authentication with Tailscale
-      - TFA_AUTHPROVIDER=tailscalewhois
+    secrets:
+      # Load the configuration from the secret
+      - source: "tfa_config"
+        target: "/etc/traefik-forward-auth/config.yaml"
     labels:
-      - "traefik.http.middlewares.traefik-forward-auth.forwardauth.address=http://traefik-forward-auth:4181"
+      - "traefik.http.middlewares.traefik-forward-auth.forwardauth.address=http://traefik-forward-auth:4181/portals/main"
       - "traefik.http.middlewares.traefik-forward-auth.forwardauth.authResponseHeaders=X-Forwarded-User,X-Authenticated-User"
       - "traefik.http.routers.traefik-forward-auth.rule=Host(`auth.example.com`)"
       - "traefik.http.routers.traefik-forward-auth.entrypoints=websecure"
@@ -104,4 +121,29 @@ services:
       - "traefik.http.routers.whoami.entrypoints=websecure"
       - "traefik.http.routers.whoami.tls=true"
       - "traefik.http.services.whoami.loadbalancer.server.port=4545"
+
+secrets:
+   tfa_config:
+     file: tfa-config.yaml
+```
+
+The configuration file for Traefik Forward Auth `tfa-config.yaml` is:
+
+```yaml
+# tfa-config.yaml
+server:
+  # Hostname where the application can be reached at externally
+  hostname: "auth.example.com"
+
+cookies:
+  # Domain for setting cookies
+  domain: "example.com"
+
+portals:
+  - name: "main"
+    providers:
+      # Configure authentication with Tailscale Whois
+      tailscaleWhois:
+        # Optionally restrict to one Tailnet only
+        # allowedTailnet: "yourtailnet.ts.net"
 ```

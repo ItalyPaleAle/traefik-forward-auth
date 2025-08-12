@@ -170,7 +170,7 @@ type ConfigTokens struct {
 type ConfigPortal struct {
 	// Name of the portal, as used in the URL.
 	// +required
-	// +example "default"
+	// +example "main"
 	Name string `yaml:"name"`
 
 	// Optional display name.

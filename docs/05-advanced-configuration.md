@@ -10,9 +10,9 @@
 
 Traefik Forward Auth supports health checks on the `/healthz` endpoint, which can be used to configure health checks in your platform. This endpoint returns a response with a `200` status code to indicate the application is healthy.
 
-Calls to the `/healthz` endpoint do not appear in access logs unless the configuration option [`omitHealthCheckLogs`](./03-all-configuration-options.md#config-opt-omithealthchecklogs) is set to `false` (default is `true`).
+Calls to the `/healthz` endpoint do not appear in access logs unless the configuration option [`logs.omitHealthChecks`](./03-all-configuration-options.md#config-opt-logs-omithealthchecks) is set to `false` (default is `true`).
 
-> The `/healthz` endpoint is unchanged regardless of the value of the [`basePath`](./03-all-configuration-options.md#config-opt-basepath) configuration.
+> The `/healthz` endpoint is unchanged regardless of the value of the [`server.basePath`](./03-all-configuration-options.md#config-opt-server-basepath) configuration.
 
 ## Metrics
 

@@ -8,49 +8,37 @@
 
 ## GitHub
 
-To use GitHub for user authentication, create an OAuth2 application and configure the callback to `https://<endpoint>/oauth2/callback` (see [examples](./02-configuration.md#exposing-traefik-forward-auth) depending on how Traefik Forward Auth is exposed).
+To use GitHub for user authentication, create an OAuth2 application and configure the callback to `https://<endpoint>/portals/<portal>/oauth2/callback` (see [examples](./02-configuration.md#exposing-traefik-forward-auth) depending on how Traefik Forward Auth is exposed).
 
-Set the following options for Traefik Forward Auth:
+Configure a provider with these options in the `github` property:
 
-- [`authProvider`](./03-all-configuration-options.md#config-opt-authprovider) (env: `TFA_AUTHPROVIDER`): `github`
-- [`authGithub_clientID`](./03-all-configuration-options.md#config-opt-authgithub_clientid) (env: `TFA_AUTHGITHUB_CLIENTID`): OAuth2 client ID of your application
-- [`authGithub_clientSecret`](./03-all-configuration-options.md#config-opt-authgithub_clientsecret) (env: `TFA_AUTHGITHUB_CLIENTSECRET`): OAuth2 client secret of your application
+- [`clientID`](./03-all-configuration-options.md#config-opt-portals.$.providers.$-github-portals-$-providers-$-github-clientid): OAuth2 client ID of your application
+- [`clientSecret`](./03-all-configuration-options.md#config-opt-portals.$.providers.$-github-portals-$-providers-$-github-clientsecret): OAuth2 client secret of your application
 
-You can restrict the users that can authenticate with your service using this option:
-
-- [`authGitHub_allowedUsers`](./03-all-configuration-options.md#config-opt-authgithub_allowedusers) (env: `TFA_AUTHGITHUB_ALLOWEDUSERS`): List of allowed users, matching the GitHub user handle.
+[Full list of configuration options for GitHub and example](./03-all-configuration-options.md#using-github)
 
 ## Google
 
-To use Google for user authentication, create an OAuth2 application and configure the callback to `https://<endpoint>/oauth2/callback` (see [examples](./02-configuration.md#exposing-traefik-forward-auth) depending on how Traefik Forward Auth is exposed).
+To use Google for user authentication, create an OAuth2 application and configure the callback to `https://<endpoint>/portals/<portal>/oauth2/callback` (see [examples](./02-configuration.md#exposing-traefik-forward-auth) depending on how Traefik Forward Auth is exposed).
 
-Set the following options for Traefik Forward Auth:
+Configure a provider with these options in the `google` property:
 
-- [`authProvider`](./03-all-configuration-options.md#config-opt-authprovider) (env: `TFA_AUTHPROVIDER`): `google`
-- [`authGoogle_clientID`](./03-all-configuration-options.md#config-opt-authgoogle_clientid) (env: `TFA_AUTHGOOGLE_CLIENTID`): OAuth2 client ID of your application
-- [`authGoogle_clientSecret`](./03-all-configuration-options.md#config-opt-authgoogle_clientsecret) (env: `TFA_AUTHGOOGLE_CLIENTSECRET`): OAuth2 client secret of your application
+- [`clientID`](./03-all-configuration-options.md#config-opt-portals.$.providers.$-google-portals-$-providers-$-google-clientid): OAuth2 client ID of your application
+- [`clientSecret`](./03-all-configuration-options.md#config-opt-portals.$.providers.$-google-portals-$-providers-$-google-clientsecret): OAuth2 client secret of your application
 
-You can restrict the users that can authenticate with your service using one (or more) of these options:
-
-- [`authGoogle_allowedEmails`](./03-all-configuration-options.md#config-opt-authgoogle_allowedemails) (env: `TFA_AUTHGOOGLE_ALLOWEDEMAILS`): List of allowed users, matching their email address (e.g. `example@gmail.com`)
-- [`authGoogle_allowedDomains`](./03-all-configuration-options.md#config-opt-authgoogle_alloweddomains) (env: `TFA_AUTHGOOGLE_ALLOWEDDOMAINS`): List of allowed domain names of users' email addresses (e.g. `mydomain.com`)
-- [`authGoogle_allowedUsers`](./03-all-configuration-options.md#config-opt-authgoogle_allowedusers) (env: `TFA_AUTHGOOGLE_ALLOWEDUSERS`): List of allowed users, matching the internal user ID.
+[Full list of configuration options for Google and example](./03-all-configuration-options.md#using-google)
 
 ## Microsoft Entra ID
 
-To use Microsoft Entra ID (formerly Azure AD) for user authentication, create an OAuth2 application and configure the callback to `https://<endpoint>/oauth2/callback` (see [examples](./02-configuration.md#exposing-traefik-forward-auth) depending on how Traefik Forward Auth is exposed).
+To use Microsoft Entra ID (formerly Azure AD) for user authentication, create an OAuth2 application and configure the callback to `https://<endpoint>/portals/<portal>/oauth2/callback` (see [examples](./02-configuration.md#exposing-traefik-forward-auth) depending on how Traefik Forward Auth is exposed).
 
-Set the following options for Traefik Forward Auth:
+Configure a provider with these options in the `microsoftEntraID` property:
 
-- [`authProvider`](./03-all-configuration-options.md#config-opt-authprovider) (env: `TFA_AUTHPROVIDER`): `microsoftentraid`
-- [`authMicrosoftEntraID_tenantID`](./03-all-configuration-options.md#config-opt-authmicrosoftentraid_tenantid) (env: `TFA_AUTHMICROSOFTENTRAID_TENANTID`): ID of the tenant where your application resides
-- [`authMicrosoftEntraID_clientID`](./03-all-configuration-options.md#config-opt-authmicrosoftentraid_clientid) (env: `TFA_AUTHMICROSOFTENTRAID_CLIENTID`): Client ID of your application
-- [`authMicrosoftEntraID_clientSecret`](./03-all-configuration-options.md#config-opt-authmicrosoftentraid_clientsecret) (env: `TFA_AUTHMICROSOFTENTRAID_CLIENTSECRET`): Client secret of your application
+- [`tenantID`](./03-all-configuration-options.md#config-opt-portals.$.providers.$-microsoftentraid-portals-$-providers-$-microsoftentraid-tenantid): ID of the tenant where your application resides
+- [`clientID`](./03-all-configuration-options.md#config-opt-portals.$.providers.$-microsoftentraid-portals-$-providers-$-microsoftentraid-clientid): Client ID of your application
+- [`clientSecret`](./03-all-configuration-options.md#config-opt-portals.$.providers.$-microsoftentraid-portals-$-providers-$-microsoftentraid-clientsecret): Client secret of your application
 
-You can restrict the users that can authenticate with your service using one (or more) of these options:
-
-- [`authMicrosoftEntraID_allowedEmails`](./03-all-configuration-options.md#config-opt-authmicrosoftentraid_allowedemails) (env: `TFA_AUTHMICROSOFTENTRAID_ALLOWEDEMAILS`): List of allowed users, matching their email address (e.g. `example@gmail.com`)
-- [`authMicrosoftEntraID_allowedUsers`](./03-all-configuration-options.md#config-opt-authmicrosoftentraid_allowedusers) (env: `TFA_AUTHMICROSOFTENTRAID_ALLOWEDUSERS`): List of allowed users, matching the internal user ID.
+[Full list of configuration options for Microsoft Entra ID and example](./03-all-configuration-options.md#using-microsoftentraid)
 
 ### Using Federated Identity Credentials
 
@@ -82,7 +70,7 @@ az ad app federated-credential create \
   --parameters "{\"name\": \"mi-${IDENTITY_OBJECT_ID}\",\"issuer\": \"https://login.microsoftonline.com/${TENANT_ID}/v2.0\",\"subject\": \"${IDENTITY_OBJECT_ID}\",\"description\": \"Federated Identity for Managed Identity ${IDENTITY_OBJECT_ID}\",\"audiences\": [\"api://AzureADTokenExchange\"]}"
 ```
 
-Finally, configure Traefik Forward Auth by setting a value for [`authMicrosoftEntraID_azureFederatedIdentity`](./03-all-configuration-options.md#config-opt-authmicrosoftentraid_azureFederatedIdentity) (env: `TFA_AUTHMICROSOFTENTRAID_AZUREFEDERATEDIDENTITY`)
+Finally, configure Traefik Forward Auth by setting a value for [`azureFederatedIdentity`](./03-all-configuration-options.md#config-opt-portals.$.providers.$-microsoftentraid-portals-$-providers-$-microsoftentraid-azurefederatedidentity):
 
 - `"ManagedIdentity"` for using a system-assigned managed identity
 - `"ManagedIdentity=xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"` for using a user-assigned managed identity (replace the placeholder value with the **client ID** of your managed identity)
@@ -92,27 +80,23 @@ Finally, configure Traefik Forward Auth by setting a value for [`authMicrosoftEn
 
 Traefik Forward Auth support generic OpenID Connect providers. This includes Auth0, Okta, etc.
 
-To use an OpenID Connect provider for user authentication, create an application and configure the callback to `https://<endpoint>/oauth2/callback` (see [examples](./02-configuration.md#exposing-traefik-forward-auth) depending on how Traefik Forward Auth is exposed).
+To use an OpenID Connect provider for user authentication, create an application and configure the callback to `https://<endpoint>/portals/<portal>/oauth2/callback` (see [examples](./02-configuration.md#exposing-traefik-forward-auth) depending on how Traefik Forward Auth is exposed).
 
-Set the following options for Traefik Forward Auth:
+Configure a provider with these options in the `openIDConnect` property:
 
-- [`authProvider`](./03-all-configuration-options.md#config-opt-authprovider) (env: `TFA_AUTHPROVIDER`): `openidconnect`
-- [`authOpenIDConnect_tokenIssuer`](./03-all-configuration-options.md#config-opt-authopenidconnect_tokenissuer) (env: `TFA_AUTHOPENIDCONNECT_TOKENISSUER`): Token issuer  
+- [`tokenIssuer`](./03-all-configuration-options.md#config-opt-portals.$.providers.$-openidconnect-portals-$-providers-$-openidconnect-tokenissuer): Token issuer  
    This is generally a URL like `https://tenant.identityprovider.com/`.  
    Traefik Forward Auth will try to fetch the OpenID Configuration document at `<tokenIssuer>/.well-known/openid-configuration`; in this example, `https://tenant.identityprovider.com/.well-known/openid-configuration`.
-- [`authOpenIDConnect_clientID`](./03-all-configuration-options.md#config-opt-authopenidconnect_clientid) (env: `TFA_AUTHOPENIDCONNECT_CLIENTID`): Client ID of your application
-- [`authOpenIDConnect_clientSecret`](./03-all-configuration-options.md#config-opt-authopenidconnect_clientsecret) (env: `TFA_AUTHOPENIDCONNECT_CLIENTSECRET`): Client secret of your application
-
-You can restrict the users that can authenticate with your service using one (or more) of these options:
-
-- [`authOpenIDConnect_allowedUsers`](./03-all-configuration-options.md#config-opt-authopenidconnect_allowedusers) (env: `TFA_OPENIDCONNECT_ALLOWEDUSERS`): List of allowed users, matching the value of the "sub" claim.
-- [`authOpenIDConnect_allowedEmails`](./03-all-configuration-options.md#config-opt-authopenidconnect_allowedemails) (env: `TFA_OPENIDCONNECT_ALLOWEDEMAILS`): List of allowed users, matching the value of the "email" claim.
+- [`clientID`](./03-all-configuration-options.md#config-opt-portals.$.providers.$-openidconnect-portals-$-providers-$-openidconnect-clientid): Client ID of your application
+- [`clientSecret`](./03-all-configuration-options.md#config-opt-portals.$.providers.$-openidconnect-portals-$-providers-$-openidconnect-clientsecret): Client secret of your application
 
 The OpenID Connect provider supports additional configuration options that can be helpful to configure how Traefik Forward Auth communicates with the Identity Provider:
 
-- [`authOpenIDConnect_tlsInsecureSkipVerify`](./03-all-configuration-options.md#config-opt-authopenidconnect_tlsinsecureskipverify) (env: `TFA_OPENIDCONNECT_TLSINSECURESKIPVERIFY`): If true, skips validating TLS certificates when communicating with the Identity Provider. While this option can enable support for self-signed TLS certificates, it should be used with caution.
-- [`authOpenIDConnect_tlsCACertificatePEM`](./03-all-configuration-options.md#config-opt-authopenidconnect_tlsCACertificatePEM) (env: `TFA_OPENIDCONNECT_TLSCACERTIFICATEPEM`): PEM-encoded CA certificate used when communicating with the Identity Provider.
-- [`authOpenIDConnect_tlsCACertificatepath`](./03-all-configuration-options.md#config-opt-authopenidconnect_tlsCACertificatepath) (env: `TFA_OPENIDCONNECT_TLSCACERTIFICATEPATH`): Path to a file containing the PEM-encoded CA certificate used when communicating with the Identity Provider.
+- [`tlsInsecureSkipVerify`](./03-all-configuration-options.md#config-opt-portals.$.providers.$-openidconnect-portals-$-providers-$-openidconnect-tlsinsecureskipverify): If true, skips validating TLS certificates when communicating with the Identity Provider. While this option can enable support for self-signed TLS certificates, it should be used with caution.
+- [`tlsCACertificatePEM`](./03-all-configuration-options.md#config-opt-portals.$.providers.$-openidconnect-portals-$-providers-$-openidconnect-tlscacertificatepem): PEM-encoded CA certificate used when communicating with the Identity Provider.
+- [`tlsCACertificatepath`](./03-all-configuration-options.md#config-opt-portals.$.providers.$-openidconnect-portals-$-providers-$-openidconnect-tlscacertificatepath): Path to a file containing the PEM-encoded CA certificate used when communicating with the Identity Provider.
+
+[Full list of configuration options for OpenID Connect and example](./03-all-configuration-options.md#using-openid-connect)
 
 ## Tailscale Whois
 
@@ -122,23 +106,10 @@ This offers a similar behavior to the Tailscale [nginx-auth](https://github.com/
 
 1. Your container host must be joined to a Tailnet, and you must have the Tailscale service running on the host.
 2. Make sure that the socket `/var/run/tailscale/` is mounted into the `traefik-forward-auth` container.  
-3. Configure Traefik Forward Auth with:
+3. Configure Traefik Forward Auth with a `tailscaleWhois` property in the provider's configuration:
 
-   - [`authProvider`](./03-all-configuration-options.md#config-opt-authprovider) (env: `TFA_AUTHPROVIDER`): `tailscalewhois`
+You can restrict the Tailnets that can authenticate with your service using this option:
 
-Example using Docker Compose (unrelated configuration options and labels omitted):
+- [`allowedTailnet`](./03-all-configuration-options.md#config-opt-portals.$.providers.$-tailscalewhois-portals-$-providers-$-tailscalewhois-allowedtailnet): If set, restricts users who are part of this specific Tailnet. Note that due to how Tailscale works, Tailnet names are only returned for nodes that are part of the current Tailnet, and not nodes that are being added as "guests".
 
-```yaml
-services:
-  traefik-forward-auth:
-    image: ghcr.io/italypaleale/traefik-forward-auth:3
-    volumes:
-      - /var/run/tailscale/:/var/run/tailscale
-    environment:
-      - TFA_AUTHPROVIDER=tailscalewhois
-```
-
-You can restrict the users or tailnets that can authenticate with your service using one (or more) of these options:
-
-- [`authTailscaleWhois_allowedTailnet`](./03-all-configuration-options.md#config-opt-authtailscalewhois_allowedtailnet) (env: `TFA_AUTHTAILSCALEWHOIS_ALLOWEDTAILNET`): If set, restricts users who are part of this specific Tailnet. Note that due to how Tailscale works, Tailnet names are only returned for nodes that are part of the current Tailnet, and not nodes that are being added as "guests".
-- [`authTailscaleWhois_allowedUsers`](./03-all-configuration-options.md#config-opt-authtailscalewhois_allowedusers) (env: `TFA_AUTHTAILSCALEWHOIS_ALLOWEDUSERS`): List of allowed users, matching the user ID.
+[Full list of configuration options for Tailscale Whois and example](./03-all-configuration-options.md#using-tailscale-whois)

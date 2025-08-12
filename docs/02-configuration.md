@@ -5,35 +5,39 @@
 
 ## Configuring Traefik Forward Auth
 
-Traefik Forward Auth can be configured in two ways:
+Mount a YAML configuration file into the container at the path `/etc/traefik-forward-auth/config.yaml`.
 
-1. Mount a YAML configuration file into the container at the path `/etc/traefik-forward-auth/config.yaml`.
-   In your `docker-compose.yaml` you can mount the configuration file similar to this:
+In your `docker-compose.yaml` you can mount the configuration file similar to this:
 
-   ```yaml
-   services:
-    traefik-forward-auth:
-      image: ghcr.io/italypaleale/traefik-forward-auth:3
-      volumes:
-        - `/path/on/host/config.yaml:/etc/traefik-forward-auth/config.yaml:ro`
-   ```
+```yaml
+services:
+  # ...
+  traefik-forward-auth:
+    image: ghcr.io/italypaleale/traefik-forward-auth:4
+    volumes:
+      - `/path/on/host/config.yaml:/etc/traefik-forward-auth/config.yaml:ro`
+  # ...
+```
 
-2. Using environmental variables.
-   In your `docker-compose.yaml`, this is done listing each variable in the `environment` section:
+You can also reference a secret. For example, using Docker Compose:
 
-   ```yaml
-   services:
-    traefik-forward-auth:
-      image: ghcr.io/italypaleale/traefik-forward-auth:3
-      environment:
-        - `TFA_HOSTNAME=auth.example.com`
-   ```
+```yaml
+services:
+  # ...
+  traefik-forward-auth:
+    image: ghcr.io/italypaleale/traefik-forward-auth:4
+    secrets:
+      # Load the configuration from the secret
+      - source: "tfa_config"
+        target: "/etc/traefik-forward-auth/config.yaml"
+  # ...
 
-    Environmental variables take precedence over values set in the configuration file.
+secrets:
+   tfa_config:
+     file: tfa-config.yaml
+```
 
 You can find the list of [all configuration options](./03-all-configuration-options.md).
-
-> When passing secrets to Traefik Forward Auth, mounting a YAML configuration file is recommended over passing confidential values as environmental variables.
 
 ## Exposing Traefik Forward Auth
 
@@ -54,27 +58,27 @@ Using a dedicated sub-domain is the most convenient way to protect multiple apps
 
 In this example:
 
-- Applications are hosted on `https://example.com` and/or subdomains such as `https://myapp.example.com`.
-- Traefik Forward Auth is served on `https://auth.example.com`.
+- Applications are hosted on `https://example.com` and/or subdomains such as `https://myapp.example.com`
+- Traefik Forward Auth is served on `https://auth.example.com`
 
 To configure Traefik and Traefik Forward Auth in this scenario:
 
-1. If using a provider based on OAuth2 (including Google, Microsoft Entra ID, GitHub, and OpenID Connect providers), configure your authentication callback to: `https://auth.example.com/oauth2/callback`
+1. If using a provider based on OAuth2 (including Google, Microsoft Entra ID, GitHub, and OpenID Connect providers), configure your authentication callback to: `https://auth.example.com/portals/main/oauth2/callback`
 2. Configure Traefik Forward Auth with:
 
-   - [`hostname`](./03-all-configuration-options.md#config-opt-hostname) (env: `TFA_HOSTNAME`): `auth.example.com`
-   - [`cookieDomain`](./03-all-configuration-options.md#config-opt-cookiedomain) (env: `TFA_COOKIEDOMAIN`): `example.com`
+   - [`server.hostname`](./03-all-configuration-options.md#config-opt-server-hostname): `auth.example.com`
+   - [`cookies.domain`](./03-all-configuration-options.md#config-opt-cookies-domain): `example.com`
 
 3. Create a Traefik middleware of type `forwardauth` with:
 
-   - `address`: `http://traefik-forward-auth:4181`  
+   - `address`: `http://traefik-forward-auth:4181/portals/main`  
       This is the address of the `traefik-forward-auth` container within your Docker network. In this example, we are assuming the container/service is named `traefik-forward-auth`. Also note that the internal communication happens over HTTP by default.
    - `authResponseHeaders`: `X-Forwarded-User,X-Authenticated-User`  
       This is optional, but allows your application to read the ID of the authenticated user through the request header `X-Forwarded-User`. Alternatively, `X-Authenticated-User` contains a JSON object similar to `{"provider":"provider-name","user":"user-id"}`.
 
 4. Configure Traefik to expose your applications, including:
 
-   - Traefik Forward Auth at `auth.example.com`, using the "websecure" entry point (which is enabled for HTTPS/TLS).
+   - Traefik Forward Auth at `auth.example.com`, using the "websecure" entry point (which is enabled for HTTPS/TLS)
    - Your applications at `example.com` or other sub-domains such as `myapp.example.com`
 
 Full example using Docker Compose:
@@ -85,7 +89,7 @@ version: '3'
 
 services:
   traefik:
-    image: traefik:v2.10
+    image: traefik:v3
     command:
       - "--providers.docker=true"
       - "--entrypoints.websecure.address=:443"
@@ -95,16 +99,13 @@ services:
       - /var/run/docker.sock:/var/run/docker.sock
 
   traefik-forward-auth:
-    image: ghcr.io/italypaleale/traefik-forward-auth:3
-    environment:
-      # Hostname where the application can be reached at externally
-      - TFA_HOSTNAME=auth.example.com
-      # Domain for setting cookies
-      - TFA_COOKIEDOMAIN=example.com
-      # Add other options
-      - ...
+    image: ghcr.io/italypaleale/traefik-forward-auth:4
+    secrets:
+      # Load the configuration from the secret
+      - source: "tfa_config"
+        target: "/etc/traefik-forward-auth/config.yaml"
     labels:
-      - "traefik.http.middlewares.traefik-forward-auth.forwardauth.address=http://traefik-forward-auth:4181"
+      - "traefik.http.middlewares.traefik-forward-auth.forwardauth.address=http://traefik-forward-auth:4181/portals/main"
       - "traefik.http.middlewares.traefik-forward-auth.forwardauth.authResponseHeaders=X-Forwarded-User,X-Authenticated-User"
       - "traefik.http.services.traefik-forward-auth.loadbalancer.server.port=4181"
       - "traefik.http.routers.traefik-forward-auth.rule=Host(`auth.example.com`)"
@@ -121,6 +122,33 @@ services:
       - "traefik.http.services.whoami.loadbalancer.server.port=4545"
       - "traefik.http.routers.whoami.entrypoints=websecure"
       - "traefik.http.routers.whoami.tls=true"
+
+secrets:
+   tfa_config:
+     file: tfa-config.yaml
+```
+
+Example of the minimum configuration for Traefik Forward Auth, as `tfa-config.yaml`:
+
+```yaml
+# tfa-config.yaml
+server:
+  # Hostname where the application can be reached at externally
+  hostname: "auth.example.com"
+
+cookies:
+  # Domain for setting cookies
+  domain: "example.com"
+
+portals:
+  - name: "main"
+    providers:
+      # Configure one provider
+      # github: {}
+      # google: {}
+      # microsoftEntraID: {}
+      # openIDConnect: {}
+      # tailscaleWhois: {}
 ```
 
 ### Using a sub-path
@@ -129,12 +157,12 @@ Using a sub-path does not require the use of sub-domains, but it is generally ha
 
 In this example:
 
-- Your application is hosted at `https://example.com`.
-- Traefik Forward Auth is served on `https://example.com/auth`.
+- Your application is hosted at `https://example.com`
+- Traefik Forward Auth is served on `https://example.com/auth`
 
 To configure Traefik and Traefik Forward Auth in this scenario:
 
-1. If using a provider based on OAuth2 (including GitHub, Google, Microsoft Entra ID, and OpenID Connect providers), configure your authentication callback to: `https://example.com/auth/oauth2/callback`
+1. If using a provider based on OAuth2 (including GitHub, Google, Microsoft Entra ID, and OpenID Connect providers), configure your authentication callback to: `https://example.com/auth/portals/main/oauth2/callback`
 2. Configure Traefik Forward Auth with:
 
    - [`hostname`](./03-all-configuration-options.md#config-opt-hostname) (env: `TFA_HOSTNAME`): `example.com`
@@ -142,15 +170,15 @@ To configure Traefik and Traefik Forward Auth in this scenario:
 
 3. Create a Traefik middleware of type `forwardauth` with:
 
-   - `address`: `http://traefik-forward-auth:4181/auth`  
+   - `address`: `http://traefik-forward-auth:4181/auth/portals/main`  
       This is the address of the `traefik-forward-auth` container within your Docker network. In this example, we are assuming the container/service is named `traefik-forward-auth`. Also note that the internal communication happens over HTTP by default.
    - `authResponseHeaders`: `X-Forwarded-User,X-Authenticated-User`  
       This is optional, but allows your application to read the ID of the authenticated user through the request header `X-Forwarded-User`. Alternatively, `X-Authenticated-User` contains a JSON object similar to `{"provider":"provider-name","user":"user-id"}`.
 
 4. Configure Traefik to expose your applications, including:
 
-   - Traefik Forward Auth at `example.com/auth`, using the rule ``PathPrefix(`/auth`)`` the "websecure" entry point (which is enabled for HTTPS/TLS).
-   - Your application at `example.com`.
+   - Traefik Forward Auth at `example.com/auth`, using the rule ``PathPrefix(`/auth`)`` the "websecure" entry point (which is enabled for HTTPS/TLS)
+   - Your application at `example.com`
 
 Full example using Docker Compose:
 
@@ -160,7 +188,7 @@ version: '3'
 
 services:
   traefik:
-    image: traefik:v2.10
+    image: traefik:v3
     command:
       - "--providers.docker=true"
       - "--entrypoints.websecure.address=:443"
@@ -170,16 +198,13 @@ services:
       - /var/run/docker.sock:/var/run/docker.sock
 
   traefik-forward-auth:
-    image: ghcr.io/italypaleale/traefik-forward-auth:3
-    environment:
-      # Hostname where the application can be reached at externally
-      - TFA_HOSTNAME=example.com
-      # Base path
-      - TFA_BASEPATH=/auth
-      # Add other options
-      - ...
+    image: ghcr.io/italypaleale/traefik-forward-auth:4
+    secrets:
+      # Load the configuration from the secret
+      - source: "tfa_config"
+        target: "/etc/traefik-forward-auth/config.yaml"
     labels:
-      - "traefik.http.middlewares.traefik-forward-auth.forwardauth.address=http://traefik-forward-auth:4181/auth"
+      - "traefik.http.middlewares.traefik-forward-auth.forwardauth.address=http://traefik-forward-auth:4181/auth/portals/main"
       - "traefik.http.middlewares.traefik-forward-auth.forwardauth.authResponseHeaders=X-Forwarded-User,X-Authenticated-User"
       - "traefik.http.services.traefik-forward-auth.loadbalancer.server.port=4181"
       - "traefik.http.routers.traefik-forward-auth.rule=Host(`example.com`) && PathPrefix(`/auth`)"
@@ -196,4 +221,33 @@ services:
       - "traefik.http.services.whoami.loadbalancer.server.port=4545"
       - "traefik.http.routers.whoami.entrypoints=websecure"
       - "traefik.http.routers.whoami.tls=true"
+
+secrets:
+   tfa_config:
+     file: tfa-config.yaml
+```
+
+Example of the minimum configuration for Traefik Forward Auth, as `tfa-config.yaml`:
+
+```yaml
+# tfa-config.yaml
+server:
+  # Hostname where the application can be reached at externally
+  hostname: "auth.example.com"
+  # Base path
+  basePath: "/auth"
+
+cookies:
+  # Domain for setting cookies
+  domain: "example.com"
+
+portals:
+  - name: "main"
+    providers:
+      # Configure one provider
+      # github: {}
+      # google: {}
+      # microsoftEntraID: {}
+      # openIDConnect: {}
+      # tailscaleWhois: {}
 ```

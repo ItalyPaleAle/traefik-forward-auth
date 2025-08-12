@@ -153,7 +153,7 @@ portals:
     ## Description:
     ##   Name of the portal, as used in the URL.
     ## Required
-    name: "default"
+    name: "main"
 
     ## portals.$.displayName (string)
     ## Description:
