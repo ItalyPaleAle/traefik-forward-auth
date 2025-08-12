@@ -3,6 +3,7 @@ package server
 import (
 	"crypto/sha256"
 	"encoding/base64"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"html/template"
@@ -116,7 +117,7 @@ func (s *Server) handleAuthenticatedRoot(c *gin.Context, portal Portal, provider
 
 	// Set the X-Forwarded-User and X-Authenticated-User headers
 	c.Header("X-Forwarded-User", profile.ID)
-	c.Header("X-Authenticated-User", auth.AuthenticatedUserFromProfile(provider, profile))
+	c.Header("X-Authenticated-User", authenticatedUserFromProfile(provider, portal.Name, profile))
 
 	if utils.IsTruthy(c.Query("html")) {
 		s.renderAuthenticatedTemplate(c, portal, provider, profile.ID)
@@ -555,6 +556,19 @@ func getPortalURI(c *gin.Context, portal string) string {
 	}
 
 	return baseURI + "/portals/" + portal
+}
+
+type authenticatedUserHeaderValue struct {
+	Provider string `json:"provider"`
+	Portal   string `json:"portal"`
+	User     string `json:"user"`
+}
+
+// Returns the user information to include in the "X-Authenticated-User" header
+func authenticatedUserFromProfile(provider auth.Provider, portal string, profile *user.Profile) string {
+	userID, _ := json.Marshal(profile.ID)
+	// Provider and portal names is already guaranteed to not include characters that must be escaped as JSON
+	return `{"provider":"` + provider.GetProviderName() + `","portal":"` + portal + `","user":` + string(userID) + `}`
 }
 
 // Returns the value from the X-Forwarded-Proto header, handling WebSockets

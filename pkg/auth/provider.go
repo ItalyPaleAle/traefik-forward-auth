@@ -2,7 +2,6 @@ package auth
 
 import (
 	"context"
-	"encoding/json"
 	"net/http"
 	"time"
 
@@ -68,11 +67,4 @@ type OAuth2AccessToken struct {
 	IDToken      string
 	RefreshToken string
 	Scopes       []string
-}
-
-// AuthenticatedUserFromProfile returns the user information to include in the "X-Authenticated-User" header
-func AuthenticatedUserFromProfile(provider Provider, profile *user.Profile) string {
-	userID, _ := json.Marshal(profile.ID)
-	// The provider name is already guaranteed to not include characters that must be escaped as JSON
-	return `{"provider":"` + provider.GetProviderName() + `","user":` + string(userID) + `}`
 }
