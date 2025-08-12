@@ -32,10 +32,21 @@ jobs:
         # Use cache from golangci-lint
         cache: false
 
+    - name: Set up Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: latest
+
     - name: Install golangci-lint
       uses: golangci/golangci-lint-action@v8
       with:
         version: ${{ env.GOLANGCI_LINT_VERSION }}
+
+    - name: Build client
+      working-directory: ./client
+      run: |
+        npm ci
+        ./build.sh
 
     - name: Check diff
       run: |
