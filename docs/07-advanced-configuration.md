@@ -142,11 +142,14 @@ Traefik Forward Auth's root endpoint (`/`) is meant to be invoked by Traefik onl
        labels:
          # Note the use of "https"
          - "traefik.http.middlewares.traefik-forward-auth.forwardauth.address=https://traefik-forward-auth:4181/portals/main"
+
          # Set the client certificates
          - "traefik.http.middlewares.traefik-forward-auth.forwardauth.tls.ca=/mnt/tls/tls-ca.pem"
          - "traefik.http.middlewares.traefik-forward-auth.forwardauth.tls.cert=/mnt/tls/tls-cert.pem"
          - "traefik.http.middlewares.traefik-forward-auth.forwardauth.tls.key=/mnt/tls/tls-key.pem"
+
          - "traefik.http.middlewares.traefik-forward-auth.forwardauth.authResponseHeaders=X-Forwarded-User,X-Authenticated-User"
+         - "traefik.http.middlewares.traefik-forward-auth.forwardauth.trustForwardHeader=true"
          - "traefik.http.services.traefik-forward-auth.loadbalancer.server.port=4181"
          - "traefik.http.services.traefik-forward-auth.loadbalancer.serversTransport=forwardAuthCA@file"
          - "traefik.http.routers.traefik-forward-auth.rule=Host(`auth.example.com`)"

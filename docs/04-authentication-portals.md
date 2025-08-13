@@ -1,6 +1,6 @@
-# 🔐 Authentication Portals
+# 🛡️ Authentication Portals
 
-Authentication Portals in Traefik Forward Auth allow users to authenticate with a variety of [identity providers](./05-supported-providers.md).
+Authentication portals in Traefik Forward Auth allow users to authenticate with a variety of [identity providers](./05-supported-providers.md).
 
 You can have multiple portals configured in a single instance of Traefik Forward Auth. For example, you could have:
 
@@ -55,6 +55,7 @@ Because the first portal in the example is named `main`, you will need to config
 labels:
   - "traefik.http.middlewares.forward-auth-main.forwardauth.address=http://traefik-forward-auth:4181/portals/main"
   - "traefik.http.middlewares.forward-auth-main.forwardauth.authResponseHeaders=X-Forwarded-User,X-Authenticated-User"
+  - "traefik.http.middlewares.traefik-forward-auth.forwardauth.trustForwardHeader=true"
 ```
 
 You can also create a second forward auth middleware for admins:
@@ -63,6 +64,7 @@ You can also create a second forward auth middleware for admins:
 labels:
   - "traefik.http.middlewares.forward-auth-admin.forwardauth.address=http://traefik-forward-auth:4181/portals/admin"
   - "traefik.http.middlewares.forward-auth-admin.forwardauth.authResponseHeaders=X-Forwarded-User,X-Authenticated-User"
+  - "traefik.http.middlewares.traefik-forward-auth.forwardauth.trustForwardHeader=true"
 ```
 
 Your containers can then be configured with either forward auth middleware, depending on what accounts should be allowed with each app.
@@ -90,4 +92,5 @@ You can then configure Traefik to use the portal at the `/` address for using th
 labels:
   - "traefik.http.middlewares.forward-auth-main.forwardauth.address=http://traefik-forward-auth:4181/"
   - "traefik.http.middlewares.forward-auth-main.forwardauth.authResponseHeaders=X-Forwarded-User,X-Authenticated-User"
+  - "traefik.http.middlewares.traefik-forward-auth.forwardauth.trustForwardHeader=true"
 ```

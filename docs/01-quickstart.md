@@ -33,6 +33,7 @@ services:
     labels:
       - "traefik.http.middlewares.traefik-forward-auth.forwardauth.address=http://traefik-forward-auth:4181/portals/main"
       - "traefik.http.middlewares.traefik-forward-auth.forwardauth.authResponseHeaders=X-Forwarded-User,X-Authenticated-User"
+      - "traefik.http.middlewares.traefik-forward-auth.forwardauth.trustForwardHeader=true"
       - "traefik.http.services.traefik-forward-auth.loadbalancer.server.port=4181"
       - "traefik.http.routers.traefik-forward-auth.rule=Host(`auth.example.com`)"
       - "traefik.http.routers.traefik-forward-auth.entrypoints=websecure"
@@ -106,6 +107,7 @@ services:
     labels:
       - "traefik.http.middlewares.traefik-forward-auth.forwardauth.address=http://traefik-forward-auth:4181/portals/main"
       - "traefik.http.middlewares.traefik-forward-auth.forwardauth.authResponseHeaders=X-Forwarded-User,X-Authenticated-User"
+      - "traefik.http.middlewares.traefik-forward-auth.forwardauth.trustForwardHeader=true"
       - "traefik.http.routers.traefik-forward-auth.rule=Host(`auth.example.com`)"
       - "traefik.http.routers.traefik-forward-auth.entrypoints=websecure"
       - "traefik.http.routers.traefik-forward-auth.tls=true"

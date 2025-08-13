@@ -5,7 +5,7 @@
 
 ## Profile routes
 
-Traefik Forward Auth exposes a route `/portal/<portal>/profile` that all logged-in users can access to view their own profile, returning the information included in the JWT token in the cookie.
+Traefik Forward Auth exposes a route **`/portal/<portal>/profile`** that all logged-in users can access to view their own profile, returning the information included in the JWT token in the cookie.
 
 For example, if Traefik Forward Auth is listening on `https://auth.example.com/` and the authentication portal's name is `main`, visit `https://auth.example.com/portal/main/profile` to view information such as:
 
@@ -27,7 +27,7 @@ Groups:
   - d589a634-6403-442d-901a-98c286576410
 ```
 
-The same data is also available in JSON format at `/portal/<portal>/profile.json` (note the `.json` suffix). For example:
+The same data is also available in JSON format at **`/portal/<portal>/profile.json`** (note the `.json` suffix). For example:
 
 ```json
 {
