@@ -202,4 +202,45 @@ To explain, we need to clarify some context:
    In fact, when using the forward auth middleware, Traefik makes a call to the configured forward auth endpoint (in this case, an instance of Traefik Forward Auth) on each request, before proxying it to the backend server.  
    This means you can enforce specific rules by configuring authorization conditions for each router.
 
-For example, imagine having an application which requires authentication (AuthN) for all routes, but has some admin-only endpoints starting with `/admin` and `/dashboard` which require the user to be authorized (AuthZ) by being in an "admin" group.
+For example, imagine having an application which requires authentication (AuthN) for all routes, but has some admin-only endpoints starting with `/admin` and `/dashboard` which require the user to be authorized (AuthZ) by being in an "admin" group. Using Traefik's YAML dynamic configuration, that could be defined like this:
+
+```yaml
+http:
+
+  middlewares:
+    adminAuth:
+      forwardauth:
+        # Note the `?if=` query string arg, with value `Group("admin")` after URL-encoding
+        address: "http://traefik-forward-auth:4181/portals/main?if=Group%28%22admin%22%29"
+        authResponseHeaders:
+          - "X-Forwarded-User"
+          - "X-Authenticated-User"
+        trustForwardHeader: true
+    userAuth:
+      forwardauth:
+        # Note there's no condition here (no `?if=`)
+        address: "http://traefik-forward-auth:4181/portals/main"
+        authResponseHeaders:
+          - "X-Forwarded-User"
+          - "X-Authenticated-User"
+        trustForwardHeader: true
+
+  routers:
+    # Define a router for admin routes
+    myapp-admin:
+      rule: "Host(`myapp.example.com`) && (PathPrefix(`/admin`) || PathPrefix(`/dashboard`))"
+      # ...
+      service: "myapp"
+      middlewares:
+        # Include the "adminAuth" middleware
+        - "adminAuth"
+    myapp-user:
+      # Define a router for the other routes
+      # Because this is less specific than "myapp-admin", /admin and /dashboard will match the other router first
+      rule: "Host(`myapp.example.com`)"
+      # ...
+      service: "myapp"
+      middlewares:
+        # Include the "userAuth" middleware
+        - "userAuth"
+```

@@ -45,6 +45,8 @@ ghcr.io/italypaleale/traefik-forward-auth:4.x.x
   - [Other OpenID Connect providers](./docs/05-supported-providers.md#other-openid-connect-providers)
   - [Tailscale Whois](./docs/05-supported-providers.md#tailscale-whois)
 - [**🔐 Authorization conditions**](./docs/06-authorization-conditions.md)
+  - [Using conditions](./docs/06-authorization-conditions.md#using-conditions)
+  - [Sessions and authorization conditions](./docs/06-authorization-conditions.md#sessions-and-authorization-conditions)
 - [**🎓 Advanced configuration**](./docs/07-advanced-configuration.md)
   - [Configure health checks](./docs/07-advanced-configuration.md#configure-health-checks)
   - [Observability: Logs, Traces, Metrics](./docs/07-advanced-configuration.md#observability-logs-traces-metrics)
