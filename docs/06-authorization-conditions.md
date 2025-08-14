@@ -27,16 +27,16 @@ services:
     # ...
     labels:
       # Note the `?if=` query string arg, with value `Group("admin")` after URL-encoding
-      - "traefik.http.middlewares.traefik-forward-auth.forwardauth.address=http://traefik-forward-auth:4181/portals/main?if=Group%28%22admin%22%29"
-      - "traefik.http.middlewares.traefik-forward-auth.forwardauth.authResponseHeaders=X-Forwarded-User,X-Authenticated-User"
-      - "traefik.http.middlewares.traefik-forward-auth.forwardauth.trustForwardHeader=true"
+      - "traefik.http.middlewares.admin-auth.forwardauth.address=http://traefik-forward-auth:4181/portals/main?if=Group%28%22admin%22%29"
+      - "traefik.http.middlewares.admin-auth.forwardauth.authResponseHeaders=X-Forwarded-User,X-Authenticated-User"
+      - "traefik.http.middlewares.admin-auth.forwardauth.trustForwardHeader=true"
       # ...
 
   myapp:
     # ...
     labels:
       - "traefik.http.routers.whoami.rule=Host(`myapp.example.com`)"
-      - "traefik.http.routers.whoami.middlewares=traefik-forward-auth"
+      - "traefik.http.routers.whoami.middlewares=admin-auth"
 ```
 
 Or, using Traefik's YAML dynamic configuration:
@@ -45,7 +45,7 @@ Or, using Traefik's YAML dynamic configuration:
 http:
 
   middlewares:
-    traefikForwardAuth:
+    adminAuth:
       forwardauth:
         # Note the `?if=` query string arg, with value `Group("admin")` after URL-encoding
         address: "http://traefik-forward-auth:4181/portals/main?if=Group%28%22admin%22%29"
@@ -60,14 +60,14 @@ http:
       # ...
       service: "myapp"
       middlewares:
-        - "traefikForwardAuth"
+        - "adminAuth"
 ```
 
 In the examples above, Traefik Forward Auth will check if the user has the group `admin` as a requirement for success.
 
 ### Syntax for conditions
 
-Conditions are based on [vulcand/predicate](https://github.com/vulcand/predicate), which is the same engine used by Traefik for writing rules.
+Conditions are based on [vulcand/predicate](https://github.com/vulcand/predicate), which is the same engine used by Traefik for writing rules for routers.
 
 It supports these functions:
 
@@ -76,6 +76,7 @@ It supports these functions:
    ```
    # Requires claim `id` to be `user123`
    ClaimEqual("id", "user123")
+   Eq("id", "user123")
    # Result:
    #   ✅ {"id": "user123"}
    #   ❌ {"id": "someone-else"}
@@ -97,6 +98,7 @@ It supports these functions:
    ```
    # Requires claim `permissions` to contain `manager`
    ClaimContains("permissions", "manager")
+   Cont("permissions", "manager")
    # Result:
    #   ✅ {"permissions": ["manager", "user"]}
    #   ✅ {"permissions": "manager user"}   (converted to ["manager", "user"])
@@ -144,9 +146,9 @@ It supports these functions:
 
 Conditions can be combined using logical operators:
 
-- `&&` is the AND logical operator: e.g. `Group("managers") && Eq("department", "finance")` allows only users in group `managers` and whose `department` claim is `finance`
-- `||` is the AND logical operator: e.g. `Eq("id","user123") || Eq("id","user987")` allows both `user123` and `user987`
-- `!` negates a condition: e.g. `!Eq("id","bad")` allows all users except those with ID `bad`
+- **`&&`** is the AND logical operator: e.g. `Group("managers") && Eq("department", "finance")` allows only users in group `managers` and whose `department` claim is `finance`
+- **`||`** is the AND logical operator: e.g. `Eq("id","user123") || Eq("id","user987")` allows both `user123` and `user987`
+- **`!`** negates a condition: e.g. `!Eq("id","bad")` allows all users except those with ID `bad`
 
 Parentheses can be used to group conditions. For example:
 
@@ -196,7 +198,7 @@ Because of the way Traefik Forward Auth manages sessions, it's possible to defin
 
 To explain, we need to clarify some context:
 
-- With Traefik Forward Auth, every time a user authenticates successfully with a supported provider a session is created, and the user receives a session token (which is saved in a cookie). The session is valid for all Traefik routers that configure forward auth with the same Traefik Forward Auth [authentication portal](./04-authentication-portals.md). Additionally, authenticated users can also visit the [profile endpoint](./08-endpoints.md#profile-routes) to see their own public profile data.  
+- With Traefik Forward Auth, every time a user authenticates successfully with a supported provider, a session is created, and the user receives a session token (which is saved in a cookie). The session is valid for all Traefik routers that configure forward auth with the same Traefik Forward Auth [authentication portal](./04-authentication-portals.md). Additionally, authenticated users can also visit the [profile endpoint](./08-endpoints.md#profile-routes) to see their own public profile data.  
    To put it in other terms, Traefik Forward Auth creates a session for every authenticated (AuthN) user, without any additional authorization (AuthZ) check.
 - Authorization conditions are evaluated only on calls that Traefik makes to the forward auth endpoint, applied to the current user's session.  
    In fact, when using the forward auth middleware, Traefik makes a call to the configured forward auth endpoint (in this case, an instance of Traefik Forward Auth) on each request, before proxying it to the backend server.  

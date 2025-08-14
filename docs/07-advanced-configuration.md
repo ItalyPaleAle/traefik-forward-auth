@@ -179,5 +179,5 @@ Traefik Forward Auth's root endpoint (`/`) is meant to be invoked by Traefik onl
 If the certificates are updated on disk, Traefik Forward Auth automatically reloads them.
 
 > When mTLS is used, only the portal's root endpoint (`/portal/<name>`) authenticates the client certificate. Other endpoints will be served over TLS, but will not require the callers to present a valid client certificate.
-w
+
 > Note: you can enable TLS in Traefik Forward Auth without configuring mTLS for authenticating Traefik. In this case, set `tlsClientAuth` to `false`, but nonetheless mount the server certificates in the Traefik Forward Auth containers. When configuring Traefik, do not include client certificates.

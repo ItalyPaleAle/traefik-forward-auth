@@ -6,6 +6,8 @@ Traefik Forward Auth v4 is a major release that includes a number of breaking ch
 
 In v4, support for configuring Traefik Forward Auth via **environmental variables has been removed**, and passing a YAML file is the only way to configure the application. This was both necessary to support structured config options (such as lists of providers - more on that below) and for security reasons (since passing secrets, such as secret keys, via env vars is not secure).
 
+> It's recommended to treat the Traefik Forward Auth's configuration file as a secret, mounted as a Docker secret (or Kubernetes secret).
+
 **Actions:**
 
 - ✅ Take a look at the [`config.sample.yaml`](../config.sample.yaml) file which explains the **new configuration format**, and convert your config file (note the use of portals now).
@@ -13,12 +15,12 @@ In v4, support for configuring Traefik Forward Auth via **environmental variable
 
 ## Authentication portals, redirect URL changes, and default portal
 
-New in v4 is the concept of [authentication portals](./04-authentication-portals.md), which allow both:
+New in v4 is the concept of [authentication portals](./04-authentication-portals.md), which allows both:
 
-- Configuring multiple auth providers for a single portal. For example, allow signing in with both Google and Microsoft accounts.
+- Configuring multiple auth providers for a single portal. For example, allows signing in with both Google and Microsoft accounts.
 - Configure multiple portals for different apps (different Traefik routers). For example, you can now use the same instance of Traefik Forward Auth for multiple Traefik routers, with different authentication portals (and providers).
 
-In the config file (see [`config.sample.yaml`](../config.sample.yaml)), there's a new top-level [`portal`](03-all-configuration-options.md#portal-configuration) array that allows defining portals.
+In the config file (see [`config.sample.yaml`](../config.sample.yaml)), there's a new top-level [`portal`](03-all-configuration-options.md#portal-configuration) array that allows defining portals, each containing one or more identity providers.
 
 Because of the addition of portals,
 
@@ -50,7 +52,7 @@ Because of the addition of portals,
 defaultPortal: "main"
 ```
 
-With the default portal, Traefik Forward Auth continues to respond on the root endpoint too (in addition to `/portal/<name>`), so:
+With the default portal, Traefik Forward Auth **continues to respond on the root endpoint** too (in addition to `/portal/<name>`), so:
 
 - Traefik can stay configured with `http://traefik-forward-auth:4181/` as endpoint for Traefik Forward Auth
 - You can leave `https://auth.example.com/oauth2/callback` as callback URL in your IdP
@@ -77,9 +79,9 @@ In v3, Traefik Forward Auth included the ability to set certain authorization (A
 
 All the options above have been removed and **replaced with [authorization conditions](06-authorization-conditions.md)**.
 
-- Authorization conditions offer significant more flexibility, such as being able to set rules on all kinds of claims, not just usernames or emails: this includes group membership (_GBAC, Group Based Access Control_) and roles (_RBAC, Role Based Access Control_).
-- Authorization conditions are passed by Traefik as query string args, allowing you to set different authorization rules for each Traefik router. For example, if you have an app where all endpoints require authentication (AuthN), but some are restricted to admins only, you can now do that with the same Traefik Forward Auth service, and the same session for users.
-- Lastly, with authorization conditions all authorization rules are kept in the Traefik's configuration (including Docker container labels). This way, they are defined alongside your app, and not in the configuration for Traefik Forward Auth.
+- Authorization conditions offer much more flexibility, including being able to set rules on all kinds of claims, not just usernames or emails: this includes group membership (_GBAC, Group Based Access Control_) and roles (_RBAC, Role Based Access Control_).
+- Authorization conditions are passed by Traefik as query string args, allowing you to set different authorization rules for each Traefik router. For example, if you have an app where all endpoints require authentication (AuthN), but some are restricted to admins only, you can now do that with the same Traefik Forward Auth instance, maintaing the same session for users.
+- Lastly, with authorization conditions all authorization rules are kept in the Traefik's configuration (dynamic configuration or Docker container labels). This way, they are defined alongside your app, and not in the configuration for Traefik Forward Auth.
 
 **Action:**
 
@@ -125,7 +127,7 @@ Traefik Forward Auth v4 includes some changes to how two providers interpret dat
 
 **Action:**
 
-- ✅ If using the Microsoft Entra ID provider, ensure your application can work with the new values for users' IDs.
+- ✅ If using the Microsoft Entra ID provider, ensure your application can work with the new values for user IDs.
 
 ## Changes to OpenTelemetry and Prometheus configuration
 
