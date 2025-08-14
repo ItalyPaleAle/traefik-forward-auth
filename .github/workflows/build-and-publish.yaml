@@ -45,11 +45,13 @@ jobs:
         with:
           images: ghcr.io/${{ env.REPO_OWNER }}/traefik-forward-auth
           # generate semver tags and 'latest' tag
+          # TODO: Remove "4" after Release Candidates are over
           tags: |
             type=edge,branch=main
             type=semver,pattern={{version}}
             type=semver,pattern={{major}}.{{minor}}
             type=semver,pattern={{major}}
+            type=semver,pattern=4
 
       - name: Set variables
         run: |
