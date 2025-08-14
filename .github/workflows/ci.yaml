@@ -17,6 +17,8 @@ jobs:
   test:
     name: Test
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     env:
       CGO_ENABLED: "0"
       GOLANGCI_LINT_VERSION: "v2.4.0"
