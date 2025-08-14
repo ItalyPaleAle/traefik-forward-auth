@@ -1,8 +1,8 @@
-# Traefik Forward Auth
+# Traefik Forward Auth v4
 
 A simple service that provides authentication and SSO with OAuth2, OpenID Connect, and Tailscale Whois, for the [Traefik](https://github.com/traefik/traefik) reverse proxy.
 
-> This project began as a fork of [thomseddon/traefik-forward-auth](https://github.com/thomseddon/traefik-forward-auth). Since version 3, it has been completely rewritten and is not compatible with the upstream project anymore.
+> 👉 Looking for the source code and docs for Traefik Forward Auth v3? You can find them in the [v3 branch](https://github.com/ItalyPaleAle/traefik-forward-auth/tree/v3).
 
 ## ✨ Highlights
 
@@ -56,3 +56,7 @@ ghcr.io/italypaleale/traefik-forward-auth:4.x.x
 - [**📍 Endpoints**](./docs/08-endpoints.md)
   - [Profile routes](./docs/08-endpoints.md#profile-routes)
   - [APIs](./docs/08-endpoints.md#apis)
+
+Migrating from a previous version of Traefik Forward Auth:
+
+- [Migrating from v3](./docs/migrating-v3.md)

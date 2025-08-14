@@ -174,7 +174,7 @@ To configure Traefik and Traefik Forward Auth in this scenario:
    - `address`: `http://traefik-forward-auth:4181/auth/portals/main`  
       This is the address of the `traefik-forward-auth` container within your Docker network. In this example, we are assuming the container/service is named `traefik-forward-auth`. Also note that the internal communication happens over HTTP by default.
    - `authResponseHeaders`: `X-Forwarded-User,X-Authenticated-User`  
-      This is optional, but allows your application to read the ID of the authenticated user through the request header `X-Forwarded-User`. Alternatively, `X-Authenticated-User` contains a JSON object similar to `{"provider":"provider-name","user":"user-id"}`.
+      This is optional, but allows your application to read the ID of the authenticated user through the request header `X-Forwarded-User`. Alternatively, `X-Authenticated-User` contains a JSON object similar to `{"provider":"provider-name","portal":"portal-name","user":"user-id"}`.
 
 4. Configure Traefik to expose your applications, including:
 
