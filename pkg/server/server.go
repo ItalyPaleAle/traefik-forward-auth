@@ -193,7 +193,7 @@ func (s *Server) initAppServer(log *slog.Logger) (err error) {
 		// For the root route, we add it with and without trailing slash to avoid Gin setting up a 301 (Permanent) redirect, which causes issues with forward auth
 		r.GET("", s.MiddlewareRequireClientCertificate, s.MiddlewareLoadAuthCookie, s.RouteGetAuthRoot)
 		r.GET("/", s.MiddlewareRequireClientCertificate, s.MiddlewareLoadAuthCookie, s.RouteGetAuthRoot)
-		r.GET("/provider/:provider", s.MiddlewareRequireClientCertificate, s.MiddlewareLoadAuthCookie, s.RouteGetAuthProvider)
+		r.GET("/providers/:provider", s.MiddlewareLoadAuthCookie, s.RouteGetAuthProvider)
 		r.GET("/oauth2/callback", codeFilterLogMw, s.RouteGetOAuth2Callback)
 		r.GET("/signin", s.RouteGetAuthSignin)
 		r.GET("/profile", s.MiddlewareLoadAuthCookie, s.RouteGetProfile)

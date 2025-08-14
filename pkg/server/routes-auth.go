@@ -211,7 +211,7 @@ func (s *Server) RouteGetAuthSignin(c *gin.Context) {
 	// We also always display the signing page if the user just logged out
 	if len(portal.ProvidersList) == 1 && !portal.AlwaysShowSigninPage && !logoutBanner {
 		providerName := portal.ProvidersList[0]
-		redirectURL := getPortalURI(c, portal.Name) + "/provider/" + providerName + "?state=" + stateCookieID + "~" + content.nonce
+		redirectURL := getPortalURI(c, portal.Name) + "/providers/" + providerName + "?state=" + stateCookieID + "~" + content.nonce
 		c.Header("Location", redirectURL)
 		c.Header("Content-Type", "text/plain; charset=utf-8")
 		c.Writer.WriteHeader(http.StatusSeeOther)
@@ -253,7 +253,7 @@ func (s *Server) renderSigninTemplate(c *gin.Context, portal Portal, stateCookie
 		pd := signingTemplateData_Provider{
 			Color:       provider.GetProviderColor(),
 			DisplayName: provider.GetProviderDisplayName(),
-			Href:        getPortalURI(c, portal.Name) + "/provider/" + name + "?state=" + stateCookieID + "~" + nonce,
+			Href:        getPortalURI(c, portal.Name) + "/providers/" + name + "?state=" + stateCookieID + "~" + nonce,
 		}
 
 		iconStr, ok := s.icons[provider.GetProviderIcon()]
@@ -300,7 +300,7 @@ func (s *Server) parseStateParamPreAuth(c *gin.Context, portal Portal) (stateCoo
 	return content, stateCookieID, nil
 }
 
-// RouteGetAuthProvider is the handler for GET /portals/:portal/provider/:provider
+// RouteGetAuthProvider is the handler for GET /portals/:portal/providers/:provider
 // This redirects users to auth servers
 func (s *Server) RouteGetAuthProvider(c *gin.Context) {
 	portal, provider, err := s.getProvider(c)
@@ -324,7 +324,7 @@ func (s *Server) RouteGetAuthProvider(c *gin.Context) {
 	}
 }
 
-// Handles GET /portals/:portal/provider/:provider when using an OAuth2-based provider
+// Handles GET /portals/:portal/providers/:provider when using an OAuth2-based provider
 // This redirects users to the OAuth2 Identity Provider
 func (s *Server) handleGetAuthProviderOAuth2(c *gin.Context, portal Portal, stateCookieID string, nonce string, provider auth.OAuth2Provider) {
 	var err error
@@ -435,7 +435,7 @@ func (s *Server) RouteGetOAuth2Callback(c *gin.Context) {
 	_, _ = c.Writer.WriteString(`Redirecting to application: ` + content.returnURL)
 }
 
-// Handles GET /portals/:portal/provider/:provider when using a seamless auth provider
+// Handles GET /portals/:portal/providers/:provider when using a seamless auth provider
 // This performs seamless auth
 func (s *Server) handleGetAuthProviderSeamlessAuth(c *gin.Context, portal Portal, returnURL string, provider auth.SeamlessProvider) {
 	// Try to authenticate with the seamless auth

@@ -150,7 +150,7 @@ func TestRouteGetAuthProvider(t *testing.T) {
 		state, cookies := getState(t)
 		reqCtx, cancel := context.WithTimeout(t.Context(), 2*time.Second)
 		defer cancel()
-		req, err := http.NewRequestWithContext(reqCtx, http.MethodGet, fmt.Sprintf("http://localhost:%d/portals/test1/provider/testoauth2?state=%s", testServerPort, state), nil)
+		req, err := http.NewRequestWithContext(reqCtx, http.MethodGet, fmt.Sprintf("http://localhost:%d/portals/test1/providers/testoauth2?state=%s", testServerPort, state), nil)
 		require.NoError(t, err)
 
 		populateRequiredProxyHeaders(t, req)
@@ -175,7 +175,7 @@ func TestRouteGetAuthProvider(t *testing.T) {
 	t.Run("missing state param", func(t *testing.T) {
 		reqCtx, cancel := context.WithTimeout(t.Context(), 2*time.Second)
 		defer cancel()
-		req, err := http.NewRequestWithContext(reqCtx, http.MethodGet, fmt.Sprintf("http://localhost:%d/portals/test1/provider/testoauth2", testServerPort), nil)
+		req, err := http.NewRequestWithContext(reqCtx, http.MethodGet, fmt.Sprintf("http://localhost:%d/portals/test1/providers/testoauth2", testServerPort), nil)
 		require.NoError(t, err)
 		populateRequiredProxyHeaders(t, req)
 
@@ -194,7 +194,7 @@ func TestRouteGetAuthProvider(t *testing.T) {
 
 		reqCtx, cancel := context.WithTimeout(t.Context(), 2*time.Second)
 		defer cancel()
-		req, err := http.NewRequestWithContext(reqCtx, http.MethodGet, fmt.Sprintf("http://localhost:%d/portals/test1/provider/testoauth2?state=badformat", testServerPort), nil)
+		req, err := http.NewRequestWithContext(reqCtx, http.MethodGet, fmt.Sprintf("http://localhost:%d/portals/test1/providers/testoauth2?state=badformat", testServerPort), nil)
 		require.NoError(t, err)
 
 		populateRequiredProxyHeaders(t, req)
@@ -219,7 +219,7 @@ func TestRouteGetAuthProvider(t *testing.T) {
 
 		reqCtx, cancel := context.WithTimeout(t.Context(), 2*time.Second)
 		defer cancel()
-		req, err := http.NewRequestWithContext(reqCtx, http.MethodGet, fmt.Sprintf("http://localhost:%d/portals/test1/provider/testoauth2?state=%s", testServerPort, badState), nil)
+		req, err := http.NewRequestWithContext(reqCtx, http.MethodGet, fmt.Sprintf("http://localhost:%d/portals/test1/providers/testoauth2?state=%s", testServerPort, badState), nil)
 		require.NoError(t, err)
 
 		populateRequiredProxyHeaders(t, req)
