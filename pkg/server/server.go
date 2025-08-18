@@ -167,9 +167,6 @@ func (s *Server) initAppServer(log *slog.Logger) (err error) {
 		s.appRouter.Use(s.MiddlewareCountMetrics)
 	}
 
-	// Register a root route
-	s.appRouter.GET("/", serverRootRoute)
-
 	// Logger middleware that removes the auth code from the URL
 	codeFilterLogMw := s.MiddlewareLoggerMask(regexp.MustCompile(`(\?|&)(code|state|session_state)=([^&]*)`), "$1$2***")
 
@@ -468,10 +465,4 @@ type Portal struct {
 type cachedPredicate struct {
 	predicate conditions.UserProfilePredicate
 	lastUsed  *atomic.Int64
-}
-
-func serverRootRoute(c *gin.Context) {
-	// We respond with a 404 status code to prevent people from misconfiguring the forward auth middlewares and getting 200 responses
-	c.Status(http.StatusNotFound)
-	fmt.Fprint(c.Writer, "👋 traefik-forward-auth is running")
 }
