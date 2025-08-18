@@ -11,6 +11,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/cenkalti/backoff/v5"
 	"github.com/lestrrat-go/jwx/v3/jwt"
 	"github.com/lestrrat-go/jwx/v3/jwt/openid"
 
@@ -104,7 +105,13 @@ func NewOpenIDConnect(ctx context.Context, opts NewOpenIDConnectOptions) (*OpenI
 	}
 
 	// Fetch the openid-configuration document and set the endpoints
-	endpoints, err := fetchOIDCEndpoints(ctx, opts.TokenIssuer, oauth2.GetHTTPClient(), opts.RequestTimeout)
+	// We retry this in case of failures
+	bo := backoff.NewExponentialBackOff()
+	bo.InitialInterval = time.Second
+	bo.MaxInterval = 30 * time.Second
+	endpoints, err := backoff.Retry(ctx, func() (OAuth2Endpoints, error) {
+		return fetchOIDCEndpoints(ctx, opts.TokenIssuer, oauth2.GetHTTPClient(), opts.RequestTimeout)
+	}, backoff.WithBackOff(bo))
 	if err != nil {
 		return nil, err
 	}
