@@ -103,7 +103,7 @@ func NewOAuth2(providerType string, providerMetadata ProviderMetadata, opts NewO
 	}
 
 	// Get the HTTP transport
-	httpTransport := http.DefaultTransport.(*http.Transport) //nolint:forcetypeassert
+	httpTransport := http.DefaultTransport.(*http.Transport).Clone() //nolint:forcetypeassert
 	if opts.TLSSkipVerify {
 		httpTransport.TLSClientConfig = &tls.Config{
 			InsecureSkipVerify: true, //nolint:gosec
