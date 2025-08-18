@@ -47,7 +47,7 @@ func NewTailscaleWhois(opts NewTailscaleWhoisOptions) (*TailscaleWhois, error) {
 
 	// Update the transport for the HTTP client to include tracing information
 	httpClient := &http.Client{}
-	httpClient.Transport = otelhttp.NewTransport(http.DefaultTransport.(*http.Transport).Clone())
+	httpClient.Transport = otelhttp.NewTransport(http.DefaultTransport.(*http.Transport).Clone()) //nolint:forcetypeassert
 
 	a := &TailscaleWhois{
 		baseProvider: baseProvider{
