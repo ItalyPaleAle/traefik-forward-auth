@@ -187,8 +187,10 @@ func (s *Server) initAppServer(log *slog.Logger) (err error) {
 	// Portals
 	// If there's a default portal we also register it on the base path, without "portals/:portal"
 	registerPortalRoutes := func(r *gin.RouterGroup) {
-		// For the root route, we add it with and without trailing slash to avoid Gin setting up a 301 (Permanent) redirect, which causes issues with forward auth
-		r.GET("", s.MiddlewareRequireClientCertificate, s.MiddlewareLoadAuthCookie, s.RouteGetAuthRoot)
+		if r.BasePath() != "/" {
+			// For the root route, we add it with and without trailing slash to avoid Gin setting up a 301 (Permanent) redirect, which causes issues with forward auth
+			r.GET("", s.MiddlewareRequireClientCertificate, s.MiddlewareLoadAuthCookie, s.RouteGetAuthRoot)
+		}
 		r.GET("/", s.MiddlewareRequireClientCertificate, s.MiddlewareLoadAuthCookie, s.RouteGetAuthRoot)
 		r.GET("/providers/:provider", s.MiddlewareLoadAuthCookie, s.RouteGetAuthProvider)
 		r.GET("/oauth2/callback", codeFilterLogMw, s.RouteGetOAuth2Callback)
