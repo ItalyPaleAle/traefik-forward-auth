@@ -147,7 +147,7 @@ It supports these functions:
 Conditions can be combined using logical operators:
 
 - **`&&`** is the AND logical operator: e.g. `Group("managers") && Eq("department", "finance")` allows only users in group `managers` and whose `department` claim is `finance`
-- **`||`** is the AND logical operator: e.g. `Eq("id","user123") || Eq("id","user987")` allows both `user123` and `user987`
+- **`||`** is the OR logical operator: e.g. `Eq("id","user123") || Eq("id","user987")` allows both `user123` and `user987`
 - **`!`** negates a condition: e.g. `!Eq("id","bad")` allows all users except those with ID `bad`
 
 Parentheses can be used to group conditions. For example:
