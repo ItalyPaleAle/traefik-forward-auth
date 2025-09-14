@@ -97,6 +97,10 @@ func (s *Server) parseSessionToken(val string, portalName string) (openid.Token,
 }
 
 func (s *Server) setSessionCookie(c *gin.Context, portalName string, profile *user.Profile) error {
+	if profile == nil {
+		return errors.New("profile is nil")
+	}
+
 	cfg := config.Get()
 	expiration := cfg.Tokens.SessionLifetime
 
