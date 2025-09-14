@@ -221,7 +221,7 @@ func TestDeleteSessionCookie(t *testing.T) {
 		deletionCookies := w2.Result().Cookies()
 		require.Len(t, deletionCookies, 1)
 		assert.Equal(t, cookies[0].Name, deletionCookies[0].Name)
-		assert.Equal(t, "", deletionCookies[0].Value)
+		assert.Empty(t, deletionCookies[0].Value)
 		assert.Equal(t, -1, deletionCookies[0].MaxAge)
 	})
 
@@ -235,7 +235,7 @@ func TestDeleteSessionCookie(t *testing.T) {
 
 		// Should not set any deletion cookie since no cookie existed in the request
 		deletionCookies := w.Result().Cookies()
-		assert.Len(t, deletionCookies, 0)
+		assert.Empty(t, deletionCookies)
 	})
 }
 
@@ -474,7 +474,7 @@ func TestDeleteStateCookies(t *testing.T) {
 
 		for _, cookie := range deletionCookies {
 			assert.True(t, strings.HasPrefix(cookie.Name, "tf_state_"+testPortalName+"_"))
-			assert.Equal(t, "", cookie.Value)
+			assert.Empty(t, cookie.Value)
 			assert.Equal(t, -1, cookie.MaxAge)
 		}
 	})
@@ -489,7 +489,7 @@ func TestDeleteStateCookies(t *testing.T) {
 
 		// Should not set any deletion cookies
 		deletionCookies := w.Result().Cookies()
-		assert.Len(t, deletionCookies, 0)
+		assert.Empty(t, deletionCookies)
 	})
 
 	t.Run("mixed cookies", func(t *testing.T) {
@@ -517,7 +517,7 @@ func TestDeleteStateCookies(t *testing.T) {
 		deletionCookies := w.Result().Cookies()
 		require.Len(t, deletionCookies, 1)
 		assert.Equal(t, stateCookie.Name, deletionCookies[0].Name)
-		assert.Equal(t, "", deletionCookies[0].Value)
+		assert.Empty(t, deletionCookies[0].Value)
 		assert.Equal(t, -1, deletionCookies[0].MaxAge)
 	})
 }

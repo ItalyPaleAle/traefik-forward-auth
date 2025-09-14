@@ -518,7 +518,7 @@ func getReturnURL(c *gin.Context, portal string) string {
 	// Traefik docs: https://doc.traefik.io/traefik/middlewares/http/forwardauth/
 	// If there's no "X-Forwarded-Uri" header, it means that the auth request was not initiated by Traefik originally
 	// In this case, we redirect to the /portal/:portal/profile route
-	forwardedURI := c.Request.Header.Get(headerXForwardedUri)
+	forwardedURI := c.Request.Header.Get(headerXForwardedURI)
 	if forwardedURI == "" {
 		return getPortalURI(c, portal) + "/profile"
 	}

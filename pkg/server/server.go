@@ -42,7 +42,7 @@ const (
 	headerXForwardedProto    = "X-Forwarded-Proto"
 	headerXForwardedHost     = "X-Forwarded-Host"
 	headerXForwardedServer   = "X-Forwarded-Server"
-	headerXForwardedUri      = "X-Forwarded-Uri"
+	headerXForwardedURI      = "X-Forwarded-Uri"
 	headerXForwardedUser     = "X-Forwarded-User"
 	headerXAuthenticatedUser = "X-Authenticated-User"
 )
