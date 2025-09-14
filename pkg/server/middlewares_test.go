@@ -30,11 +30,11 @@ func TestMiddlewareProxyHeaders(t *testing.T) {
 
 	t.Run("valid headers pass", func(t *testing.T) {
 		c, _ := newCtx(map[string]string{
-			"X-Forwarded-Server": "traefik@docker",
-			"X-Forwarded-For":    "203.0.113.10, 10.0.0.1",
-			"X-Forwarded-Port":   "443",
-			"X-Forwarded-Proto":  "https",
-			"X-Forwarded-Host":   "example.com",
+			headerXForwardedServer: "traefik@docker",
+			headerXForwardedFor:    "203.0.113.10, 10.0.0.1",
+			headerXForwardedPort:   "443",
+			headerXForwardedProto:  "https",
+			headerXForwardedHost:   "example.com",
 		})
 
 		s.MiddlewareProxyHeaders(c)
@@ -43,10 +43,10 @@ func TestMiddlewareProxyHeaders(t *testing.T) {
 
 	t.Run("missing header aborts", func(t *testing.T) {
 		c, _ := newCtx(map[string]string{
-			"X-Forwarded-Server": "traefik@docker",
-			"X-Forwarded-For":    "203.0.113.10",
-			"X-Forwarded-Port":   "443",
-			"X-Forwarded-Proto":  "https",
+			headerXForwardedServer: "traefik@docker",
+			headerXForwardedFor:    "203.0.113.10",
+			headerXForwardedPort:   "443",
+			headerXForwardedProto:  "https",
 			// Missing X-Forwarded-Host
 		})
 
@@ -56,11 +56,11 @@ func TestMiddlewareProxyHeaders(t *testing.T) {
 
 	t.Run("invalid proto aborts", func(t *testing.T) {
 		c, _ := newCtx(map[string]string{
-			"X-Forwarded-Server": "traefik@docker",
-			"X-Forwarded-For":    "203.0.113.10",
-			"X-Forwarded-Port":   "443",
-			"X-Forwarded-Proto":  "ftp", // invalid
-			"X-Forwarded-Host":   "example.com",
+			headerXForwardedServer: "traefik@docker",
+			headerXForwardedFor:    "203.0.113.10",
+			headerXForwardedPort:   "443",
+			headerXForwardedProto:  "ftp", // invalid
+			headerXForwardedHost:   "example.com",
 		})
 
 		s.MiddlewareProxyHeaders(c)
@@ -69,11 +69,11 @@ func TestMiddlewareProxyHeaders(t *testing.T) {
 
 	t.Run("invalid host aborts", func(t *testing.T) {
 		c, _ := newCtx(map[string]string{
-			"X-Forwarded-Server": "traefik@docker",
-			"X-Forwarded-For":    "203.0.113.10",
-			"X-Forwarded-Port":   "443",
-			"X-Forwarded-Proto":  "https",
-			"X-Forwarded-Host":   "bad host!", // invalid format
+			headerXForwardedServer: "traefik@docker",
+			headerXForwardedFor:    "203.0.113.10",
+			headerXForwardedPort:   "443",
+			headerXForwardedProto:  "https",
+			headerXForwardedHost:   "bad host!", // invalid format
 		})
 
 		s.MiddlewareProxyHeaders(c)
@@ -82,11 +82,11 @@ func TestMiddlewareProxyHeaders(t *testing.T) {
 
 	t.Run("invalid address aborts", func(t *testing.T) {
 		c, _ := newCtx(map[string]string{
-			"X-Forwarded-Server": "traefik@docker",
-			"X-Forwarded-For":    "not-an-ip",
-			"X-Forwarded-Port":   "443",
-			"X-Forwarded-Proto":  "https",
-			"X-Forwarded-Host":   "example.com",
+			headerXForwardedServer: "traefik@docker",
+			headerXForwardedFor:    "not-an-ip",
+			headerXForwardedPort:   "443",
+			headerXForwardedProto:  "https",
+			headerXForwardedHost:   "example.com",
 		})
 
 		s.MiddlewareProxyHeaders(c)
@@ -95,11 +95,11 @@ func TestMiddlewareProxyHeaders(t *testing.T) {
 
 	t.Run("invalid port aborts", func(t *testing.T) {
 		c, _ := newCtx(map[string]string{
-			"X-Forwarded-Server": "traefik@docker",
-			"X-Forwarded-For":    "203.0.113.10",
-			"X-Forwarded-Port":   "eighty",
-			"X-Forwarded-Proto":  "https",
-			"X-Forwarded-Host":   "example.com",
+			headerXForwardedServer: "traefik@docker",
+			headerXForwardedFor:    "203.0.113.10",
+			headerXForwardedPort:   "eighty",
+			headerXForwardedProto:  "https",
+			headerXForwardedHost:   "example.com",
 		})
 
 		s.MiddlewareProxyHeaders(c)

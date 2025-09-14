@@ -116,8 +116,8 @@ func (s *Server) handleAuthenticatedRoot(c *gin.Context, portal Portal, provider
 	s.metrics.RecordAuthentication(true)
 
 	// Set the X-Forwarded-User and X-Authenticated-User headers
-	c.Header("X-Forwarded-User", profile.ID)
-	c.Header("X-Authenticated-User", authenticatedUserFromProfile(provider, portal.Name, profile))
+	c.Header(headerXForwardedUser, profile.ID)
+	c.Header(headerXAuthenticatedUser, authenticatedUserFromProfile(provider, portal.Name, profile))
 
 	if utils.IsTruthy(c.Query("html")) {
 		s.renderAuthenticatedTemplate(c, portal, provider, profile.ID)
@@ -518,14 +518,14 @@ func getReturnURL(c *gin.Context, portal string) string {
 	// Traefik docs: https://doc.traefik.io/traefik/middlewares/http/forwardauth/
 	// If there's no "X-Forwarded-Uri" header, it means that the auth request was not initiated by Traefik originally
 	// In this case, we redirect to the /portal/:portal/profile route
-	forwardedURI := c.Request.Header.Get("X-Forwarded-Uri")
+	forwardedURI := c.Request.Header.Get(headerXForwardedUri)
 	if forwardedURI == "" {
 		return getPortalURI(c, portal) + "/profile"
 	}
 
 	// Here we use  X-Forwarded-* headers which have the data of the original request
 	reqURL, _ := url.Parse(forwardedURI)
-	return getForwardedProto(c) + "://" + c.Request.Header.Get("X-Forwarded-Host") + reqURL.Path
+	return getForwardedProto(c) + "://" + c.Request.Header.Get(headerXForwardedHost) + reqURL.Path
 }
 
 // Computes the state cookie ID for the given return URL
@@ -569,7 +569,7 @@ func authenticatedUserFromProfile(provider auth.Provider, portal string, profile
 func getForwardedProto(c *gin.Context) string {
 	// Map WebSocket protocols to HTTP protocols for OAuth2 redirect URI
 	// OAuth2 callback URLs must be HTTP/HTTPS for browsers to navigate to
-	proto := c.GetHeader("X-Forwarded-Proto")
+	proto := c.GetHeader(headerXForwardedProto)
 	switch proto {
 	case "ws":
 		return "http"

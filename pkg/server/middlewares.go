@@ -28,11 +28,10 @@ const (
 )
 
 var proxyHeaders = []string{
-	"X-Forwarded-Server",
-	"X-Forwarded-For",
-	"X-Forwarded-Port",
-	"X-Forwarded-Proto",
-	"X-Forwarded-Host",
+	headerXForwardedFor,
+	headerXForwardedPort,
+	headerXForwardedProto,
+	headerXForwardedHost,
 }
 
 var hostHeaderRe regexp.Regexp = *regexp.MustCompile(`^(?:[\w-]+|(?:[\w\-]+\.)+\w+|\[[0-9\:]+\])(?::\d+)?$`)
@@ -65,8 +64,8 @@ func (s *Server) MiddlewareProxyHeaders(c *gin.Context) {
 	}
 
 	// Get the X-Forwarded-For header
-	xForwardedFor := c.Request.Header.Get("X-Forwarded-For")
-	xForwardedPort := c.Request.Header.Get("X-Forwarded-Port")
+	xForwardedFor := c.Request.Header.Get(headerXForwardedFor)
+	xForwardedPort := c.Request.Header.Get(headerXForwardedPort)
 
 	// Split the X-Forwarded-For header to get the originating client IP
 	clientIP, _, _ := strings.Cut(xForwardedFor, ",")
@@ -80,7 +79,7 @@ func (s *Server) MiddlewareProxyHeaders(c *gin.Context) {
 	}
 
 	// Validate X-Forwarded-Proto
-	switch c.Request.Header.Get("X-Forwarded-Proto") {
+	switch c.Request.Header.Get(headerXForwardedProto) {
 	case "http", "https", "ws", "wss":
 		// All good
 	default:
@@ -89,7 +88,7 @@ func (s *Server) MiddlewareProxyHeaders(c *gin.Context) {
 	}
 
 	// Validate X-Forwarded-Host
-	if !hostHeaderRe.MatchString(c.Request.Header.Get("X-Forwarded-Host")) {
+	if !hostHeaderRe.MatchString(c.Request.Header.Get(headerXForwardedHost)) {
 		AbortWithError(c, NewResponseError(http.StatusBadRequest, "Invalid value for the 'X-Forwarded-Host' header"))
 		return
 	}
@@ -208,7 +207,6 @@ func (s *Server) MiddlewareLogger(parentLog *slog.Logger) func(c *gin.Context) {
 		c.Next()
 
 		// Other fields to include
-		traefik := c.Request.Header.Get("X-Forwarded-Server")
 		duration := time.Since(start)
 		clientIP := c.ClientIP()
 		statusCode := c.Writer.Status()
@@ -217,6 +215,9 @@ func (s *Server) MiddlewareLogger(parentLog *slog.Logger) func(c *gin.Context) {
 			// If no data was written, respSize could be -1
 			respSize = 0
 		}
+
+		// May be present
+		traefik := c.Request.Header.Get(headerXForwardedServer)
 
 		// Get the logger and the appropriate error level
 		var level slog.Level
@@ -254,16 +255,21 @@ func (s *Server) MiddlewareLogger(parentLog *slog.Logger) func(c *gin.Context) {
 			}
 		}
 
-		// Emit the log
-		log.LogAttrs(c.Request.Context(), level, msg,
+		attrs := make([]slog.Attr, 0, 7)
+		attrs = append(attrs,
 			slog.Int("status", statusCode),
 			slog.String("method", method),
 			slog.String("path", path),
 			slog.String("client", clientIP),
 			slog.Float64("duration", float64(duration.Microseconds())/1000),
 			slog.Int("respSize", respSize),
-			slog.String("traefik", traefik),
 		)
+		if traefik != "" {
+			attrs = append(attrs, slog.String("traefik", traefik))
+		}
+
+		// Emit the log
+		log.LogAttrs(c.Request.Context(), level, msg, attrs...)
 	}
 }
 

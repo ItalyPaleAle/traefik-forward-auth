@@ -36,6 +36,17 @@ import (
 	"github.com/italypaleale/traefik-forward-auth/pkg/utils/conditions"
 )
 
+const (
+	headerXForwardedFor      = "X-Forwarded-For"
+	headerXForwardedPort     = "X-Forwarded-Port"
+	headerXForwardedProto    = "X-Forwarded-Proto"
+	headerXForwardedHost     = "X-Forwarded-Host"
+	headerXForwardedServer   = "X-Forwarded-Server"
+	headerXForwardedUri      = "X-Forwarded-Uri"
+	headerXForwardedUser     = "X-Forwarded-User"
+	headerXAuthenticatedUser = "X-Authenticated-User"
+)
+
 // Server is the server based on Gin
 type Server struct {
 	appRouter  *gin.Engine

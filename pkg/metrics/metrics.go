@@ -7,12 +7,13 @@ import (
 	"os"
 	"time"
 
-	"github.com/italypaleale/traefik-forward-auth/pkg/buildinfo"
-	"github.com/italypaleale/traefik-forward-auth/pkg/config"
 	"go.opentelemetry.io/contrib/exporters/autoexport"
 	"go.opentelemetry.io/otel/attribute"
 	api "go.opentelemetry.io/otel/metric"
 	"go.opentelemetry.io/otel/sdk/metric"
+
+	"github.com/italypaleale/traefik-forward-auth/pkg/buildinfo"
+	"github.com/italypaleale/traefik-forward-auth/pkg/config"
 )
 
 const prefix = "tfa"

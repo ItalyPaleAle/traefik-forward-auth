@@ -160,11 +160,10 @@ func assertResponseError(t *testing.T, res *http.Response, expectStatusCode int,
 func populateRequiredProxyHeaders(t *testing.T, req *http.Request) {
 	t.Helper()
 
-	req.Header.Set("X-Forwarded-Server", "traefik@docker")
-	req.Header.Set("X-Forwarded-Proto", "https")
-	req.Header.Set("X-Forwarded-Port", "443")
-	req.Header.Set("X-Forwarded-For", "1.1.1.1")
-	req.Header.Set("X-Forwarded-Host", "example.com")
+	req.Header.Set(headerXForwardedProto, "https")
+	req.Header.Set(headerXForwardedPort, "443")
+	req.Header.Set(headerXForwardedFor, "1.1.1.1")
+	req.Header.Set(headerXForwardedHost, "example.com")
 }
 
 func assertResponseNoContent(t *testing.T, res *http.Response) {
