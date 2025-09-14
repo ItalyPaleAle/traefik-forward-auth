@@ -73,8 +73,8 @@ To configure Traefik and Traefik Forward Auth in this scenario:
 
    - `address`: `http://traefik-forward-auth:4181/portals/main`  
       This is the address of the `traefik-forward-auth` container within your Docker network. In this example, we are assuming the container/service is named `traefik-forward-auth`. Also note that the internal communication happens over HTTP by default.
-   - `authResponseHeaders`: `X-Forwarded-User,X-Authenticated-User`  
-      This is optional, but allows your application to read the ID of the authenticated user through the request header `X-Forwarded-User`. Alternatively, `X-Authenticated-User` contains a JSON object similar to `{"provider":"provider-name","user":"user-id"}`.
+   - `authResponseHeaders`: `X-Forwarded-User,X-Forwarded-Displayname,X-Authenticated-User`  
+      This is optional, but allows your application to read the ID of the authenticated user through the request header `X-Forwarded-User`. Alternatively, `X-Authenticated-User` contains a JSON object similar to `{"provider":"provider-name","user":"user-id"}`. In addition, `X-Forwarded-Displayname` optionally contains the display name of the user (if available).
 
 4. Configure Traefik to expose your applications, including:
 
@@ -106,7 +106,7 @@ services:
         target: "/etc/traefik-forward-auth/config.yaml"
     labels:
       - "traefik.http.middlewares.traefik-forward-auth.forwardauth.address=http://traefik-forward-auth:4181/portals/main"
-      - "traefik.http.middlewares.traefik-forward-auth.forwardauth.authResponseHeaders=X-Forwarded-User,X-Authenticated-User"
+      - "traefik.http.middlewares.traefik-forward-auth.forwardauth.authResponseHeaders=X-Forwarded-User,X-Forwarded-Displayname,X-Authenticated-User"
       - "traefik.http.middlewares.traefik-forward-auth.forwardauth.trustForwardHeader=true"
       - "traefik.http.services.traefik-forward-auth.loadbalancer.server.port=4181"
       - "traefik.http.routers.traefik-forward-auth.rule=Host(`auth.example.com`)"
@@ -173,8 +173,8 @@ To configure Traefik and Traefik Forward Auth in this scenario:
 
    - `address`: `http://traefik-forward-auth:4181/auth/portals/main`  
       This is the address of the `traefik-forward-auth` container within your Docker network. In this example, we are assuming the container/service is named `traefik-forward-auth`. Also note that the internal communication happens over HTTP by default.
-   - `authResponseHeaders`: `X-Forwarded-User,X-Authenticated-User`  
-      This is optional, but allows your application to read the ID of the authenticated user through the request header `X-Forwarded-User`. Alternatively, `X-Authenticated-User` contains a JSON object similar to `{"provider":"provider-name","portal":"portal-name","user":"user-id"}`.
+   - `authResponseHeaders`: `X-Forwarded-User,X-Forwarded-Displayname,X-Authenticated-User`  
+      This is optional, but allows your application to read the ID of the authenticated user through the request header `X-Forwarded-User`. Alternatively, `X-Authenticated-User` contains a JSON object similar to `{"provider":"provider-name","portal":"portal-name","user":"user-id"}`. In addition, `X-Forwarded-Displayname` optionally contains the display name of the user (if available).
 
 4. Configure Traefik to expose your applications, including:
 
@@ -206,7 +206,7 @@ services:
         target: "/etc/traefik-forward-auth/config.yaml"
     labels:
       - "traefik.http.middlewares.traefik-forward-auth.forwardauth.address=http://traefik-forward-auth:4181/auth/portals/main"
-      - "traefik.http.middlewares.traefik-forward-auth.forwardauth.authResponseHeaders=X-Forwarded-User,X-Authenticated-User"
+      - "traefik.http.middlewares.traefik-forward-auth.forwardauth.authResponseHeaders=X-Forwarded-User,X-Forwarded-Displayname,X-Authenticated-User"
       - "traefik.http.middlewares.traefik-forward-auth.forwardauth.trustForwardHeader=true"
       - "traefik.http.services.traefik-forward-auth.loadbalancer.server.port=4181"
       - "traefik.http.routers.traefik-forward-auth.rule=Host(`example.com`) && PathPrefix(`/auth`)"

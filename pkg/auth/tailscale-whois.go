@@ -18,6 +18,7 @@ import (
 const (
 	tailscaleWhoisClaimIP      = "ip"
 	tailscaleWhoisClaimTailnet = "tailnet"
+	headerXForwardedFor        = "X-Forwarded-For"
 )
 
 // TailscaleWhois is a Provider for authenticating with Tailscale Whois, for requests that are coming over a Tailscale network.
@@ -76,9 +77,9 @@ func (a *TailscaleWhois) SeamlessAuth(r *http.Request) (*user.Profile, error) {
 	// License: BSD-3-Clause
 
 	// Ensure X-Forwarded-For is set and it's an IP
-	sourceIP := net.ParseIP(r.Header.Get("X-Forwarded-For"))
+	sourceIP := net.ParseIP(r.Header.Get(headerXForwardedFor))
 	if sourceIP == nil {
-		return nil, fmt.Errorf("value of X-Forwarded-For header '%s' is not valid: not an IP", r.Header.Get("X-Forwarded-For"))
+		return nil, fmt.Errorf("value of X-Forwarded-For header '%s' is not valid: not an IP", r.Header.Get(headerXForwardedFor))
 	}
 
 	// Use the Tailscale client to authenticate the user
@@ -135,9 +136,9 @@ func (a *TailscaleWhois) SeamlessAuth(r *http.Request) (*user.Profile, error) {
 
 func (a *TailscaleWhois) ValidateRequestClaims(r *http.Request, profile *user.Profile) error {
 	// We need to make sure that the IP of the request matches the value in the "ip" claim in the profile
-	sourceIP := net.ParseIP(r.Header.Get("X-Forwarded-For"))
+	sourceIP := net.ParseIP(r.Header.Get(headerXForwardedFor))
 	if sourceIP == nil {
-		return fmt.Errorf("value of X-Forwarded-For header '%s' is not valid: not an IP", r.Header.Get("X-Forwarded-For"))
+		return fmt.Errorf("value of X-Forwarded-For header '%s' is not valid: not an IP", r.Header.Get(headerXForwardedFor))
 	}
 
 	var expectIP string

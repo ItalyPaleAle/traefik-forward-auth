@@ -77,8 +77,8 @@ func (s *Server) RouteGetAuthRoot(c *gin.Context) {
 		signInURL += "&logout=1"
 	}
 
-	c.Header("Location", signInURL)
-	c.Header("Content-Type", "text/plain; charset=utf-8")
+	c.Header(headerLocation, signInURL)
+	c.Header(headerContentType, contentTypeTextPlain)
 	c.Writer.WriteHeader(http.StatusSeeOther)
 	_, _ = c.Writer.WriteString(`Redirecting to sign-in page: ` + signInURL)
 }
@@ -86,10 +86,10 @@ func (s *Server) RouteGetAuthRoot(c *gin.Context) {
 func (s *Server) handleAuthenticatedRoot(c *gin.Context, portal Portal, provider auth.Provider, profile *user.Profile) {
 	// Check if there's any condition ("if" query string arg or "X-Forward-Auth-If" header) to check claims against, for AuthZ
 	cond := c.Query("if")
-	condHeader := c.GetHeader("X-Forward-Auth-If")
+	condHeader := c.GetHeader(headerXForwardAuthIf)
 	if cond != "" && condHeader != "" {
-		_ = c.Error(errors.New("condition passed in both 'if' query string arg and 'x-forward-auth-if' header"))
-		AbortWithError(c, NewResponseErrorf(http.StatusBadRequest, "Authorization condition passed in both 'if' query string arg and 'x-forward-auth-if' header"))
+		_ = c.Error(errors.New("condition passed in both 'if' query string arg and '" + headerXForwardAuthIf + "' header"))
+		AbortWithError(c, NewResponseErrorf(http.StatusBadRequest, "Authorization condition passed in both 'if' query string arg and '"+headerXForwardAuthIf+"' header"))
 		return
 	} else if condHeader != "" {
 		cond = condHeader
@@ -115,13 +115,19 @@ func (s *Server) handleAuthenticatedRoot(c *gin.Context, portal Portal, provider
 	// Include the user name in the response body in case a visitor is hitting the auth server directly
 	s.metrics.RecordAuthentication(true)
 
-	// Set the X-Forwarded-User and X-Authenticated-User headers
+	// Set the X-Forwarded-User, X-Authenticated-User, X-Forwarded-Displayname headers
 	c.Header(headerXForwardedUser, profile.ID)
 	c.Header(headerXAuthenticatedUser, authenticatedUserFromProfile(provider, portal.Name, profile))
+	if profile.Name.FullName != "" {
+		c.Header(headerXForwardedDisplayName, profile.Name.FullName)
+	}
 
-	if utils.IsTruthy(c.Query("html")) {
+	switch {
+	case utils.IsTruthy(c.Query("html")):
 		s.renderAuthenticatedTemplate(c, portal, provider, profile.ID)
-	} else {
+	case profile.Name.FullName != "":
+		_, _ = fmt.Fprintf(c.Writer, `You are authenticated with provider '%s' as '%s' ('%s')`, provider.GetProviderDisplayName(), profile.Name.FullName, profile.ID)
+	default:
 		_, _ = fmt.Fprintf(c.Writer, `You are authenticated with provider '%s' as '%s'`, provider.GetProviderDisplayName(), profile.ID)
 	}
 }
@@ -197,8 +203,8 @@ func (s *Server) RouteGetAuthSignin(c *gin.Context) {
 		s.deleteStateCookies(c, portal.Name)
 
 		redirectURL := getPortalURI(c, portal.Name)
-		c.Header("Location", redirectURL)
-		c.Header("Content-Type", "text/plain; charset=utf-8")
+		c.Header(headerLocation, redirectURL)
+		c.Header(headerContentType, contentTypeTextPlain)
 		c.Writer.WriteHeader(http.StatusSeeOther)
 		_, _ = c.Writer.WriteString(`Redirecting to auth portal: ` + redirectURL)
 		return
@@ -212,8 +218,8 @@ func (s *Server) RouteGetAuthSignin(c *gin.Context) {
 	if len(portal.ProvidersList) == 1 && !portal.AlwaysShowSigninPage && !logoutBanner {
 		providerName := portal.ProvidersList[0]
 		redirectURL := getPortalURI(c, portal.Name) + "/providers/" + providerName + "?state=" + stateCookieID + "~" + content.nonce
-		c.Header("Location", redirectURL)
-		c.Header("Content-Type", "text/plain; charset=utf-8")
+		c.Header(headerLocation, redirectURL)
+		c.Header(headerContentType, contentTypeTextPlain)
 		c.Writer.WriteHeader(http.StatusSeeOther)
 		_, _ = c.Writer.WriteString(`Redirecting to provider: ` + redirectURL)
 		return
@@ -338,8 +344,8 @@ func (s *Server) handleGetAuthProviderOAuth2(c *gin.Context, portal Portal, stat
 	}
 
 	// Use a custom redirect code to write a response in the body
-	c.Header("Location", authURL)
-	c.Header("Content-Type", "text/plain; charset=utf-8")
+	c.Header(headerLocation, authURL)
+	c.Header(headerContentType, contentTypeTextPlain)
 	c.Writer.WriteHeader(http.StatusSeeOther)
 	_, _ = c.Writer.WriteString(`Redirecting to authentication server: ` + authURL)
 }
@@ -429,8 +435,8 @@ func (s *Server) RouteGetOAuth2Callback(c *gin.Context) {
 
 	// Use a custom redirect code to write a response in the body
 	// We use a 307 redirect here so the client can re-send the request with the original method
-	c.Header("Location", content.returnURL)
-	c.Header("Content-Type", "text/plain; charset=utf-8")
+	c.Header(headerLocation, content.returnURL)
+	c.Header(headerContentType, contentTypeTextPlain)
 	c.Writer.WriteHeader(http.StatusTemporaryRedirect)
 	_, _ = c.Writer.WriteString(`Redirecting to application: ` + content.returnURL)
 }
@@ -460,8 +466,8 @@ func (s *Server) handleGetAuthProviderSeamlessAuth(c *gin.Context, portal Portal
 
 	// We need to do a redirect to be able to have the cookies actually set
 	// Also see: https://github.com/traefik/traefik/issues/3660
-	c.Header("Location", returnURL)
-	c.Header("Content-Type", "text/plain; charset=utf-8")
+	c.Header(headerLocation, returnURL)
+	c.Header(headerContentType, contentTypeTextPlain)
 	c.Writer.WriteHeader(http.StatusSeeOther)
 	_, _ = c.Writer.WriteString(`Redirecting to application: ` + returnURL)
 }
@@ -481,8 +487,8 @@ func (s *Server) RouteGetLogout(c *gin.Context) {
 
 	// Respond with a success message
 	portalURL := getPortalURI(c, portal.Name) + "?logout=1"
-	c.Header("Location", portalURL)
-	c.Header("Content-Type", "text/plain; charset=utf-8")
+	c.Header(headerLocation, portalURL)
+	c.Header(headerContentType, contentTypeTextPlain)
 	c.Writer.WriteHeader(http.StatusSeeOther)
 	_, _ = c.Writer.WriteString(`You've been logged out. Redirecting to portal: ` + portalURL)
 }

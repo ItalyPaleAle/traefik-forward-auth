@@ -28,7 +28,7 @@ services:
     labels:
       # Note the `?if=` query string arg, with value `Group("admin")` after URL-encoding
       - "traefik.http.middlewares.admin-auth.forwardauth.address=http://traefik-forward-auth:4181/portals/main?if=Group%28%22admin%22%29"
-      - "traefik.http.middlewares.admin-auth.forwardauth.authResponseHeaders=X-Forwarded-User,X-Authenticated-User"
+      - "traefik.http.middlewares.admin-auth.forwardauth.authResponseHeaders=X-Forwarded-User,X-Forwarded-Displayname,X-Authenticated-User"
       - "traefik.http.middlewares.admin-auth.forwardauth.trustForwardHeader=true"
       # ...
 
@@ -51,6 +51,7 @@ http:
         address: "http://traefik-forward-auth:4181/portals/main?if=Group%28%22admin%22%29"
         authResponseHeaders:
           - "X-Forwarded-User"
+          - "X-Forwarded-Displayname"
           - "X-Authenticated-User"
         trustForwardHeader: true
 
@@ -176,6 +177,7 @@ http:
         address: "http://traefik-forward-auth:4181/portals/main"
         authResponseHeaders:
           - "X-Forwarded-User"
+          - "X-Forwarded-Displayname"
           - "X-Authenticated-User"
         authRequestHeaders:
           - "X-Forward-Auth-If"
@@ -216,6 +218,7 @@ http:
         address: "http://traefik-forward-auth:4181/portals/main?if=Group%28%22admin%22%29"
         authResponseHeaders:
           - "X-Forwarded-User"
+          - "X-Forwarded-Displayname"
           - "X-Authenticated-User"
         trustForwardHeader: true
     userAuth:
@@ -224,6 +227,7 @@ http:
         address: "http://traefik-forward-auth:4181/portals/main"
         authResponseHeaders:
           - "X-Forwarded-User"
+          - "X-Forwarded-Displayname"
           - "X-Authenticated-User"
         trustForwardHeader: true
 

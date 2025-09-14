@@ -37,14 +37,20 @@ import (
 )
 
 const (
-	headerXForwardedFor      = "X-Forwarded-For"
-	headerXForwardedPort     = "X-Forwarded-Port"
-	headerXForwardedProto    = "X-Forwarded-Proto"
-	headerXForwardedHost     = "X-Forwarded-Host"
-	headerXForwardedServer   = "X-Forwarded-Server"
-	headerXForwardedURI      = "X-Forwarded-Uri"
-	headerXForwardedUser     = "X-Forwarded-User"
-	headerXAuthenticatedUser = "X-Authenticated-User"
+	headerContentType           = "Content-Type"
+	headerLocation              = "Location"
+	headerXForwardedDisplayName = "X-Forwarded-Displayname"
+	headerXForwardedFor         = "X-Forwarded-For"
+	headerXForwardedPort        = "X-Forwarded-Port"
+	headerXForwardedProto       = "X-Forwarded-Proto"
+	headerXForwardedHost        = "X-Forwarded-Host"
+	headerXForwardedServer      = "X-Forwarded-Server"
+	headerXForwardedURI         = "X-Forwarded-Uri"
+	headerXForwardedUser        = "X-Forwarded-User"
+	headerXAuthenticatedUser    = "X-Authenticated-User"
+	headerXForwardAuthIf        = "X-Forward-Auth-If"
+
+	contentTypeTextPlain = "text/plain; charset=utf-8"
 )
 
 // Server is the server based on Gin

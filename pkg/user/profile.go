@@ -323,6 +323,7 @@ func (n *ProfileName) PopulateFullName() {
 
 	// Build the full name as first + middle + last
 	fn := strings.Builder{}
+	fn.Grow(len(n.First) + len(n.Middle) + len(n.Last) + 2)
 	if n.First != "" {
 		fn.WriteString(n.First)
 	}

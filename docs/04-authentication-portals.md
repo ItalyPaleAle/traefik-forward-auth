@@ -54,7 +54,7 @@ Because the first portal in the example is named `main`, you will need to config
 ```yaml
 labels:
   - "traefik.http.middlewares.forward-auth-main.forwardauth.address=http://traefik-forward-auth:4181/portals/main"
-  - "traefik.http.middlewares.forward-auth-main.forwardauth.authResponseHeaders=X-Forwarded-User,X-Authenticated-User"
+  - "traefik.http.middlewares.forward-auth-main.forwardauth.authResponseHeaders=X-Forwarded-User,X-Forwarded-Displayname,X-Authenticated-User"
   - "traefik.http.middlewares.traefik-forward-auth.forwardauth.trustForwardHeader=true"
 ```
 
@@ -63,7 +63,7 @@ You can also create a second forward auth middleware for admins:
 ```yaml
 labels:
   - "traefik.http.middlewares.forward-auth-admin.forwardauth.address=http://traefik-forward-auth:4181/portals/admin"
-  - "traefik.http.middlewares.forward-auth-admin.forwardauth.authResponseHeaders=X-Forwarded-User,X-Authenticated-User"
+  - "traefik.http.middlewares.forward-auth-admin.forwardauth.authResponseHeaders=X-Forwarded-User,X-Forwarded-Displayname,X-Authenticated-User"
   - "traefik.http.middlewares.traefik-forward-auth.forwardauth.trustForwardHeader=true"
 ```
 
@@ -91,6 +91,6 @@ You can then configure Traefik to use the portal at the `/` address for using th
 ```yaml
 labels:
   - "traefik.http.middlewares.forward-auth-main.forwardauth.address=http://traefik-forward-auth:4181/"
-  - "traefik.http.middlewares.forward-auth-main.forwardauth.authResponseHeaders=X-Forwarded-User,X-Authenticated-User"
+  - "traefik.http.middlewares.forward-auth-main.forwardauth.authResponseHeaders=X-Forwarded-User,X-Forwarded-Displayname,X-Authenticated-User"
   - "traefik.http.middlewares.traefik-forward-auth.forwardauth.trustForwardHeader=true"
 ```
