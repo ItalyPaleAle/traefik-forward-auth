@@ -563,6 +563,11 @@ func computeKeyId(k []byte) string {
 	return base64.RawURLEncoding.EncodeToString(h[0:12])
 }
 
+// HasTLS returns true if the server is configured with TLS
+func (s ConfigServer) HasTLS() bool {
+	return s.TLSCertPEM != "" || s.TLSPath != ""
+}
+
 func countSetProperties(s any) int {
 	typ := reflect.TypeOf(s)
 	val := reflect.ValueOf(s)

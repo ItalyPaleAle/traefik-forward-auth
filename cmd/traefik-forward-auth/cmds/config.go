@@ -1,4 +1,4 @@
-package main
+package cmds
 
 import (
 	"context"
@@ -26,6 +26,19 @@ import (
 )
 
 const configFileEnvVar = "TFA_CONFIG"
+
+func loadConfigOrFatal(initLogger *slog.Logger) {
+	err := loadConfig()
+	if err != nil {
+		var lce *loadConfigError
+		if errors.As(err, &lce) {
+			lce.LogFatal(initLogger)
+		} else {
+			utils.FatalError(initLogger, "Failed to load configuration", err)
+			return
+		}
+	}
+}
 
 func loadConfig() error {
 	// Get the path to the config.yaml
