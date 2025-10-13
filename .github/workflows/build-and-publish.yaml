@@ -69,7 +69,7 @@ jobs:
           echo "COMMIT_HASH: '$COMMIT_HASH'"
 
           BUILDINFO_PKG="github.com/italypaleale/traefik-forward-auth/pkg/buildinfo"
-          BUILD_LDFLAGS="-X ${BUILDINFO_PKG}.Production=1 -X ${BUILDINFO_PKG}.AppVersion=${BUILD_VERSION} -X ${BUILDINFO_PKG}.BuildId=${BUILD_ID} -X ${BUILDINFO_PKG}.BuildDate=${BUILD_DATE} -X ${BUILDINFO_PKG}.CommitHash=${COMMIT_HASH} -buildid=${BUILD_ID}"
+          BUILD_LDFLAGS="-s -X ${BUILDINFO_PKG}.Production=1 -X ${BUILDINFO_PKG}.AppVersion=${BUILD_VERSION} -X ${BUILDINFO_PKG}.BuildId=${BUILD_ID} -X ${BUILDINFO_PKG}.BuildDate=${BUILD_DATE} -X ${BUILDINFO_PKG}.CommitHash=${COMMIT_HASH} -buildid=${BUILD_ID}"
 
           echo "BUILD_LDFLAGS=$BUILD_LDFLAGS" >> $GITHUB_ENV
 
@@ -85,7 +85,7 @@ jobs:
       - name: Build client
         working-directory: ./client
         run: |
-          npm install
+          npm ci
           ./build.sh
 
       - name: Build app for all architectures
