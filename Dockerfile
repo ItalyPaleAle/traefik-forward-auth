@@ -15,3 +15,6 @@ EXPOSE 4181 2112
 
 # Start app
 ENTRYPOINT ["/traefik-forward-auth"]
+
+# Healthcheck command
+HEALTHCHECK --interval=60s --timeout=10s --start-period=5s --retries=3 CMD ["/traefik-forward-auth", "healthcheck"]
