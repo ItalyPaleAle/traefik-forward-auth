@@ -5,6 +5,7 @@
 - [Token signing keys](#token-signing-keys)
 - [Configure session lifetime](#configure-session-lifetime)
 - [Security hardening](#security-hardening)
+- [Container health checks](#container-health-checks)
 
 ## Configure health checks
 
@@ -181,3 +182,25 @@ If the certificates are updated on disk, Traefik Forward Auth automatically relo
 > When mTLS is used, only the portal's root endpoint (`/portal/<name>`) authenticates the client certificate. Other endpoints will be served over TLS, but will not require the callers to present a valid client certificate.
 
 > Note: you can enable TLS in Traefik Forward Auth without configuring mTLS for authenticating Traefik. In this case, set `tlsClientAuth` to `false`, but nonetheless mount the server certificates in the Traefik Forward Auth containers. When configuring Traefik, do not include client certificates.
+
+## Container health checks
+
+The container image defines a `HEALTHCHECK` directive that instructs your container runtime on how to perform health checks for Traefik Forward Auth.
+
+To customize them, you can define your own health checks, for example using Docker Compose:
+
+```yaml
+# docker-compose.yaml
+version: '3'
+
+services:
+  traefik-forward-auth:
+    # Note: irrelevant lines have been omitted from this example
+    image: ghcr.io/italypaleale/traefik-forward-auth:4
+    healthcheck:
+      test: ["CMD", "/traefik-forward-auth", "healthcheck"]
+      interval: 60s
+      timeout: 10s
+      retries: 3
+      start_period: 5s
+```

@@ -55,6 +55,7 @@ ghcr.io/italypaleale/traefik-forward-auth:4.x.x
   - [Token signing keys](./docs/07-advanced-configuration.md#token-signing-keys)
   - [Configure session lifetime](./docs/07-advanced-configuration.md#configure-session-lifetime)
   - [Security hardening](./docs/07-advanced-configuration.md#security-hardening)
+  - [Container health checks](./docs/07-advanced-configuration.md#container-health-checks)
 - [**📍 Endpoints**](./docs/08-endpoints.md)
   - [Profile routes](./docs/08-endpoints.md#profile-routes)
   - [APIs](./docs/08-endpoints.md#apis)
