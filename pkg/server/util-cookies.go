@@ -128,9 +128,16 @@ func (s *Server) setSessionCookie(c *gin.Context, portalName string, profile *us
 		return fmt.Errorf("failed to serialize token: %w", err)
 	}
 
+	// The maximum size of a cookie, including the other properties, is 4096 bytes
+	// We limit the size to 400 bytes less the cookie and domain names to account for additional properties
+	cookieName := cfg.Cookies.CookieName(portalName)
+	if len(cookieValue) > 4000-len(cfg.Cookies.Domain)-len(cookieName) {
+		return errors.New("cookie is too large and exceeds the allowed size")
+	}
+
 	// Set the cookie
 	c.SetSameSite(http.SameSiteLaxMode)
-	c.SetCookie(cfg.Cookies.CookieName(portalName), string(cookieValue), int(expiration.Seconds())-1, "/", cfg.Cookies.Domain, !cfg.Cookies.Insecure, true)
+	c.SetCookie(cookieName, string(cookieValue), int(expiration.Seconds())-1, "/", cfg.Cookies.Domain, !cfg.Cookies.Insecure, true)
 
 	return nil
 }

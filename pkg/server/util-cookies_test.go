@@ -40,7 +40,7 @@ func TestSetSessionCookie(t *testing.T) {
 		// Create a gin context for testing
 		w := httptest.NewRecorder()
 		c, _ := gin.CreateTestContext(w)
-		c.Request, _ = http.NewRequest("GET", "/", nil)
+		c.Request, _ = http.NewRequest(http.MethodGet, "/", nil)
 
 		// Test setting session cookie
 		err := srv.setSessionCookie(c, testPortalName, testProfile)
@@ -61,11 +61,55 @@ func TestSetSessionCookie(t *testing.T) {
 	t.Run("with nil profile", func(t *testing.T) {
 		w := httptest.NewRecorder()
 		c, _ := gin.CreateTestContext(w)
-		c.Request, _ = http.NewRequest("GET", "/", nil)
+		c.Request, _ = http.NewRequest(http.MethodGet, "/", nil)
 
 		err := srv.setSessionCookie(c, testPortalName, nil)
 		require.Error(t, err)
 		require.ErrorContains(t, err, "profile is nil")
+	})
+
+	t.Run("cookie too large", func(t *testing.T) {
+		// Create a test profile with very large field values to exceed cookie size limit
+		largeString := strings.Repeat("a", 2000) // 2000 characters
+		testProfile := &user.Profile{
+			ID: "test-user-" + largeString, // Make ID very long
+			Name: user.ProfileName{
+				FullName: "Test User " + largeString,
+				First:    "Test " + largeString,
+				Last:     "User " + largeString,
+				Middle:   "Middle " + largeString,
+				Nickname: "Nick " + largeString,
+			},
+			Email: &user.ProfileEmail{
+				Value:    "test" + largeString + "@example.com",
+				Verified: true,
+			},
+			Provider: "testoauth2",
+			Picture:  "https://example.com/picture/" + largeString,
+			Locale:   "en-US-" + largeString,
+			Timezone: "America/New_York-" + largeString,
+			Groups:   []string{"group1-" + largeString, "group2-" + largeString},
+			Roles:    []string{"role1-" + largeString, "role2-" + largeString},
+			AdditionalClaims: map[string]any{
+				"custom_claim_1": "value1-" + largeString,
+				"custom_claim_2": "value2-" + largeString,
+				"custom_claim_3": "value3-" + largeString,
+			},
+		}
+
+		// Create a gin context for testing
+		w := httptest.NewRecorder()
+		c, _ := gin.CreateTestContext(w)
+		c.Request, _ = http.NewRequest(http.MethodGet, "/", nil)
+
+		// Test setting session cookie with large profile - should fail
+		err := srv.setSessionCookie(c, testPortalName, testProfile)
+		require.Error(t, err)
+		require.ErrorContains(t, err, "cookie is too large and exceeds the allowed size")
+
+		// Check that no cookie was set in response
+		cookies := w.Result().Cookies()
+		assert.Empty(t, cookies)
 	})
 }
 
@@ -92,7 +136,7 @@ func TestGetSessionCookie(t *testing.T) {
 
 		w := httptest.NewRecorder()
 		c, _ := gin.CreateTestContext(w)
-		c.Request, _ = http.NewRequest("GET", "/", nil)
+		c.Request, _ = http.NewRequest(http.MethodGet, "/", nil)
 
 		err := srv.setSessionCookie(c, testPortalName, testProfile)
 		require.NoError(t, err)
@@ -103,7 +147,7 @@ func TestGetSessionCookie(t *testing.T) {
 		// Create a new context with the cookie for reading
 		w2 := httptest.NewRecorder()
 		c2, _ := gin.CreateTestContext(w2)
-		c2.Request, _ = http.NewRequest("GET", "/", nil)
+		c2.Request, _ = http.NewRequest(http.MethodGet, "/", nil)
 		c2.Request.AddCookie(cookies[0])
 
 		// Test getting session cookie
@@ -122,7 +166,7 @@ func TestGetSessionCookie(t *testing.T) {
 	t.Run("no cookie", func(t *testing.T) {
 		w := httptest.NewRecorder()
 		c, _ := gin.CreateTestContext(w)
-		c.Request, _ = http.NewRequest("GET", "/", nil)
+		c.Request, _ = http.NewRequest(http.MethodGet, "/", nil)
 
 		profile, provider, err := srv.getSessionCookie(c, testPortalName)
 		require.NoError(t, err)
@@ -133,7 +177,7 @@ func TestGetSessionCookie(t *testing.T) {
 	t.Run("invalid JWT token", func(t *testing.T) {
 		w := httptest.NewRecorder()
 		c, _ := gin.CreateTestContext(w)
-		c.Request, _ = http.NewRequest("GET", "/", nil)
+		c.Request, _ = http.NewRequest(http.MethodGet, "/", nil)
 
 		cfg := config.Get()
 		cookieName := cfg.Cookies.CookieName(testPortalName)
@@ -155,7 +199,7 @@ func TestGetSessionCookie(t *testing.T) {
 	t.Run("empty cookie value", func(t *testing.T) {
 		w := httptest.NewRecorder()
 		c, _ := gin.CreateTestContext(w)
-		c.Request, _ = http.NewRequest("GET", "/", nil)
+		c.Request, _ = http.NewRequest(http.MethodGet, "/", nil)
 
 		cfg := config.Get()
 		cookieName := cfg.Cookies.CookieName(testPortalName)
@@ -200,7 +244,7 @@ func TestDeleteSessionCookie(t *testing.T) {
 
 		w := httptest.NewRecorder()
 		c, _ := gin.CreateTestContext(w)
-		c.Request, _ = http.NewRequest("GET", "/", nil)
+		c.Request, _ = http.NewRequest(http.MethodGet, "/", nil)
 
 		err := srv.setSessionCookie(c, testPortalName, testProfile)
 		require.NoError(t, err)
@@ -211,7 +255,7 @@ func TestDeleteSessionCookie(t *testing.T) {
 		// Create a new context with the cookie
 		w2 := httptest.NewRecorder()
 		c2, _ := gin.CreateTestContext(w2)
-		c2.Request, _ = http.NewRequest("GET", "/", nil)
+		c2.Request, _ = http.NewRequest(http.MethodGet, "/", nil)
 		c2.Request.AddCookie(cookies[0])
 
 		// Delete the session cookie
@@ -228,7 +272,7 @@ func TestDeleteSessionCookie(t *testing.T) {
 	t.Run("no existing cookie", func(t *testing.T) {
 		w := httptest.NewRecorder()
 		c, _ := gin.CreateTestContext(w)
-		c.Request, _ = http.NewRequest("GET", "/", nil)
+		c.Request, _ = http.NewRequest(http.MethodGet, "/", nil)
 
 		// Delete session cookie when none exists
 		srv.deleteSessionCookie(c, testPortalName)
@@ -252,7 +296,7 @@ func TestSetStateCookie(t *testing.T) {
 	t.Run("success", func(t *testing.T) {
 		w := httptest.NewRecorder()
 		c, _ := gin.CreateTestContext(w)
-		c.Request, _ = http.NewRequest("GET", "/", nil)
+		c.Request, _ = http.NewRequest(http.MethodGet, "/", nil)
 		c.Request.Header.Set("User-Agent", "Test Agent")
 		c.Request.Header.Set("Accept-Language", "en-US")
 
@@ -281,7 +325,7 @@ func TestSetStateCookie(t *testing.T) {
 	t.Run("invalid nonce", func(t *testing.T) {
 		w := httptest.NewRecorder()
 		c, _ := gin.CreateTestContext(w)
-		c.Request, _ = http.NewRequest("GET", "/", nil)
+		c.Request, _ = http.NewRequest(http.MethodGet, "/", nil)
 		c.Request.Header.Set("User-Agent", "Test Agent")
 
 		testReturnURL := "https://example.com/return"
@@ -310,7 +354,7 @@ func TestGetStateCookie(t *testing.T) {
 		// First set a state cookie
 		w := httptest.NewRecorder()
 		c, _ := gin.CreateTestContext(w)
-		c.Request, _ = http.NewRequest("GET", "/", nil)
+		c.Request, _ = http.NewRequest(http.MethodGet, "/", nil)
 		c.Request.Header.Set("User-Agent", "Test Agent")
 		c.Request.Header.Set("Accept-Language", "en-US")
 
@@ -329,7 +373,7 @@ func TestGetStateCookie(t *testing.T) {
 		// Create a new context with the cookie for reading
 		w2 := httptest.NewRecorder()
 		c2, _ := gin.CreateTestContext(w2)
-		c2.Request, _ = http.NewRequest("GET", "/", nil)
+		c2.Request, _ = http.NewRequest(http.MethodGet, "/", nil)
 		c2.Request.Header.Set("User-Agent", "Test Agent")
 		c2.Request.Header.Set("Accept-Language", "en-US")
 		c2.Request.AddCookie(cookies[0])
@@ -346,7 +390,7 @@ func TestGetStateCookie(t *testing.T) {
 	t.Run("no cookie", func(t *testing.T) {
 		w := httptest.NewRecorder()
 		c, _ := gin.CreateTestContext(w)
-		c.Request, _ = http.NewRequest("GET", "/", nil)
+		c.Request, _ = http.NewRequest(http.MethodGet, "/", nil)
 
 		content, err := srv.getStateCookie(c, portal, "nonexistent-state")
 		require.NoError(t, err)
@@ -356,7 +400,7 @@ func TestGetStateCookie(t *testing.T) {
 	t.Run("invalid JWT token", func(t *testing.T) {
 		w := httptest.NewRecorder()
 		c, _ := gin.CreateTestContext(w)
-		c.Request, _ = http.NewRequest("GET", "/", nil)
+		c.Request, _ = http.NewRequest(http.MethodGet, "/", nil)
 
 		stateCookieID := "invalid-state"
 		cookieName := stateCookieName(testPortalName, stateCookieID)
@@ -377,7 +421,7 @@ func TestGetStateCookie(t *testing.T) {
 		// First set a state cookie with one User-Agent
 		w := httptest.NewRecorder()
 		c, _ := gin.CreateTestContext(w)
-		c.Request, _ = http.NewRequest("GET", "/", nil)
+		c.Request, _ = http.NewRequest(http.MethodGet, "/", nil)
 		c.Request.Header.Set("User-Agent", "Test Agent")
 		c.Request.Header.Set("Accept-Language", "en-US")
 
@@ -396,7 +440,7 @@ func TestGetStateCookie(t *testing.T) {
 		// Try to read with different User-Agent
 		w2 := httptest.NewRecorder()
 		c2, _ := gin.CreateTestContext(w2)
-		c2.Request, _ = http.NewRequest("GET", "/", nil)
+		c2.Request, _ = http.NewRequest(http.MethodGet, "/", nil)
 		c2.Request.Header.Set("User-Agent", "Different Agent") // Different User-Agent
 		c2.Request.Header.Set("Accept-Language", "en-US")
 		c2.Request.AddCookie(cookies[0])
@@ -410,7 +454,7 @@ func TestGetStateCookie(t *testing.T) {
 	t.Run("malformed cookie", func(t *testing.T) {
 		w := httptest.NewRecorder()
 		c, _ := gin.CreateTestContext(w)
-		c.Request, _ = http.NewRequest("GET", "/", nil)
+		c.Request, _ = http.NewRequest(http.MethodGet, "/", nil)
 
 		stateCookieID := "malformed-state"
 		cookieName := stateCookieName(testPortalName, stateCookieID)
@@ -441,7 +485,7 @@ func TestDeleteStateCookies(t *testing.T) {
 		// Set multiple state cookies
 		w := httptest.NewRecorder()
 		c, _ := gin.CreateTestContext(w)
-		c.Request, _ = http.NewRequest("GET", "/", nil)
+		c.Request, _ = http.NewRequest(http.MethodGet, "/", nil)
 		c.Request.Header.Set("User-Agent", "Test Agent")
 
 		nonce1, err := srv.generateNonce()
@@ -460,7 +504,7 @@ func TestDeleteStateCookies(t *testing.T) {
 		// Create a new context with the cookies for deletion
 		w2 := httptest.NewRecorder()
 		c2, _ := gin.CreateTestContext(w2)
-		c2.Request, _ = http.NewRequest("GET", "/", nil)
+		c2.Request, _ = http.NewRequest(http.MethodGet, "/", nil)
 		for _, cookie := range cookies {
 			c2.Request.AddCookie(cookie)
 		}
@@ -482,7 +526,7 @@ func TestDeleteStateCookies(t *testing.T) {
 	t.Run("no state cookies", func(t *testing.T) {
 		w := httptest.NewRecorder()
 		c, _ := gin.CreateTestContext(w)
-		c.Request, _ = http.NewRequest("GET", "/", nil)
+		c.Request, _ = http.NewRequest(http.MethodGet, "/", nil)
 
 		// Delete state cookies when none exist
 		srv.deleteStateCookies(c, testPortalName)
@@ -495,7 +539,7 @@ func TestDeleteStateCookies(t *testing.T) {
 	t.Run("mixed cookies", func(t *testing.T) {
 		w := httptest.NewRecorder()
 		c, _ := gin.CreateTestContext(w)
-		c.Request, _ = http.NewRequest("GET", "/", nil)
+		c.Request, _ = http.NewRequest(http.MethodGet, "/", nil)
 
 		// Add both state cookies and non-state cookies
 		stateCookie := &http.Cookie{
