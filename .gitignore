@@ -1,5 +1,6 @@
 scratch
 config.md
+.bin/
 
 ## Client
 client/node_modules
