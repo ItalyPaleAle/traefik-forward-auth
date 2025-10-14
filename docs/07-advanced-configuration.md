@@ -185,6 +185,8 @@ If the certificates are updated on disk, Traefik Forward Auth automatically relo
 
 ## Container health checks
 
+### Health checks with Docker and Podman
+
 The container image defines a `HEALTHCHECK` directive that instructs your container runtime on how to perform health checks for Traefik Forward Auth.
 
 To customize them, you can define your own health checks, for example using Docker Compose:
@@ -203,4 +205,19 @@ services:
       timeout: 10s
       retries: 3
       start_period: 5s
+```
+
+### Health checks with Kubernetes
+
+With Kubernetes, a better approach to health checks is to make the control plane nodes invoke the `/healthz` endpoint. In your PodSpec, configure them such as:
+
+```yaml
+livenessProbe:
+  httpGet:
+    path: "/healthz"
+    port: 4181
+  failureThreshold: 3
+  initialDelaySeconds: 5
+  periodSeconds: 60
+  timeoutSeconds: 10
 ```
