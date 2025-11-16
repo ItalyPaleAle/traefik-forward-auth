@@ -10,6 +10,10 @@ test-race:
 lint:
 	golangci-lint run -c .golangci.yaml
 
+.PHONY: build-client
+build-client:
+	cd client && sh build.sh
+
 .PHONY: gen-config
 gen-config:
 	go run ./tools/gen-config
