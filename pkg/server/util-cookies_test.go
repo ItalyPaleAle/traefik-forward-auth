@@ -5,6 +5,7 @@ import (
 	"net/http/httptest"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/assert"
@@ -43,7 +44,7 @@ func TestSetSessionCookie(t *testing.T) {
 		c.Request, _ = http.NewRequest(http.MethodGet, "/", nil)
 
 		// Test setting session cookie
-		err := srv.setSessionCookie(c, testPortalName, testProfile)
+		err := srv.setSessionCookie(c, testPortalName, testProfile, 2*time.Hour)
 		require.NoError(t, err)
 
 		// Check that cookie was set in response
@@ -56,6 +57,7 @@ func TestSetSessionCookie(t *testing.T) {
 		assert.NotEmpty(t, cookies[0].Value)
 		assert.True(t, cookies[0].HttpOnly)
 		assert.Equal(t, http.SameSiteLaxMode, cookies[0].SameSite)
+		assert.Equal(t, int((2*time.Hour).Seconds())-1, cookies[0].MaxAge)
 	})
 
 	t.Run("with nil profile", func(t *testing.T) {
@@ -63,7 +65,7 @@ func TestSetSessionCookie(t *testing.T) {
 		c, _ := gin.CreateTestContext(w)
 		c.Request, _ = http.NewRequest(http.MethodGet, "/", nil)
 
-		err := srv.setSessionCookie(c, testPortalName, nil)
+		err := srv.setSessionCookie(c, testPortalName, nil, time.Hour)
 		require.Error(t, err)
 		require.ErrorContains(t, err, "profile is nil")
 	})
@@ -103,7 +105,7 @@ func TestSetSessionCookie(t *testing.T) {
 		c.Request, _ = http.NewRequest(http.MethodGet, "/", nil)
 
 		// Test setting session cookie with large profile - should fail
-		err := srv.setSessionCookie(c, testPortalName, testProfile)
+		err := srv.setSessionCookie(c, testPortalName, testProfile, time.Hour)
 		require.Error(t, err)
 		require.ErrorContains(t, err, "cookie is too large and exceeds the allowed size")
 
@@ -138,7 +140,7 @@ func TestGetSessionCookie(t *testing.T) {
 		c, _ := gin.CreateTestContext(w)
 		c.Request, _ = http.NewRequest(http.MethodGet, "/", nil)
 
-		err := srv.setSessionCookie(c, testPortalName, testProfile)
+		err := srv.setSessionCookie(c, testPortalName, testProfile, time.Hour)
 		require.NoError(t, err)
 
 		cookies := w.Result().Cookies()
@@ -246,7 +248,7 @@ func TestDeleteSessionCookie(t *testing.T) {
 		c, _ := gin.CreateTestContext(w)
 		c.Request, _ = http.NewRequest(http.MethodGet, "/", nil)
 
-		err := srv.setSessionCookie(c, testPortalName, testProfile)
+		err := srv.setSessionCookie(c, testPortalName, testProfile, 2*time.Hour)
 		require.NoError(t, err)
 
 		cookies := w.Result().Cookies()

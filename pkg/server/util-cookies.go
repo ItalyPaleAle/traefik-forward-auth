@@ -96,13 +96,17 @@ func (s *Server) parseSessionToken(val string, portalName string) (openid.Token,
 	return oidcToken, nil
 }
 
-func (s *Server) setSessionCookie(c *gin.Context, portalName string, profile *user.Profile) error {
+func (s *Server) setSessionCookie(c *gin.Context, portalName string, profile *user.Profile, expiration time.Duration) error {
 	if profile == nil {
 		return errors.New("profile is nil")
 	}
 
+	expiration = expiration.Truncate(time.Second)
+	if expiration < time.Minute {
+		return errors.New("expiration must be at least 1 minute")
+	}
+
 	cfg := config.Get()
-	expiration := cfg.Tokens.SessionLifetime
 
 	// Claims for the JWT
 	now := time.Now()

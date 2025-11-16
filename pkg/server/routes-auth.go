@@ -355,7 +355,7 @@ func (s *Server) RouteGetOAuth2Callback(c *gin.Context) {
 	}
 
 	// Set the profile in the cookie
-	err = s.setSessionCookie(c, portal.Name, profile)
+	err = s.setSessionCookie(c, portal.Name, profile, portal.SessionLifetime)
 	if err != nil {
 		AbortWithError(c, fmt.Errorf("failed to set session cookie: %w", err))
 		return
@@ -386,7 +386,7 @@ func (s *Server) handleGetAuthProviderSeamlessAuth(c *gin.Context, portal Portal
 	s.deleteStateCookies(c, portal.Name)
 
 	// Set the profile in the cookie
-	err = s.setSessionCookie(c, portal.Name, profile)
+	err = s.setSessionCookie(c, portal.Name, profile, portal.SessionLifetime)
 	if err != nil {
 		AbortWithError(c, fmt.Errorf("failed to set session cookie: %w", err))
 		return

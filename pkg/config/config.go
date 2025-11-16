@@ -150,6 +150,7 @@ type ConfigLogs struct {
 
 type ConfigTokens struct {
 	// Lifetime for sessions after a successful authentication.
+	// This can be overridden on each portal.
 	// +default "2h"
 	SessionLifetime time.Duration `yaml:"sessionLifetime"`
 
@@ -186,6 +187,10 @@ type ConfigPortal struct {
 	// Timeout for authenticating with the authentication provider.
 	// +default 5m
 	AuthenticationTimeout time.Duration `yaml:"authenticationTimeout"`
+
+	// Lifetime for sessions after a successful authentication for the portal.
+	// If set, this overrides the default value configured in the `tokens` section for this portal.
+	SessionLifetime time.Duration `yaml:"sessionLifetime"`
 
 	// URL to override the background image for the portal, size medium.
 	// The recommended size is 720x1080.
@@ -417,13 +422,19 @@ func (p *ConfigPortal) Parse(c *Config) error {
 		p.DisplayName = p.Name
 	}
 
-	// Validate authenticatio timeout
+	// Validate authentication timeout
 	if p.AuthenticationTimeout < time.Millisecond {
 		// Default authentication timeout
 		p.AuthenticationTimeout = 5 * time.Minute
 	}
 	if p.AuthenticationTimeout < 5*time.Second {
 		return errors.New("property 'authenticationTimeout' is invalid: must be at least 5 seconds")
+	}
+
+	// Validate session lifetime
+	// A zero or negative value means use the default for the server, so we only need to check if positive values are at least 1 minute
+	if p.SessionLifetime > 0 && p.SessionLifetime < time.Minute {
+		return errors.New("property 'tokens.sessionLifetime' is invalid: must be at least 1 minute (a zero or negative value uses the default for the server)")
 	}
 
 	// Ensure there's at least one provider

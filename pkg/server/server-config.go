@@ -21,8 +21,14 @@ func GetPortalsConfig(ctx context.Context, conf *config.Config) (map[string]Port
 			DisplayName:           p.DisplayName,
 			Providers:             make(map[string]auth.Provider, len(providers)),
 			ProvidersList:         make([]string, len(providers)),
+			SessionLifetime:       p.SessionLifetime,
 			AuthenticationTimeout: p.AuthenticationTimeout,
 			AlwaysShowSigninPage:  p.AlwaysShowProvidersPage,
+		}
+
+		if portal.SessionLifetime <= 0 {
+			// Set default session lifetime
+			portal.SessionLifetime = conf.Tokens.SessionLifetime
 		}
 
 		err = setPagesPortalConfig(p, &portal)

@@ -95,6 +95,7 @@ tokens:
   ## tokens.sessionLifetime (duration)
   ## Description:
   ##   Lifetime for sessions after a successful authentication.
+  ##   This can be overridden on each portal.
   ## Default: "2h"
   #sessionLifetime: "2h"
 
@@ -173,6 +174,12 @@ portals:
     ##   Timeout for authenticating with the authentication provider.
     ## Default: 5m
     #authenticationTimeout: 5m
+
+    ## portals.$.sessionLifetime (duration)
+    ## Description:
+    ##   Lifetime for sessions after a successful authentication for the portal.
+    ##   If set, this overrides the default value configured in the `tokens` section for this portal.
+    #sessionLifetime: 0s
 
     ## portals.$.backgroundMedium (string)
     ## Description:

@@ -479,6 +479,7 @@ type Portal struct {
 	ProvidersList         []string
 	AuthenticationTimeout time.Duration
 	AlwaysShowSigninPage  bool
+	SessionLifetime       time.Duration
 	PagesBackgroundLarge  string
 	PagesBackgroundMedium string
 	PagesCSPHeader        string
