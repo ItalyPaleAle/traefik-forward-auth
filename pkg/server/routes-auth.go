@@ -22,6 +22,9 @@ import (
 	"github.com/italypaleale/traefik-forward-auth/pkg/utils/conditions"
 )
 
+// Value for the Content-Security-Policy header for generated pages
+const pagesContentSecurityHeader = `default-src 'none'; script-src 'none'; style-src 'self' 'unsafe-inline'; img-src 'self'; font-src 'self'`
+
 // RouteGetAuthRoot is the handler for GET /portals/:portal
 // This handles requests from Traefik and redirects users if needed
 func (s *Server) RouteGetAuthRoot(c *gin.Context) {
@@ -175,6 +178,7 @@ func (s *Server) renderAuthenticatedTemplate(c *gin.Context, portal Portal, prov
 		LogoutUrl string
 	}
 
+	c.Header("Content-Security-Policy", pagesContentSecurityHeader)
 	c.HTML(http.StatusOK, "authenticated.html.tpl", authenticatedTemplateData{
 		Title:     portal.DisplayName,
 		BaseUrl:   conf.Server.BasePath,
@@ -275,6 +279,7 @@ func (s *Server) renderSigninTemplate(c *gin.Context, portal Portal, stateCookie
 		data.Providers = append(data.Providers, pd)
 	}
 
+	c.Header("Content-Security-Policy", pagesContentSecurityHeader)
 	c.HTML(http.StatusOK, "signin.html.tpl", data)
 }
 
