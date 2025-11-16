@@ -123,7 +123,7 @@ func (s *Server) handleAuthenticatedRoot(c *gin.Context, portal Portal, provider
 
 	switch {
 	case utils.IsTruthy(c.Query("html")):
-		s.renderAuthenticatedTemplate(c, portal, provider, profile.ID)
+		s.renderAuthenticatedTemplate(c, &portal, provider, profile.ID)
 	case profile.Name.FullName != "":
 		_, _ = fmt.Fprintf(c.Writer, `You are authenticated with provider '%s' as '%s' ('%s')`, provider.GetProviderDisplayName(), profile.Name.FullName, profile.ID)
 	default:
@@ -203,7 +203,7 @@ func (s *Server) RouteGetAuthSignin(c *gin.Context) {
 	}
 
 	// Render the template
-	s.renderSigninTemplate(c, portal, stateCookieID, content.nonce, logoutBanner)
+	s.renderSigninTemplate(c, &portal, stateCookieID, content.nonce, logoutBanner)
 }
 
 func (s *Server) parseStateParamPreAuth(c *gin.Context, portal Portal) (stateCookieContent, string, error) {

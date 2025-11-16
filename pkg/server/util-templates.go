@@ -79,7 +79,19 @@ func setPagesPortalConfig(p config.ConfigPortal, portal *Portal) error {
 	return nil
 }
 
-func (s *Server) renderSigninTemplate(c *gin.Context, portal Portal, stateCookieID string, nonce string, logoutBanner bool) {
+func setPageSecurityHeaders(c *gin.Context, portal *Portal) {
+	// Set the CSP header and the legacy X-Frame-Options
+	c.Header("Content-Security-Policy", portal.PagesCSPHeader)
+	c.Header("X-Frame-Options", "DENY")
+
+	// Disable FLOC
+	c.Header("Permissions-Policy", "interest-cohort=()")
+
+	// Disable indexing by search engines
+	c.Header("X-Robots-Tag", "noindex, nofollow")
+}
+
+func (s *Server) renderSigninTemplate(c *gin.Context, portal *Portal, stateCookieID string, nonce string, logoutBanner bool) {
 	conf := config.Get()
 
 	//nolint:revive
@@ -102,11 +114,13 @@ func (s *Server) renderSigninTemplate(c *gin.Context, portal Portal, stateCookie
 	data := signinTemplateData{
 		Title:            portal.DisplayName,
 		BaseUrl:          conf.Server.BasePath,
-		Providers:        make([]signingTemplateData_Provider, 0, len(portal.Providers)),
+		Providers:        make([]signingTemplateData_Provider, len(portal.Providers)),
 		LogoutBanner:     logoutBanner,
 		BackgroundLarge:  portal.PagesBackgroundLarge,
 		BackgroundMedium: portal.PagesBackgroundMedium,
 	}
+
+	var i int
 	for _, name := range portal.ProvidersList {
 		provider := portal.Providers[name]
 
@@ -126,14 +140,15 @@ func (s *Server) renderSigninTemplate(c *gin.Context, portal Portal, stateCookie
 			pd.Svg = template.HTML(`<svg class="provider-icon" aria-hidden="true"></svg>`)
 		}
 
-		data.Providers = append(data.Providers, pd)
+		data.Providers[i] = pd
+		i++
 	}
 
-	c.Header("Content-Security-Policy", portal.PagesCSPHeader)
+	setPageSecurityHeaders(c, portal)
 	c.HTML(http.StatusOK, "signin.html.tpl", data)
 }
 
-func (s *Server) renderAuthenticatedTemplate(c *gin.Context, portal Portal, provider auth.Provider, userID string) {
+func (s *Server) renderAuthenticatedTemplate(c *gin.Context, portal *Portal, provider auth.Provider, userID string) {
 	conf := config.Get()
 
 	// Respond with 200, indicating Traefik that the user is successfully-authenticated
@@ -148,7 +163,7 @@ func (s *Server) renderAuthenticatedTemplate(c *gin.Context, portal Portal, prov
 		BackgroundMedium string
 	}
 
-	c.Header("Content-Security-Policy", portal.PagesCSPHeader)
+	setPageSecurityHeaders(c, portal)
 	c.HTML(http.StatusOK, "authenticated.html.tpl", authenticatedTemplateData{
 		Title:            portal.DisplayName,
 		BaseUrl:          conf.Server.BasePath,
