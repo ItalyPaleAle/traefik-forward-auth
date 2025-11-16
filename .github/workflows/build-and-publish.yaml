@@ -18,15 +18,15 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Set up Go
-        uses: actions/setup-go@v5
+        uses: actions/setup-go@v6
         with:
           go-version-file: 'go.mod'
 
       - name: Set up Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v6
         with:
           node-version: latest
 
@@ -144,46 +144,46 @@ jobs:
           push: true
 
       - name: Upload linux-amd64 Actions Artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: linux-amd64
           path: .bin/linux-amd64
 
       - name: Upload linux-arm64 Actions Artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: linux-arm64
           path: .bin/linux-arm64
 
       - name: Upload linux-arm Actions Artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: linux-arm
           path: .bin/linux-arm
 
       - name: Binary attestation linux-amd64
-        uses: actions/attest-build-provenance@v1
+        uses: actions/attest-build-provenance@v3
         if: startsWith(github.ref, 'refs/tags/v')
         with:
           subject-name: linux-amd64/traefik-forward-auth
           subject-path: '.bin/linux-amd64/traefik-forward-auth'
 
       - name: Binary attestation linux-arm64
-        uses: actions/attest-build-provenance@v1
+        uses: actions/attest-build-provenance@v3
         if: startsWith(github.ref, 'refs/tags/v')
         with:
           subject-name: linux-arm64/traefik-forward-auth
           subject-path: '.bin/linux-arm64/traefik-forward-auth'
 
       - name: Binary attestation linux-arm
-        uses: actions/attest-build-provenance@v1
+        uses: actions/attest-build-provenance@v3
         if: startsWith(github.ref, 'refs/tags/v')
         with:
           subject-name: linux-arm/traefik-forward-auth
           subject-path: '.bin/linux-arm/traefik-forward-auth'
 
       - name: Container image attestation
-        uses: actions/attest-build-provenance@v1
+        uses: actions/attest-build-provenance@v3
         if: startsWith(github.ref, 'refs/tags/v')
         with:
           subject-name: 'ghcr.io/${{ env.REPO_OWNER }}/traefik-forward-auth'
