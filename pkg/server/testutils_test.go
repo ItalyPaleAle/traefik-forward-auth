@@ -15,10 +15,13 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
+	"github.com/lestrrat-go/jwx/v3/jwa"
+	"github.com/lestrrat-go/jwx/v3/jwt"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
 	"github.com/italypaleale/traefik-forward-auth/pkg/config"
+	"github.com/italypaleale/traefik-forward-auth/pkg/user"
 	"github.com/italypaleale/traefik-forward-auth/pkg/utils/bufconn"
 	"github.com/italypaleale/traefik-forward-auth/pkg/utils/ptr"
 )
@@ -173,6 +176,34 @@ func assertResponseNoContent(t *testing.T, res *http.Response) {
 	body, err := io.ReadAll(res.Body)
 	require.NoError(t, err, "Error reading response body")
 	assert.Empty(t, body, "Response body is not empty")
+}
+
+// createTestSessionToken creates a valid session token with a specific profile for testing
+func createTestSessionToken(t *testing.T, portalName string, profile *user.Profile, expiration time.Duration) string {
+	t.Helper()
+
+	cfg := config.Get()
+	now := time.Now()
+
+	builder := jwt.NewBuilder()
+	profile.AppendClaims(builder)
+
+	token, err := builder.
+		Issuer(jwtIssuer + ":" + cfg.GetTokenAudienceClaim() + ":" + portalName).
+		Audience([]string{cfg.GetTokenAudienceClaim()}).
+		IssuedAt(now).
+		Expiration(now.Add(expiration)).
+		NotBefore(now).
+		Build()
+	require.NoError(t, err)
+
+	// Sign the token
+	tokenBytes, err := jwt.NewSerializer().
+		Sign(jwt.WithKey(jwa.HS256(), cfg.GetTokenSigningKey())).
+		Serialize(token)
+	require.NoError(t, err)
+
+	return string(tokenBytes)
 }
 
 // Closes a HTTP response body making sure to drain it first
