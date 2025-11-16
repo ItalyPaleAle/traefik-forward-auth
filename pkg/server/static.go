@@ -46,8 +46,8 @@ func (s *Server) addStaticRoutes(basePath string) error {
 			return
 		}
 
-		// Add cache-control header for static assets to cache for 24 hours
-		c.Header("Cache-Control", "public, max-age=86400")
+		// Add cache-control header for static assets to cache for 30 days
+		c.Header("Cache-Control", "public, max-age=2592000, immutable")
 		c.Header("Last-Modified", lastModifiedHeader)
 
 		imgHandler.ServeHTTP(c.Writer, c.Request)
