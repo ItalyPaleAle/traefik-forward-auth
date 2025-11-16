@@ -57,14 +57,14 @@ func TestGetCSPOriginFromUrl(t *testing.T) {
 		result, err := getCSPOriginFromUrl("")
 		require.NoError(t, err)
 		// Empty URL parses but has empty host
-		assert.Equal(t, "", result)
+		assert.Empty(t, result)
 	})
 
 	t.Run("relative URL", func(t *testing.T) {
 		result, err := getCSPOriginFromUrl("/path/to/image.jpg")
 		require.NoError(t, err)
 		// Relative URLs have empty host
-		assert.Equal(t, "", result)
+		assert.Empty(t, result)
 	})
 
 	t.Run("URL with IPv4 address", func(t *testing.T) {

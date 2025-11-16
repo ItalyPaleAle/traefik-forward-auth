@@ -15,5 +15,6 @@ cp -v src/*.tpl dist/
 # Remove whitespaces from the start of lines in the template files
 # This is a simplistic minification
 for f in dist/*.html.tpl; do
-    sed -i '' 's/^[[:space:]]*//g' "$f"
+    sed -i.bak 's/^[[:space:]]*//g' "$f"
+    rm "$f.bak"
 done
