@@ -269,21 +269,23 @@ func TestRouteGetProfileJSON(t *testing.T) {
 		require.NoError(t, err)
 
 		// Verify the response structure
-		assert.True(t, response["authenticated"].(bool))
+		assert.Equal(t, true, response["authenticated"])
 		assert.Equal(t, "testoauth2", response["provider"])
 		assert.Equal(t, "user123", response["id"])
 
 		// Verify name fields
-		name := response["name"].(map[string]any)
+		name, ok := response["name"].(map[string]any)
+		require.True(t, ok)
 		assert.Equal(t, "John Doe", name["full"])
 		assert.Equal(t, "johnd", name["nickname"])
 		assert.Equal(t, "John", name["first"])
 		assert.Equal(t, "Doe", name["last"])
 
 		// Verify email
-		email := response["email"].(map[string]any)
+		email, ok := response["email"].(map[string]any)
+		require.True(t, ok)
 		assert.Equal(t, "john@example.com", email["address"])
-		assert.True(t, email["verified"].(bool))
+		assert.Equal(t, true, email["verified"])
 
 		// Verify other fields
 		assert.Equal(t, "https://example.com/avatar.jpg", response["picture"])
@@ -291,12 +293,14 @@ func TestRouteGetProfileJSON(t *testing.T) {
 		assert.Equal(t, "America/New_York", response["timezone"])
 
 		// Verify groups and roles
-		groups := response["groups"].([]any)
+		groups, ok := response["groups"].([]any)
+		require.True(t, ok)
 		assert.Len(t, groups, 2)
 		assert.Contains(t, groups, "admins")
 		assert.Contains(t, groups, "users")
 
-		roles := response["roles"].([]any)
+		roles, ok := response["roles"].([]any)
+		require.True(t, ok)
 		assert.Len(t, roles, 2)
 		assert.Contains(t, roles, "admin")
 		assert.Contains(t, roles, "editor")
@@ -339,11 +343,12 @@ func TestRouteGetProfileJSON(t *testing.T) {
 		require.NoError(t, err)
 
 		// Verify basic fields
-		assert.True(t, response["authenticated"].(bool))
+		assert.Equal(t, true, response["authenticated"])
 		assert.Equal(t, "testoauth2", response["provider"])
 		assert.Equal(t, "user456", response["id"])
 
-		name := response["name"].(map[string]any)
+		name, ok := response["name"].(map[string]any)
+		require.True(t, ok)
 		assert.Equal(t, "Jane Smith", name["full"])
 
 		// Verify optional fields are not present
@@ -443,11 +448,11 @@ func TestRouteGetProfileJSON(t *testing.T) {
 		require.NoError(t, err)
 
 		// Verify email is present but not verified
-		email := response["email"].(map[string]any)
+		email, ok := response["email"].(map[string]any)
+		require.True(t, ok)
 		assert.Equal(t, "unverified@example.com", email["address"])
-		assert.False(t, email["verified"].(bool))
+		assert.Equal(t, false, email["verified"])
 	})
-
 }
 
 // createFullTestProfile creates a user profile with all fields populated for testing

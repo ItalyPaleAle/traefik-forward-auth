@@ -298,4 +298,64 @@ func TestCheckAuthzConditions(t *testing.T) {
 		require.NoError(t, err)
 		assert.False(t, ok)
 	})
+
+	t.Run("Predicates are cached", func(t *testing.T) {
+		const cond = `ClaimEqual("email", "test@example.com")`
+
+		// First call should cache the predicate
+		ok1, err1 := s.checkAuthzConditions(cond, profile)
+		require.NoError(t, err1)
+		assert.True(t, ok1)
+
+		// Verify the predicate is now in the cache
+		cached1, found := s.predicates.Get(cond)
+		require.True(t, found)
+		assert.NotNil(t, cached1.predicate)
+		lastUsed1 := cached1.lastUsed.Load()
+
+		// Second call should retrieve from cache
+		time.Sleep(1100 * time.Millisecond) // Sleep for more than 1 second to ensure unix timestamps differ
+		ok2, err2 := s.checkAuthzConditions(cond, profile)
+		require.NoError(t, err2)
+		assert.True(t, ok2)
+
+		// Verify the same cached entry is reused and lastUsed is updated
+		cached2, found := s.predicates.Get(cond)
+		require.True(t, found)
+
+		// Since predicates are functions, we can't compare them directly
+		// Instead, verify that the cache entry exists and lastUsed is updated
+		lastUsed2 := cached2.lastUsed.Load()
+		assert.Greater(t, lastUsed2, lastUsed1, "lastUsed timestamp should be updated on cache hit")
+	})
+
+	t.Run("Different conditions have separate cache entries", func(t *testing.T) {
+		const cond1 = `ClaimEqual("email", "test@example.com")`
+		const cond2 = `ClaimEqual("email", "other@example.com")`
+
+		// Call with first condition
+		ok1, err1 := s.checkAuthzConditions(cond1, profile)
+		require.NoError(t, err1)
+		assert.True(t, ok1)
+
+		// Call with second condition
+		ok2, err2 := s.checkAuthzConditions(cond2, profile)
+		require.NoError(t, err2)
+		assert.False(t, ok2)
+
+		// Both should be in cache as different entries
+		cached1, found1 := s.predicates.Get(cond1)
+		require.True(t, found1)
+
+		cached2, found2 := s.predicates.Get(cond2)
+		require.True(t, found2)
+
+		// Cache entries should be separate (different conditions)
+		assert.NotEmpty(t, cached1.predicate)
+		assert.NotEmpty(t, cached2.predicate)
+
+		// Both should have lastUsed timestamps set
+		assert.Positive(t, cached1.lastUsed.Load())
+		assert.Positive(t, cached2.lastUsed.Load())
+	})
 }
