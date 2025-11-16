@@ -187,6 +187,14 @@ type ConfigPortal struct {
 	// +default 5m
 	AuthenticationTimeout time.Duration `yaml:"authenticationTimeout"`
 
+	// URL to override the background image for the portal, size medium.
+	// The recommended size is 720x1080.
+	BackgroundMedium string `yaml:"backgroundMedium"`
+
+	// URL to override the background image for the portal, size large.
+	// The recommended size is 940x1410.
+	BackgroundLarge string `yaml:"backgroundLarge"`
+
 	// List of allowed authentication providers.
 	// At least one provider is required.
 	// +required

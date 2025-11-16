@@ -6,7 +6,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"html/template"
 	"net/http"
 	"net/url"
 	"strings"
@@ -21,9 +20,6 @@ import (
 	"github.com/italypaleale/traefik-forward-auth/pkg/utils"
 	"github.com/italypaleale/traefik-forward-auth/pkg/utils/conditions"
 )
-
-// Value for the Content-Security-Policy header for generated pages
-const pagesContentSecurityHeader = `default-src 'none'; script-src 'none'; style-src 'self' 'unsafe-inline'; img-src 'self'; font-src 'self'`
 
 // RouteGetAuthRoot is the handler for GET /portals/:portal
 // This handles requests from Traefik and redirects users if needed
@@ -165,29 +161,6 @@ func (s *Server) checkAuthzConditions(cond string, profile *user.Profile) (bool,
 	return ok, nil
 }
 
-func (s *Server) renderAuthenticatedTemplate(c *gin.Context, portal Portal, provider auth.Provider, userID string) {
-	conf := config.Get()
-
-	// Respond with 200, indicating Traefik that the user is successfully-authenticated
-	// Display a nice-looking body in case a visitor is hitting the auth server directly
-	type authenticatedTemplateData struct {
-		Title     string
-		BaseUrl   string
-		Provider  string
-		User      string
-		LogoutUrl string
-	}
-
-	c.Header("Content-Security-Policy", pagesContentSecurityHeader)
-	c.HTML(http.StatusOK, "authenticated.html.tpl", authenticatedTemplateData{
-		Title:     portal.DisplayName,
-		BaseUrl:   conf.Server.BasePath,
-		Provider:  provider.GetProviderDisplayName(),
-		User:      userID,
-		LogoutUrl: getPortalURI(c, portal.Name) + "/logout",
-	})
-}
-
 // RouteGetAuthSignin is the handler for GET /portals/:portal/signin
 // It displays the list of providers
 func (s *Server) RouteGetAuthSignin(c *gin.Context) {
@@ -231,56 +204,6 @@ func (s *Server) RouteGetAuthSignin(c *gin.Context) {
 
 	// Render the template
 	s.renderSigninTemplate(c, portal, stateCookieID, content.nonce, logoutBanner)
-}
-
-func (s *Server) renderSigninTemplate(c *gin.Context, portal Portal, stateCookieID string, nonce string, logoutBanner bool) {
-	conf := config.Get()
-
-	//nolint:revive
-	type signingTemplateData_Provider struct {
-		Color       string
-		DisplayName string
-		Href        string
-		Svg         template.HTML
-	}
-
-	type signinTemplateData struct {
-		Title        string
-		BaseUrl      string
-		Providers    []signingTemplateData_Provider
-		LogoutBanner bool
-	}
-
-	data := signinTemplateData{
-		Title:        portal.DisplayName,
-		BaseUrl:      conf.Server.BasePath,
-		Providers:    make([]signingTemplateData_Provider, 0, len(portal.Providers)),
-		LogoutBanner: logoutBanner,
-	}
-	for _, name := range portal.ProvidersList {
-		provider := portal.Providers[name]
-
-		pd := signingTemplateData_Provider{
-			Color:       provider.GetProviderColor(),
-			DisplayName: provider.GetProviderDisplayName(),
-			Href:        getPortalURI(c, portal.Name) + "/providers/" + name + "?state=" + stateCookieID + "~" + nonce,
-		}
-
-		iconStr, ok := s.icons[provider.GetProviderIcon()]
-		if ok && iconStr != "" {
-			//nolint:gosec
-			pd.Svg = template.HTML(iconStr)
-		} else {
-			// Default is to add an empty svg, to ensure elements are aligned
-			//nolint:gosec
-			pd.Svg = template.HTML(`<svg class="provider-icon" aria-hidden="true"></svg>`)
-		}
-
-		data.Providers = append(data.Providers, pd)
-	}
-
-	c.Header("Content-Security-Policy", pagesContentSecurityHeader)
-	c.HTML(http.StatusOK, "signin.html.tpl", data)
 }
 
 func (s *Server) parseStateParamPreAuth(c *gin.Context, portal Portal) (stateCookieContent, string, error) {

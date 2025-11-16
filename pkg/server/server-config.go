@@ -24,6 +24,12 @@ func GetPortalsConfig(ctx context.Context, conf *config.Config) (map[string]Port
 			AuthenticationTimeout: p.AuthenticationTimeout,
 			AlwaysShowSigninPage:  p.AlwaysShowProvidersPage,
 		}
+
+		err = setPagesPortalConfig(p, &portal)
+		if err != nil {
+			return nil, fmt.Errorf("configuration for portal '%s' is invalid: %w", p.Name, err)
+		}
+
 		for i, p := range providers {
 			name := p.GetProviderName()
 			portal.Providers[name] = p

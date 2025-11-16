@@ -35,6 +35,8 @@
 | <a id="config-opt-portals-portals-$-displayname"></a>`portals.$.displayName` | string | Optional display name.<br>Defaults to the `name` property if not set.|  |
 | <a id="config-opt-portals-portals-$-alwaysshowproviderspage"></a>`portals.$.alwaysShowProvidersPage` | boolean | If true, always shows the providers selection page, even when there's a single provider configured.<br>Has no effect when there's more than one provider configured.| Default: _false_ |
 | <a id="config-opt-portals-portals-$-authenticationtimeout"></a>`portals.$.authenticationTimeout` | duration | Timeout for authenticating with the authentication provider.| Default: _5m_ |
+| <a id="config-opt-portals-portals-$-backgroundmedium"></a>`portals.$.backgroundMedium` | string | URL to override the background image for the portal, size medium.<br>The recommended size is 720x1080.|  |
+| <a id="config-opt-portals-portals-$-backgroundlarge"></a>`portals.$.backgroundLarge` | string | URL to override the background image for the portal, size large.<br>The recommended size is 940x1410.|  |
 | <a id="config-opt-providers"></a>`providers`| list of [provider configurations](#provider-configuration) | List of allowed authentication providers<br>See the [provider configuration](#provider-configuration) section for more details. | **Required**<br>At least one provider is required. |
 
 ## Provider Configuration

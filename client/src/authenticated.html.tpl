@@ -11,8 +11,8 @@
 <style>
 @layer theme {
     :root {
-        --bg-image-lg: url(img/greta-farnedi-EAt30ojfzOI-unsplash-lg.webp);
-        --bg-image-md: url(img/greta-farnedi-EAt30ojfzOI-unsplash-md.webp);
+        --bg-image-lg: url({{ .BackgroundLarge }});
+        --bg-image-md: url({{ .BackgroundMedium }});
     }
 }
 </style>

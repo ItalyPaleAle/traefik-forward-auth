@@ -479,6 +479,9 @@ type Portal struct {
 	ProvidersList         []string
 	AuthenticationTimeout time.Duration
 	AlwaysShowSigninPage  bool
+	PagesBackgroundLarge  string
+	PagesBackgroundMedium string
+	PagesCSPHeader        string
 }
 
 type cachedPredicate struct {
