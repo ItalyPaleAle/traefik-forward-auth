@@ -8,6 +8,15 @@
     <link rel="stylesheet" href="{{ .BaseUrl }}/style.css">
 </head>
 
+<style>
+@layer theme {
+    :root {
+        --bg-image-lg: url(img/greta-farnedi-EAt30ojfzOI-unsplash-lg.webp);
+        --bg-image-md: url(img/greta-farnedi-EAt30ojfzOI-unsplash-md.webp);
+    }
+}
+</style>
+
 <body class="bg-gray-100 dark:bg-gray-900 h-dvh">
     <div class="
         bg-(image:--bg-image-md) md:bg-(image:--bg-image-lg) lg:bg-none

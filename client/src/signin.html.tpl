@@ -8,6 +8,15 @@
     <link rel="stylesheet" href="{{ .BaseUrl }}/style.css">
 </head>
 
+<style>
+@layer theme {
+    :root {
+        --bg-image-lg: url(img/greta-farnedi-EAt30ojfzOI-unsplash-lg.webp);
+        --bg-image-md: url(img/greta-farnedi-EAt30ojfzOI-unsplash-md.webp);
+    }
+}
+</style>
+
 <body class="flex flex-col bg-gray-100 dark:bg-gray-900 h-dvh">
     {{ if .LogoutBanner }}
     <div class="w-full p-1 pb-1.5 lg:p-2 lg:pb-2" role="alert">
