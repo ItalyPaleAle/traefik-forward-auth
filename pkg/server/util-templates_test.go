@@ -255,7 +255,7 @@ func TestSetPagesPortalConfig(t *testing.T) {
 		// Verify the CSP header contains all required directives
 		cspHeader := portal.PagesCSPHeader
 		assert.Contains(t, cspHeader, "default-src 'none'")
-		assert.Contains(t, cspHeader, "script-src 'none'")
+		assert.Contains(t, cspHeader, "script-src 'self'")
 		assert.Contains(t, cspHeader, "style-src 'self' 'unsafe-inline'")
 		assert.Contains(t, cspHeader, "img-src 'self'")
 		assert.Contains(t, cspHeader, "font-src 'self'")
