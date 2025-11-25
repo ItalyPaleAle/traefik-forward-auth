@@ -11,15 +11,13 @@ import (
 	"strings"
 	"time"
 
-	"github.com/gin-gonic/gin"
 	"github.com/italypaleale/traefik-forward-auth/client"
+	"github.com/italypaleale/traefik-forward-auth/pkg/config"
+
+	"github.com/gin-gonic/gin"
 )
 
 func (s *Server) addStaticRoutes(basePath string) error {
-	// Go does not save the last modification time for embedded files
-	// As a workaround, we set the time the app started as modification time
-	lastModifiedHeader := s.startTime.Format(time.RFC1123)
-
 	// Static images
 	imgPath := path.Join(basePath, "img")
 	if !strings.HasPrefix(imgPath, "/") {
@@ -40,23 +38,52 @@ func (s *Server) addStaticRoutes(basePath string) error {
 
 	// Use custom static file handler with cache control headers
 	// Gin's Serve* methods do not allow setting custom headers
-	s.appRouter.GET(imgPath+"/*filepath", func(c *gin.Context) {
+	s.appRouter.GET(
+		imgPath+"/*filepath",
+		// Add cache-control header for static assets to cache for 30 days
+		s.serveWithCacheControl(imgHandler, 30*86400),
+	)
+
+	// Add a route for static compiled assets
+	s.appRouter.GET(
+		path.Join(basePath, "style.css"),
+		// Replace the path in the request with just the file name
+		// This way, assetsHandler can find it in its virtual FS
+		replaceRequestPath("style.css"),
+		// Add cache-control header for static assets to cache for 30 days
+		s.serveWithCacheControl(assetsHandler, 30*86400),
+	)
+
+	return nil
+}
+
+func (s *Server) serveWithCacheControl(handler http.Handler, cacheMaxAge int64) func(c *gin.Context) {
+	cfg := config.Get()
+
+	cacheControlHeader := fmt.Sprintf("public, max-age=%d", cacheMaxAge)
+
+	// Go does not save the last modification time for embedded files
+	// As a workaround, we set the time the app started as modification time
+	lastModifiedHeader := s.startTime.Format(time.RFC1123)
+
+	if cfg.Dev.DisableClientCache {
+		return func(c *gin.Context) {
+			handler.ServeHTTP(c.Writer, c.Request)
+		}
+	}
+
+	return func(c *gin.Context) {
 		if s.isNotModified(c) {
 			// Request has already been aborted
 			return
 		}
 
-		// Add cache-control header for static assets to cache for 30 days
-		c.Header("Cache-Control", "public, max-age=2592000, immutable")
+		// Add cache-control and last-modified header
+		c.Header("Cache-Control", cacheControlHeader)
 		c.Header("Last-Modified", lastModifiedHeader)
 
-		imgHandler.ServeHTTP(c.Writer, c.Request)
-	})
-
-	// Add a route for static compiled assets
-	s.appRouter.GET(path.Join(basePath, "style.css"), s.serveCompiledAsset(assetsHandler, "style.css"))
-
-	return nil
+		handler.ServeHTTP(c.Writer, c.Request)
+	}
 }
 
 func (s *Server) isNotModified(c *gin.Context) bool {
@@ -76,35 +103,16 @@ func (s *Server) isNotModified(c *gin.Context) bool {
 	return true
 }
 
-func (s *Server) serveCompiledAsset(assetsHandler http.Handler, path string) func(c *gin.Context) {
-	lastModifiedHeader := s.startTime.Format(time.RFC1123)
-
+func replaceRequestPath(path string) func(c *gin.Context) {
 	return func(c *gin.Context) {
-		// Replace the path in the request with just the file name
-		// This way, assetsHandler can find it in its virtual FS
-		r := replaceRequestPath(c, path)
-
-		if s.isNotModified(c) {
-			// Request has already been aborted
-			return
-		}
-
-		// Add cache-control header for static assets to cache for 1 hour
-		c.Header("Cache-Control", "public, max-age=3600")
-		c.Header("Last-Modified", lastModifiedHeader)
-
-		assetsHandler.ServeHTTP(c.Writer, r)
+		r := new(http.Request)
+		*r = *c.Request
+		r.URL = new(url.URL)
+		*r.URL = *c.Request.URL
+		r.URL.Path = "/" + path
+		r.URL.RawPath = "/" + path
+		c.Request = r
 	}
-}
-
-func replaceRequestPath(c *gin.Context, path string) *http.Request {
-	r := new(http.Request)
-	*r = *c.Request
-	r.URL = new(url.URL)
-	*r.URL = *c.Request.URL
-	r.URL.Path = "/" + path
-	r.URL.RawPath = "/" + path
-	return r
 }
 
 func (s *Server) loadTemplates(router *gin.Engine) error {

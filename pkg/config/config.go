@@ -50,7 +50,7 @@ type Config struct {
 	Portals []ConfigPortal `yaml:"portals"`
 
 	// Dev is meant for development only; it's undocumented
-	Dev ConfigDev `yaml:"-"`
+	Dev ConfigDev `yaml:"dev" ignoredocs:"true"`
 
 	// Internal keys
 	internal internal `yaml:"-"`
@@ -228,7 +228,8 @@ type ConfigPortalProvider struct {
 
 // ConfigDev includes options using during development only
 type ConfigDev struct {
-	// Empty for now
+	// If true, disables caching on the client
+	DisableClientCache bool `yaml:"disableClientCache" ignoredocs:"true"`
 }
 
 // Internal properties
@@ -484,6 +485,9 @@ func (v *ConfigPortalProvider) Parse(c *Config) (err error) {
 	case v.TailscaleWhois != nil:
 		v.TailscaleWhois.Name, err = sanitizeProviderName(v.TailscaleWhois.Name)
 		v.configParsed = v.TailscaleWhois
+	case v.PocketID != nil:
+		v.PocketID.Name, err = sanitizeProviderName(v.PocketID.Name)
+		v.configParsed = v.PocketID
 	case v.TestProvider != nil:
 		fn, ok := testProviderConfigFactory[*v.TestProvider]
 		if !ok {
