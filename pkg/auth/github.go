@@ -50,7 +50,7 @@ func NewGitHub(opts NewGitHubOptions) (*GitHub, error) {
 		DisplayName: "GitHub",
 		Name:        providerType,
 		Icon:        "github",
-		Color:       "green-to-blue",
+		Color:       "emerald",
 	}
 	oauth2, err := NewOAuth2(providerType, metadata, NewOAuth2Options{
 		Config: OAuth2Config{

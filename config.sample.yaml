@@ -253,7 +253,7 @@ portals:
           ## Description:
           ##   Optional color scheme for the provider
           ##   Defaults to the standard color for the provider
-          #color: "green-to-blue"
+          #color: "emerald"
 
       ## Google provider
       ## Example configuration for provider Google
@@ -310,7 +310,7 @@ portals:
           ## Description:
           ##   Optional color scheme for the provider
           ##   Defaults to the standard color for the provider
-          #color: "red-to-yellow"
+          #color: "yellow"
 
       ## Microsoft Entra ID provider
       ## Example configuration for provider Microsoft Entra ID
@@ -354,7 +354,7 @@ portals:
           ## Description:
           ##   File containing the client secret for the Microsoft Entra ID application.
           ##   This is an alternative to passing the secret as `clientSecret`
-          #clientSecretFile: "/var/run/secrets/traefik-forward-auth/client-secret"
+          #clientSecretFile: "/var/run/secrets/traefik-forward-auth/microsoft-entra-id/client-secret"
 
           ## portals.$.providers.$.microsoftEntraID.azureFederatedIdentity (string)
           ## Description:
@@ -383,7 +383,7 @@ portals:
           ## Description:
           ##   Optional color scheme for the provider
           ##   Defaults to the standard color for the provider
-          #color: "teal-to-lime"
+          #color: "cyan"
 
       ## OpenID Connect provider
       ## Example configuration for provider OpenID Connect
@@ -467,7 +467,90 @@ portals:
           ## Description:
           ##   Optional color scheme for the provider
           ##   Defaults to the standard color for the provider
-          #color: "purple-to-pink"
+          #color: "pink"
+
+      ## Pocket ID provider
+      ## Example configuration for provider Pocket ID
+      - 
+        ## portals.$.providers.$.pocketID
+        ## Description:
+        ##   Use PocketID as authentication provider
+        pocketID:
+          ## portals.$.providers.$.pocketID.name (string)
+          ## Description:
+          ##   Name of the authentication provider
+          ##   Defaults to the name of the provider type
+          #name: "my-pocketid-auth"
+
+          ## portals.$.providers.$.pocketID.displayName (string)
+          ## Description:
+          ##   Optional display name for the provider
+          ##   Defaults to the standard display name for the provider
+          #displayName: "Pocket ID"
+
+          ## portals.$.providers.$.pocketID.endpoint (string)
+          ## Description:
+          ##   Pocket ID server endpoint
+          ## Required
+          endpoint: "https://pocketidid.example.com"
+
+          ## portals.$.providers.$.pocketID.clientID (string)
+          ## Description:
+          ##   Client ID for the client application
+          ## Required
+          clientID: "your-client-id"
+
+          ## portals.$.providers.$.pocketID.clientSecret (string)
+          ## Description:
+          ##   Client secret for the client application
+          ## Required
+          clientSecret: "your-client-secret"
+
+          ## portals.$.providers.$.pocketID.clientSecretFile (string)
+          ## Description:
+          ##   File containing the client secret for the client application
+          ##   This is an alternative to passing the secret as `clientSecret`
+          #clientSecretFile: "/var/run/secrets/traefik-forward-auth/pocketid/client-secret"
+
+          ## portals.$.providers.$.pocketID.requestTimeout (duration)
+          ## Description:
+          ##   Timeout for network requests for Pocket ID auth
+          ## Default: "10s"
+          #requestTimeout: "10s"
+
+          ## portals.$.providers.$.pocketID.enablePKCE (boolean)
+          ## Description:
+          ##   If true, enables the use of PKCE during the code exchange.
+          ## Default: false
+          #enablePKCE: false
+
+          ## portals.$.providers.$.pocketID.tlsInsecureSkipVerify (boolean)
+          ## Description:
+          ##   If true, skips validating TLS certificates when connecting to the Pocket ID server.
+          ## Default: false
+          #tlsInsecureSkipVerify: false
+
+          ## portals.$.providers.$.pocketID.tlsCACertificatePEM (string)
+          ## Description:
+          ##   Optional PEM-encoded CA certificate to trust when connecting to the Pocket ID server.
+          #tlsCACertificatePEM: ""
+
+          ## portals.$.providers.$.pocketID.tlsCACertificatePath (string)
+          ## Description:
+          ##   Optional path to a CA certificate to trust when connecting to the Pocket ID server.
+          #tlsCACertificatePath: ""
+
+          ## portals.$.providers.$.pocketID.icon (string)
+          ## Description:
+          ##   Optional icon for the provider
+          ##   Defaults to the standard icon for the provider
+          #icon: "pocketid"
+
+          ## portals.$.providers.$.pocketID.color (string)
+          ## Description:
+          ##   Optional color scheme for the provider
+          ##   Defaults to the standard color for the provider
+          #color: "zinc"
 
       ## Tailscale Whois provider
       ## Example configuration for provider Tailscale Whois
@@ -509,5 +592,5 @@ portals:
           ## Description:
           ##   Optional color scheme for the provider
           ##   Defaults to the standard color for the provider
-          #color: "cyan-to-blue"
+          #color: "slate"
 

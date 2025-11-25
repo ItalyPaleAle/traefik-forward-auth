@@ -48,6 +48,7 @@ The configuration depends on the kind of provider used. Currently, the following
 - [Google](#using-google)
 - [Microsoft Entra ID](#using-microsoft-entra-id)
 - [OpenID Connect](#using-openid-connect)
+- [Pocket ID](#using-pocket-id)
 - [Tailscale Whois](#using-tailscale-whois)
 
 ### Using GitHub
@@ -79,7 +80,7 @@ portals:
           ## Default: "10s"
           #requestTimeout: "10s"
           #icon: "github"
-          #color: "green-to-blue"
+          #color: "emerald"
 ```
 
 ### Using Google
@@ -111,7 +112,7 @@ portals:
           ## Default: "10s"
           #requestTimeout: "10s"
           #icon: "google"
-          #color: "red-to-yellow"
+          #color: "yellow"
 ```
 
 ### Using Microsoft Entra ID
@@ -142,12 +143,12 @@ portals:
           tenantID: ""
           clientID: "your-client-id"
           #clientSecret: "your-client-secret"
-          #clientSecretFile: "/var/run/secrets/traefik-forward-auth/client-secret"
+          #clientSecretFile: "/var/run/secrets/traefik-forward-auth/microsoft-entra-id/client-secret"
           #azureFederatedIdentity: ""
           ## Default: "10s"
           #requestTimeout: "10s"
           #icon: "microsoft"
-          #color: "teal-to-lime"
+          #color: "cyan"
 ```
 
 ### Using OpenID Connect
@@ -191,7 +192,51 @@ portals:
           #tlsCACertificatePEM: ""
           #tlsCACertificatePath: ""
           #icon: "openid"
-          #color: "purple-to-pink"
+          #color: "pink"
+```
+
+### Using Pocket ID
+
+| Name | Type | Description | |
+| --- | --- | --- | --- |
+| <a id="config-opt-portals.$.providers.$-pocketid-portals-$-providers-$-pocketid-name"></a>`portals.$.providers.$.pocketID.name` | string | Name of the authentication provider<br>Defaults to the name of the provider type|  |
+| <a id="config-opt-portals.$.providers.$-pocketid-portals-$-providers-$-pocketid-displayname"></a>`portals.$.providers.$.pocketID.displayName` | string | Optional display name for the provider<br>Defaults to the standard display name for the provider|  |
+| <a id="config-opt-portals.$.providers.$-pocketid-portals-$-providers-$-pocketid-endpoint"></a>`portals.$.providers.$.pocketID.endpoint` | string | Pocket ID server endpoint| **Required** |
+| <a id="config-opt-portals.$.providers.$-pocketid-portals-$-providers-$-pocketid-clientid"></a>`portals.$.providers.$.pocketID.clientID` | string | Client ID for the client application| **Required** |
+| <a id="config-opt-portals.$.providers.$-pocketid-portals-$-providers-$-pocketid-clientsecret"></a>`portals.$.providers.$.pocketID.clientSecret` | string | Client secret for the client application| **Required** |
+| <a id="config-opt-portals.$.providers.$-pocketid-portals-$-providers-$-pocketid-clientsecretfile"></a>`portals.$.providers.$.pocketID.clientSecretFile` | string | File containing the client secret for the client application<br>This is an alternative to passing the secret as `clientSecret`|  |
+| <a id="config-opt-portals.$.providers.$-pocketid-portals-$-providers-$-pocketid-requesttimeout"></a>`portals.$.providers.$.pocketID.requestTimeout` | duration | Timeout for network requests for Pocket ID auth| Default: _"10s"_ |
+| <a id="config-opt-portals.$.providers.$-pocketid-portals-$-providers-$-pocketid-enablepkce"></a>`portals.$.providers.$.pocketID.enablePKCE` | boolean | If true, enables the use of PKCE during the code exchange.| Default: _false_ |
+| <a id="config-opt-portals.$.providers.$-pocketid-portals-$-providers-$-pocketid-tlsinsecureskipverify"></a>`portals.$.providers.$.pocketID.tlsInsecureSkipVerify` | boolean | If true, skips validating TLS certificates when connecting to the Pocket ID server.| Default: _false_ |
+| <a id="config-opt-portals.$.providers.$-pocketid-portals-$-providers-$-pocketid-tlscacertificatepem"></a>`portals.$.providers.$.pocketID.tlsCACertificatePEM` | string | Optional PEM-encoded CA certificate to trust when connecting to the Pocket ID server.|  |
+| <a id="config-opt-portals.$.providers.$-pocketid-portals-$-providers-$-pocketid-tlscacertificatepath"></a>`portals.$.providers.$.pocketID.tlsCACertificatePath` | string | Optional path to a CA certificate to trust when connecting to the Pocket ID server.|  |
+| <a id="config-opt-portals.$.providers.$-pocketid-portals-$-providers-$-pocketid-icon"></a>`portals.$.providers.$.pocketID.icon` | string | Optional icon for the provider<br>Defaults to the standard icon for the provider|  |
+| <a id="config-opt-portals.$.providers.$-pocketid-portals-$-providers-$-pocketid-color"></a>`portals.$.providers.$.pocketID.color` | string | Optional color scheme for the provider<br>Defaults to the standard color for the provider|  |
+
+Example:
+
+```yaml
+portals:
+  name: "default"
+  providers:
+    -
+        pocketID:
+          #name: "my-pocketid-auth"
+          #displayName: "Pocket ID"
+          endpoint: "https://pocketidid.example.com"
+          clientID: "your-client-id"
+          clientSecret: "your-client-secret"
+          #clientSecretFile: "/var/run/secrets/traefik-forward-auth/pocketid/client-secret"
+          ## Default: "10s"
+          #requestTimeout: "10s"
+          ## Default: false
+          #enablePKCE: false
+          ## Default: false
+          #tlsInsecureSkipVerify: false
+          #tlsCACertificatePEM: ""
+          #tlsCACertificatePath: ""
+          #icon: "pocketid"
+          #color: "zinc"
 ```
 
 ### Using Tailscale Whois
@@ -219,7 +264,7 @@ portals:
           ## Default: "10s"
           #requestTimeout: "10s"
           #icon: "tailscale"
-          #color: "cyan-to-blue"
+          #color: "slate"
 ```
 
 <!-- END CONFIG TABLE -->

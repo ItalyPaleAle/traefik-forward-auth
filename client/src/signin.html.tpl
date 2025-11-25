@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 
 <head>
     <meta charset="utf-8">
@@ -40,8 +40,8 @@
                     <h1 class="pb-2 text-2xl text-gray-900 dark:text-white md:text-3xl md:pb-4">{{ .Title }}</h1>
                     <div class="flex flex-col items-center justify-center space-y-2">
                         {{ range .Providers }}
-                        <a href="{{ .Href }}" class="relative w-full flex-1 flex-grow inline-flex items-center justify-center p-0.5 text-sm font-medium rounded-lg group bg-gradient-to-br {{ .Color }}">
-                            <span class="relative text-sm md:text-base w-full inline-flex items-center px-3 py-2 md:px-5 md:py-2.5 transition-all ease-in duration-75 bg-white dark:bg-gray-900 rounded-md group-hover:bg-transparent group-hover:dark:bg-transparent">
+                        <a href="{{ .Href }}" class="relative w-full flex-1 grow inline-flex items-center justify-center p-0.5 text-sm font-medium rounded-lg group text-gray-900 hover:text-white focus:ring-3  focus:ring-gray-400 focus:outline-none dark:text-white dark:focus:ring-gray-400 bg-gradient-to-br tfa-{{ .Color }}">
+                            <span class="relative text-sm md:text-base w-full inline-flex items-center px-3 py-2 md:px-5 md:py-2.5 transition-all ease-in duration-75 rounded-md bg-white hover:bg-transparent dark:bg-gray-900 group-hover:bg-transparent group-hover:dark:bg-transparent">
                                 {{ with .Svg }}{{ . }}{{ end }}
                                 {{ .DisplayName }}
                             </span>

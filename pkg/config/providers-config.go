@@ -54,7 +54,7 @@ type ProviderConfig_GitHub struct {
 	Icon string `yaml:"icon"`
 	// Optional color scheme for the provider
 	// Defaults to the standard color for the provider
-	// +example "green-to-blue"
+	// +example "emerald"
 	Color string `yaml:"color"`
 }
 
@@ -114,7 +114,7 @@ type ProviderConfig_Google struct {
 	Icon string `yaml:"icon"`
 	// Optional color scheme for the provider
 	// Defaults to the standard color for the provider
-	// +example "red-to-yellow"
+	// +example "yellow"
 	Color string `yaml:"color"`
 }
 
@@ -190,7 +190,7 @@ type ProviderConfig_MicrosoftEntraID struct {
 	Icon string `yaml:"icon"`
 	// Optional color scheme for the provider
 	// Defaults to the standard color for the provider
-	// +example "teal-to-lime"
+	// +example "cyan"
 	Color string `yaml:"color"`
 
 	config *Config
@@ -274,7 +274,7 @@ type ProviderConfig_OpenIDConnect struct {
 	Icon string `yaml:"icon"`
 	// Optional color scheme for the provider
 	// Defaults to the standard color for the provider
-	// +example "purple-to-pink"
+	// +example "pink"
 	Color string `yaml:"color"`
 
 	config *Config
@@ -332,54 +332,6 @@ func (p *ProviderConfig_OpenIDConnect) GetProviderMetadata() auth.ProviderMetada
 	}
 }
 
-// ProviderConfig_TailscaleWhois is the configuration for the Tailscale Whois provider
-// +name tailscalewhois
-// +displayName Tailscale Whois
-type ProviderConfig_TailscaleWhois struct {
-	// Name of the authentication provider
-	// Defaults to the name of the provider type
-	// +example "my-tailscale-whois-auth"
-	Name string `yaml:"name"`
-	// Optional display name for the provider
-	// Defaults to the standard display name for the provider
-	// +example "Tailscale Whois"
-	DisplayName string `yaml:"displayName"`
-	// If non-empty, requires the Tailnet of the user to match this value
-	// +example "yourtailnet.ts.net"
-	AllowedTailnet string `yaml:"allowedTailnet"`
-	// Timeout for network requests for Tailscale Whois auth
-	// +default "10s"
-	RequestTimeout time.Duration `yaml:"requestTimeout"`
-	// Optional icon for the provider
-	// Defaults to the standard icon for the provider
-	// +example "tailscale"
-	Icon string `yaml:"icon"`
-	// Optional color scheme for the provider
-	// Defaults to the standard color for the provider
-	// +example "cyan-to-blue"
-	Color string `yaml:"color"`
-}
-
-func (p *ProviderConfig_TailscaleWhois) GetAuthProvider(_ context.Context) (auth.Provider, error) {
-	return auth.NewTailscaleWhois(auth.NewTailscaleWhoisOptions{
-		AllowedTailnet: p.AllowedTailnet,
-		RequestTimeout: p.RequestTimeout,
-	})
-}
-
-func (p *ProviderConfig_TailscaleWhois) SetConfigObject(_ *Config) {
-	// Nop for this provider
-}
-
-func (p *ProviderConfig_TailscaleWhois) GetProviderMetadata() auth.ProviderMetadata {
-	return auth.ProviderMetadata{
-		Name:        p.Name,
-		DisplayName: p.DisplayName,
-		Icon:        p.Icon,
-		Color:       p.Color,
-	}
-}
-
 // ProviderConfig_PocketID is the configuration for the Pocket ID provider
 // +name pocketid
 // +displayName Pocket ID
@@ -427,7 +379,7 @@ type ProviderConfig_PocketID struct {
 	Icon string `yaml:"icon"`
 	// Optional color scheme for the provider
 	// Defaults to the standard color for the provider
-	// +example "purple-to-pink"
+	// +example "zinc"
 	Color string `yaml:"color"`
 
 	config *Config
@@ -477,6 +429,54 @@ func (p *ProviderConfig_PocketID) SetConfigObject(c *Config) {
 }
 
 func (p *ProviderConfig_PocketID) GetProviderMetadata() auth.ProviderMetadata {
+	return auth.ProviderMetadata{
+		Name:        p.Name,
+		DisplayName: p.DisplayName,
+		Icon:        p.Icon,
+		Color:       p.Color,
+	}
+}
+
+// ProviderConfig_TailscaleWhois is the configuration for the Tailscale Whois provider
+// +name tailscalewhois
+// +displayName Tailscale Whois
+type ProviderConfig_TailscaleWhois struct {
+	// Name of the authentication provider
+	// Defaults to the name of the provider type
+	// +example "my-tailscale-whois-auth"
+	Name string `yaml:"name"`
+	// Optional display name for the provider
+	// Defaults to the standard display name for the provider
+	// +example "Tailscale Whois"
+	DisplayName string `yaml:"displayName"`
+	// If non-empty, requires the Tailnet of the user to match this value
+	// +example "yourtailnet.ts.net"
+	AllowedTailnet string `yaml:"allowedTailnet"`
+	// Timeout for network requests for Tailscale Whois auth
+	// +default "10s"
+	RequestTimeout time.Duration `yaml:"requestTimeout"`
+	// Optional icon for the provider
+	// Defaults to the standard icon for the provider
+	// +example "tailscale"
+	Icon string `yaml:"icon"`
+	// Optional color scheme for the provider
+	// Defaults to the standard color for the provider
+	// +example "slate"
+	Color string `yaml:"color"`
+}
+
+func (p *ProviderConfig_TailscaleWhois) GetAuthProvider(_ context.Context) (auth.Provider, error) {
+	return auth.NewTailscaleWhois(auth.NewTailscaleWhoisOptions{
+		AllowedTailnet: p.AllowedTailnet,
+		RequestTimeout: p.RequestTimeout,
+	})
+}
+
+func (p *ProviderConfig_TailscaleWhois) SetConfigObject(_ *Config) {
+	// Nop for this provider
+}
+
+func (p *ProviderConfig_TailscaleWhois) GetProviderMetadata() auth.ProviderMetadata {
 	return auth.ProviderMetadata{
 		Name:        p.Name,
 		DisplayName: p.DisplayName,
