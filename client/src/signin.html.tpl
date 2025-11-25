@@ -38,9 +38,9 @@
                     <h1 class="pb-2 text-2xl md:text-3xl md:pb-4">{{ .Title }}</h1>
                     <div class="flex flex-col items-center justify-center space-y-2">
                         {{ range .Providers }}
-                        <a href="{{ .Href }}" class="provider-button tfa-{{ .Color }}">
-                            <span class="provider-button-inner">
-                                {{ with .Svg }}{{ . }}{{ end }}
+                        <a href="{{ .Href }}" class="provider-button group tfa-{{ .Color }}">
+                            <span class="provider-button-inner" data-svg-icon="{{ .Icon }}">
+                                <svg class="provider-icon" aria-hidden="true"></svg>
                                 {{ .DisplayName }}
                             </span>
                         </a>
@@ -52,5 +52,7 @@
         </div>
     </div>
 </body>
+
+<script src="{{ .BaseUrl }}/icons.js"></script>
 
 </html>

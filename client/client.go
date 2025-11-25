@@ -10,8 +10,6 @@ var (
 	dist embed.FS
 	//go:embed static
 	static embed.FS
-	//go:embed icons
-	icons embed.FS
 )
 
 // Assets contains the templates and compiled assets
@@ -22,9 +20,4 @@ func Assets() (fs.FS, error) {
 // StaticImg contains static images, and can be served as-is
 func StaticImg() (fs.FS, error) {
 	return fs.Sub(static, "static/img")
-}
-
-// Icons contains all SVG icons
-func Icons() embed.FS {
-	return icons
 }

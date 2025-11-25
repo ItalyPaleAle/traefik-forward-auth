@@ -2,7 +2,6 @@ package server
 
 import (
 	"fmt"
-	"html/template"
 	"net/http"
 	"net/url"
 
@@ -17,7 +16,7 @@ const (
 	defaultPagesBackgroundLarge  = "img/greta-farnedi-EAt30ojfzOI-unsplash-lg.webp"
 
 	// Format string for the Content-Security-Policy header for templated pages
-	pagesContentSecurityHeaderFmt = `default-src 'none'; script-src 'none'; style-src 'self' 'unsafe-inline'; img-src 'self'%s; font-src 'self'`
+	pagesContentSecurityHeaderFmt = `default-src 'none'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self'%s; font-src 'self'`
 )
 
 func getCSPOriginFromUrl(str string) (string, error) {
@@ -99,7 +98,7 @@ func (s *Server) renderSigninTemplate(c *gin.Context, portal *Portal, stateCooki
 		Color       string
 		DisplayName string
 		Href        string
-		Svg         template.HTML
+		Icon        string
 	}
 
 	type signinTemplateData struct {
@@ -124,23 +123,12 @@ func (s *Server) renderSigninTemplate(c *gin.Context, portal *Portal, stateCooki
 	for _, name := range portal.ProvidersList {
 		provider := portal.Providers[name]
 
-		pd := signingTemplateData_Provider{
+		data.Providers[i] = signingTemplateData_Provider{
 			Color:       provider.GetProviderColor(),
 			DisplayName: provider.GetProviderDisplayName(),
 			Href:        getPortalURI(c, portal.Name) + "/providers/" + name + "?state=" + stateCookieID + "~" + nonce,
+			Icon:        provider.GetProviderIcon(),
 		}
-
-		iconStr, ok := s.icons[provider.GetProviderIcon()]
-		if ok && iconStr != "" {
-			//nolint:gosec
-			pd.Svg = template.HTML(iconStr)
-		} else {
-			// Default is to add an empty svg, to ensure elements are aligned
-			//nolint:gosec
-			pd.Svg = template.HTML(`<svg class="provider-icon" aria-hidden="true"></svg>`)
-		}
-
-		data.Providers[i] = pd
 		i++
 	}
 

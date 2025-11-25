@@ -41,23 +41,28 @@ func (s *Server) addStaticRoutes(basePath string) error {
 	s.appRouter.GET(
 		imgPath+"/*filepath",
 		// Add cache-control header for static assets to cache for 30 days
-		s.serveWithCacheControl(imgHandler, 30*86400),
+		s.serveWithCacheControl(imgHandler, "", 30*86400),
 	)
 
 	// Add a route for static compiled assets
-	s.appRouter.GET(
-		path.Join(basePath, "style.css"),
-		// Replace the path in the request with just the file name
-		// This way, assetsHandler can find it in its virtual FS
-		replaceRequestPath("style.css"),
-		// Add cache-control header for static assets to cache for 30 days
-		s.serveWithCacheControl(assetsHandler, 30*86400),
-	)
+	s.addStaticAssetRoute(basePath, "style.css", "text/css", assetsHandler)
+	s.addStaticAssetRoute(basePath, "icons.js", "application/javascript", assetsHandler)
 
 	return nil
 }
 
-func (s *Server) serveWithCacheControl(handler http.Handler, cacheMaxAge int64) func(c *gin.Context) {
+func (s *Server) addStaticAssetRoute(basePath string, assetName string, contentType string, assetsHandler http.Handler) {
+	s.appRouter.GET(
+		path.Join(basePath, assetName),
+		// Replace the path in the request with just the file name
+		// This way, assetsHandler can find it in its virtual FS
+		replaceRequestPath(assetName),
+		// Add cache-control header for static assets to cache for 30 days
+		s.serveWithCacheControl(assetsHandler, contentType, 30*86400),
+	)
+}
+
+func (s *Server) serveWithCacheControl(handler http.Handler, contentType string, cacheMaxAge int64) func(c *gin.Context) {
 	cfg := config.Get()
 
 	cacheControlHeader := fmt.Sprintf("public, max-age=%d", cacheMaxAge)
@@ -68,6 +73,9 @@ func (s *Server) serveWithCacheControl(handler http.Handler, cacheMaxAge int64) 
 
 	if cfg.Dev.DisableClientCache {
 		return func(c *gin.Context) {
+			if contentType != "" {
+				c.Header("Content-Type", contentType)
+			}
 			handler.ServeHTTP(c.Writer, c.Request)
 		}
 	}
@@ -82,6 +90,9 @@ func (s *Server) serveWithCacheControl(handler http.Handler, cacheMaxAge int64) 
 		c.Header("Cache-Control", cacheControlHeader)
 		c.Header("Last-Modified", lastModifiedHeader)
 
+		if contentType != "" {
+			c.Header("Content-Type", contentType)
+		}
 		handler.ServeHTTP(c.Writer, c.Request)
 	}
 }
@@ -128,33 +139,6 @@ func (s *Server) loadTemplates(router *gin.Engine) error {
 		return fmt.Errorf("failed to parse templates: %w", err)
 	}
 	router.SetHTMLTemplate(s.templates)
-
-	// Read all icons
-	iconsFS := client.Icons()
-	entries, err := iconsFS.ReadDir("icons")
-	if err != nil {
-		return fmt.Errorf("failed to read embedded icons directory: %w", err)
-	}
-	s.icons = make(map[string]string, len(entries))
-	for _, e := range entries {
-		if e.IsDir() {
-			// There shouldn't be any directory
-			continue
-		}
-		name := e.Name()
-		ext := filepath.Ext(name)
-		if ext != ".svg" {
-			// All files should be SVGs
-			continue
-		}
-		iconName := name[0 : len(name)-4]
-		var iconData []byte
-		iconData, err = iconsFS.ReadFile("icons/" + name)
-		if err != nil {
-			return fmt.Errorf("failed to read embedded icon '%s': %w", name, err)
-		}
-		s.icons[iconName] = string(iconData)
-	}
 
 	return nil
 }

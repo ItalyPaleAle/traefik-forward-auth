@@ -1,6 +1,5 @@
-'use strict'
-
 (function() {
+    'use strict'
 
     // Icon data
     const icons = {/*ICONS_DATA*/}
@@ -10,11 +9,11 @@
         const elements = document.querySelectorAll('[data-svg-icon]')
         elements.forEach(function(element) {
             const iconName = element.getAttribute('data-svg-icon')
+            // Insert the SVG at the start of the element, replacing the default empty SVG (required to ensure alignment and avoid content shift)
             if (icons[iconName]) {
-                // Insert the SVG at the start of the element
-                element.insertAdjacentHTML('afterbegin', icons[iconName])
-            } else {
-                console.warn('Icon not found: ' + iconName)
+                const tpl = document.createElement('template')
+                tpl.innerHTML = icons[iconName]
+                element.replaceChild(tpl.content.firstElementChild, element.firstElementChild)
             }
         })
     }
