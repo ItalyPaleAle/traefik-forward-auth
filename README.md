@@ -45,6 +45,7 @@ ghcr.io/italypaleale/traefik-forward-auth:4.x.x
   - [Google](./docs/05-supported-providers.md#google)
   - [Microsoft Entra ID](./docs/05-supported-providers.md#microsoft-entra-id)
   - [Other OpenID Connect providers](./docs/05-supported-providers.md#other-openid-connect-providers)
+  - [Pocket ID](./docs/05-supported-providers.md#pocket-id)
   - [Tailscale Whois](./docs/05-supported-providers.md#tailscale-whois)
 - [**🔐 Authorization conditions**](./docs/06-authorization-conditions.md)
   - [Using conditions](./docs/06-authorization-conditions.md#using-conditions)
