@@ -91,7 +91,7 @@ func TestSetPagesPortalConfig(t *testing.T) {
 		assert.Equal(t, defaultPagesBackgroundMedium, portal.PagesBackgroundMedium)
 		assert.Equal(t, defaultPagesBackgroundLarge, portal.PagesBackgroundLarge)
 		// When no external images are used, the CSP header should just have 'self'
-		expectedHeader := `default-src 'none'; script-src 'none'; style-src 'self' 'unsafe-inline'; img-src 'self'; font-src 'self'`
+		expectedHeader := `default-src 'none'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self'; font-src 'self'`
 		assert.Equal(t, expectedHeader, portal.PagesCSPHeader)
 	})
 
@@ -106,7 +106,7 @@ func TestSetPagesPortalConfig(t *testing.T) {
 
 		assert.Equal(t, defaultPagesBackgroundMedium, portal.PagesBackgroundMedium)
 		assert.Equal(t, "https://cdn.example.com/large-bg.jpg", portal.PagesBackgroundLarge)
-		expectedHeader := `default-src 'none'; script-src 'none'; style-src 'self' 'unsafe-inline'; img-src 'self' https://cdn.example.com; font-src 'self'`
+		expectedHeader := `default-src 'none'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' https://cdn.example.com; font-src 'self'`
 		assert.Equal(t, expectedHeader, portal.PagesCSPHeader)
 	})
 
@@ -121,7 +121,7 @@ func TestSetPagesPortalConfig(t *testing.T) {
 
 		assert.Equal(t, "https://images.example.com/medium-bg.jpg", portal.PagesBackgroundMedium)
 		assert.Equal(t, defaultPagesBackgroundLarge, portal.PagesBackgroundLarge)
-		expectedHeader := `default-src 'none'; script-src 'none'; style-src 'self' 'unsafe-inline'; img-src 'self' https://images.example.com; font-src 'self'`
+		expectedHeader := `default-src 'none'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' https://images.example.com; font-src 'self'`
 		assert.Equal(t, expectedHeader, portal.PagesCSPHeader)
 	})
 
@@ -138,7 +138,7 @@ func TestSetPagesPortalConfig(t *testing.T) {
 		assert.Equal(t, "https://cdn.example.com/medium.jpg", portal.PagesBackgroundMedium)
 		assert.Equal(t, "https://cdn.example.com/large.jpg", portal.PagesBackgroundLarge)
 		// Should only include the origin once in CSP
-		expectedHeader := `default-src 'none'; script-src 'none'; style-src 'self' 'unsafe-inline'; img-src 'self' https://cdn.example.com; font-src 'self'`
+		expectedHeader := `default-src 'none'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' https://cdn.example.com; font-src 'self'`
 		assert.Equal(t, expectedHeader, portal.PagesCSPHeader)
 	})
 
@@ -155,7 +155,7 @@ func TestSetPagesPortalConfig(t *testing.T) {
 		assert.Equal(t, "https://cdn2.example.com/medium.jpg", portal.PagesBackgroundMedium)
 		assert.Equal(t, "https://cdn1.example.com/large.jpg", portal.PagesBackgroundLarge)
 		// Should include both origins in CSP
-		expectedHeader := `default-src 'none'; script-src 'none'; style-src 'self' 'unsafe-inline'; img-src 'self' https://cdn1.example.com https://cdn2.example.com; font-src 'self'`
+		expectedHeader := `default-src 'none'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' https://cdn1.example.com https://cdn2.example.com; font-src 'self'`
 		assert.Equal(t, expectedHeader, portal.PagesCSPHeader)
 	})
 
@@ -172,7 +172,7 @@ func TestSetPagesPortalConfig(t *testing.T) {
 		assert.Equal(t, "http://cdn2.example.com/medium.jpg", portal.PagesBackgroundMedium)
 		assert.Equal(t, "http://cdn1.example.com/large.jpg", portal.PagesBackgroundLarge)
 		// HTTP URLs should not include the protocol in CSP
-		expectedHeader := `default-src 'none'; script-src 'none'; style-src 'self' 'unsafe-inline'; img-src 'self' cdn1.example.com cdn2.example.com; font-src 'self'`
+		expectedHeader := `default-src 'none'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' cdn1.example.com cdn2.example.com; font-src 'self'`
 		assert.Equal(t, expectedHeader, portal.PagesCSPHeader)
 	})
 
@@ -188,7 +188,7 @@ func TestSetPagesPortalConfig(t *testing.T) {
 
 		assert.Equal(t, "http://cdn2.example.com/medium.jpg", portal.PagesBackgroundMedium)
 		assert.Equal(t, "https://cdn1.example.com/large.jpg", portal.PagesBackgroundLarge)
-		expectedHeader := `default-src 'none'; script-src 'none'; style-src 'self' 'unsafe-inline'; img-src 'self' https://cdn1.example.com cdn2.example.com; font-src 'self'`
+		expectedHeader := `default-src 'none'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' https://cdn1.example.com cdn2.example.com; font-src 'self'`
 		assert.Equal(t, expectedHeader, portal.PagesCSPHeader)
 	})
 
@@ -205,7 +205,7 @@ func TestSetPagesPortalConfig(t *testing.T) {
 		assert.Equal(t, "https://cdn.example.com:9443/medium.jpg", portal.PagesBackgroundMedium)
 		assert.Equal(t, "https://cdn.example.com:8443/large.jpg", portal.PagesBackgroundLarge)
 		// Different ports mean different origins
-		expectedHeader := `default-src 'none'; script-src 'none'; style-src 'self' 'unsafe-inline'; img-src 'self' https://cdn.example.com:8443 https://cdn.example.com:9443; font-src 'self'`
+		expectedHeader := `default-src 'none'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' https://cdn.example.com:8443 https://cdn.example.com:9443; font-src 'self'`
 		assert.Equal(t, expectedHeader, portal.PagesCSPHeader)
 	})
 
@@ -222,7 +222,7 @@ func TestSetPagesPortalConfig(t *testing.T) {
 		assert.Equal(t, "/images/medium.jpg", portal.PagesBackgroundMedium)
 		assert.Equal(t, "/images/large.jpg", portal.PagesBackgroundLarge)
 		// Relative URLs have empty host, so CSP should just have img-src 'self'
-		expectedHeader := `default-src 'none'; script-src 'none'; style-src 'self' 'unsafe-inline'; img-src 'self'; font-src 'self'`
+		expectedHeader := `default-src 'none'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self'; font-src 'self'`
 		assert.Equal(t, expectedHeader, portal.PagesCSPHeader)
 	})
 
@@ -239,7 +239,7 @@ func TestSetPagesPortalConfig(t *testing.T) {
 		assert.Equal(t, "https://cdn.example.com/medium.jpg?width=1280&height=720", portal.PagesBackgroundMedium)
 		assert.Equal(t, "https://cdn.example.com/large.jpg?width=1920&height=1080", portal.PagesBackgroundLarge)
 		// Query parameters should not affect the origin in CSP
-		expectedHeader := `default-src 'none'; script-src 'none'; style-src 'self' 'unsafe-inline'; img-src 'self' https://cdn.example.com; font-src 'self'`
+		expectedHeader := `default-src 'none'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' https://cdn.example.com; font-src 'self'`
 		assert.Equal(t, expectedHeader, portal.PagesCSPHeader)
 		assert.NotContains(t, portal.PagesCSPHeader, "width=")
 		assert.NotContains(t, portal.PagesCSPHeader, "height=")
