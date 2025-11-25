@@ -7,7 +7,7 @@ rm -rvf dist/ || true
 mkdir -p dist
 
 # Build the CSS using Tailwind
-npx tailwindcss --minify --cwd src -i input.css -o ../dist/style.css
+npx tailwindcss --minify --cwd src -i style.css -o ../dist/style.css
 
 # Copy templates
 cp -v src/*.html.tpl dist/

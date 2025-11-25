@@ -19,14 +19,14 @@ body {
     @apply flex flex-row items-center justify-center flex-none h-full lg:block;
 
     & .layout-content {
-      @apply flex flex-col lg:flex-row lg:h-full lg:bg-white rounded-xl lg:rounded-r-4xl lg:rounded-l-md backdrop-blur-sm lg:backdrop-blur-none bg-white/90 dark:bg-gray-800/85 text-gray-900 dark:text-white;
+      @apply flex flex-col lg:flex-row lg:h-full lg:bg-white rounded-xl lg:rounded-r-4xl lg:rounded-l-md backdrop-blur-sm lg:backdrop-blur-none bg-white/90 dark:bg-gray-800/85 text-gray-900 dark:text-white shadow-xs lg:shadow-none;
 
       & .layout-content-main {
         @apply flex flex-col items-center justify-center flex-none px-10 py-6 space-y-2 md:py-8 md:px-14 lg:basis-2xl;
       }
 
       & .layout-content-side {
-        @apply hidden lg:block lg:flex-auto w-full h-full rounded-4xl bg-(image:--bg-image-md) bg-cover bg-center;
+        @apply hidden lg:block lg:flex-auto w-full h-full rounded-4xl bg-(image:--bg-image-md) bg-cover bg-center inset-shadow-xs;
       }
     }
   }
