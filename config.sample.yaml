@@ -252,6 +252,7 @@ portals:
           ## portals.$.providers.$.github.color (string)
           ## Description:
           ##   Optional color scheme for the provider
+          ##   Allowed values include all color schemes available in Tailwind 4
           ##   Defaults to the standard color for the provider
           #color: "emerald"
 
@@ -309,6 +310,7 @@ portals:
           ## portals.$.providers.$.google.color (string)
           ## Description:
           ##   Optional color scheme for the provider
+          ##   Allowed values include all color schemes available in Tailwind 4
           ##   Defaults to the standard color for the provider
           #color: "yellow"
 
@@ -382,6 +384,7 @@ portals:
           ## portals.$.providers.$.microsoftEntraID.color (string)
           ## Description:
           ##   Optional color scheme for the provider
+          ##   Allowed values include all color schemes available in Tailwind 4
           ##   Defaults to the standard color for the provider
           #color: "cyan"
 
@@ -466,6 +469,7 @@ portals:
           ## portals.$.providers.$.openIDConnect.color (string)
           ## Description:
           ##   Optional color scheme for the provider
+          ##   Allowed values include all color schemes available in Tailwind 4
           ##   Defaults to the standard color for the provider
           #color: "pink"
 
@@ -549,6 +553,7 @@ portals:
           ## portals.$.providers.$.pocketID.color (string)
           ## Description:
           ##   Optional color scheme for the provider
+          ##   Allowed values include all color schemes available in Tailwind 4
           ##   Defaults to the standard color for the provider
           #color: "zinc"
 
@@ -591,6 +596,7 @@ portals:
           ## portals.$.providers.$.tailscaleWhois.color (string)
           ## Description:
           ##   Optional color scheme for the provider
+          ##   Allowed values include all color schemes available in Tailwind 4
           ##   Defaults to the standard color for the provider
           #color: "slate"
 

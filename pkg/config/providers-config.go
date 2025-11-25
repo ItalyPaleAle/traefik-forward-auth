@@ -53,6 +53,7 @@ type ProviderConfig_GitHub struct {
 	// +example "github"
 	Icon string `yaml:"icon"`
 	// Optional color scheme for the provider
+	// Allowed values include all color schemes available in Tailwind 4
 	// Defaults to the standard color for the provider
 	// +example "emerald"
 	Color string `yaml:"color"`
@@ -113,6 +114,7 @@ type ProviderConfig_Google struct {
 	// +example "google"
 	Icon string `yaml:"icon"`
 	// Optional color scheme for the provider
+	// Allowed values include all color schemes available in Tailwind 4
 	// Defaults to the standard color for the provider
 	// +example "yellow"
 	Color string `yaml:"color"`
@@ -189,6 +191,7 @@ type ProviderConfig_MicrosoftEntraID struct {
 	// +example "microsoft"
 	Icon string `yaml:"icon"`
 	// Optional color scheme for the provider
+	// Allowed values include all color schemes available in Tailwind 4
 	// Defaults to the standard color for the provider
 	// +example "cyan"
 	Color string `yaml:"color"`
@@ -273,6 +276,7 @@ type ProviderConfig_OpenIDConnect struct {
 	// +example "openid"
 	Icon string `yaml:"icon"`
 	// Optional color scheme for the provider
+	// Allowed values include all color schemes available in Tailwind 4
 	// Defaults to the standard color for the provider
 	// +example "pink"
 	Color string `yaml:"color"`
@@ -378,6 +382,7 @@ type ProviderConfig_PocketID struct {
 	// +example "pocketid"
 	Icon string `yaml:"icon"`
 	// Optional color scheme for the provider
+	// Allowed values include all color schemes available in Tailwind 4
 	// Defaults to the standard color for the provider
 	// +example "zinc"
 	Color string `yaml:"color"`
@@ -460,6 +465,7 @@ type ProviderConfig_TailscaleWhois struct {
 	// +example "tailscale"
 	Icon string `yaml:"icon"`
 	// Optional color scheme for the provider
+	// Allowed values include all color schemes available in Tailwind 4
 	// Defaults to the standard color for the provider
 	// +example "slate"
 	Color string `yaml:"color"`

@@ -4,6 +4,7 @@
 - [Google](#google)
 - [Microsoft Entra ID](#microsoft-entra-id)
 - [Other OpenID Connect providers](#other-openid-connect-providers)
+- [Pocket ID](#pocket-id)
 - [Tailscale Whois](#tailscale-whois)
 
 ## GitHub
@@ -97,6 +98,25 @@ The OpenID Connect provider supports additional configuration options that can b
 - [`tlsCACertificatepath`](./03-all-configuration-options.md#config-opt-portals.$.providers.$-openidconnect-portals-$-providers-$-openidconnect-tlscacertificatepath): Path to a file containing the PEM-encoded CA certificate used when communicating with the Identity Provider.
 
 [Full list of configuration options for OpenID Connect and example](./03-all-configuration-options.md#using-openid-connect)
+
+## Pocket ID
+
+To use [Pocket ID](https://pocket-id.org/) for user authentication, create a new OAuth2 Client (application) and configure the callback to `https://<endpoint>/portals/<portal>/oauth2/callback` (see [examples](./02-configuration.md#exposing-traefik-forward-auth) depending on how Traefik Forward Auth is exposed).
+
+Configure a provider with these options in the `pocketID` property:
+
+- [`endpoint`](./03-all-configuration-options.md#config-opt-portals.$.providers.$-pocketid-portals-$-providers-$-pocketid-endpoint): Pocket ID server endpoint.  
+   This is generally a URL like `https://pocketidid.example.com`.
+- [`clientID`](./03-all-configuration-options.md#config-opt-portals.$.providers.$-pocketid-portals-$-providers-$-pocketid-clientid): Client ID of your application
+- [`clientSecret`](./03-all-configuration-options.md#config-opt-portals.$.providers.$-pocketid-portals-$-providers-$-pocketid-clientsecret): Client secret of your application
+
+The Pocket ID provider supports additional configuration options that can be helpful to configure how Traefik Forward Auth communicates with the Pocket ID:
+
+- [`tlsInsecureSkipVerify`](./03-all-configuration-options.md#config-opt-portals.$.providers.$-pocketID-portals-$-providers-$-pocketID-tlsinsecureskipverify): If true, skips validating TLS certificates when communicating with Pocket ID. While this option can enable support for self-signed TLS certificates, it should be used with caution.
+- [`tlsCACertificatePEM`](./03-all-configuration-options.md#config-opt-portals.$.providers.$-pocketID-portals-$-providers-$-pocketID-tlscacertificatepem): PEM-encoded CA certificate used when communicating with Pocket ID.
+- [`tlsCACertificatepath`](./03-all-configuration-options.md#config-opt-portals.$.providers.$-pocketID-portals-$-providers-$-pocketID-tlscacertificatepath): Path to a file containing the PEM-encoded CA certificate used when communicating with Pocket ID.
+
+[Full list of configuration options for Pocket ID and example](./03-all-configuration-options.md#using-pocketID)
 
 ## Tailscale Whois
 

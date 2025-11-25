@@ -62,7 +62,7 @@ The configuration depends on the kind of provider used. Currently, the following
 | <a id="config-opt-portals.$.providers.$-github-portals-$-providers-$-github-clientsecretfile"></a>`portals.$.providers.$.github.clientSecretFile` | string | File containing the client secret for the GitHub application<br>This is an alternative to passing the secret as `clientSecret`<br>One of `clientSecret` and `clientSecretFile` is required.|  |
 | <a id="config-opt-portals.$.providers.$-github-portals-$-providers-$-github-requesttimeout"></a>`portals.$.providers.$.github.requestTimeout` | duration | Timeout for network requests for GitHub auth| Default: _"10s"_ |
 | <a id="config-opt-portals.$.providers.$-github-portals-$-providers-$-github-icon"></a>`portals.$.providers.$.github.icon` | string | Optional icon for the provider<br>Defaults to the standard icon for the provider|  |
-| <a id="config-opt-portals.$.providers.$-github-portals-$-providers-$-github-color"></a>`portals.$.providers.$.github.color` | string | Optional color scheme for the provider<br>Defaults to the standard color for the provider|  |
+| <a id="config-opt-portals.$.providers.$-github-portals-$-providers-$-github-color"></a>`portals.$.providers.$.github.color` | string | Optional color scheme for the provider<br>Allowed values include all color schemes available in Tailwind 4<br>Defaults to the standard color for the provider|  |
 
 Example:
 
@@ -94,7 +94,7 @@ portals:
 | <a id="config-opt-portals.$.providers.$-google-portals-$-providers-$-google-clientsecretfile"></a>`portals.$.providers.$.google.clientSecretFile` | string | File containing the client secret for the Google auth application<br>This is an alternative to passing the secret as `clientSecret`<br>One of `clientSecret` and `clientSecretFile` is required.|  |
 | <a id="config-opt-portals.$.providers.$-google-portals-$-providers-$-google-requesttimeout"></a>`portals.$.providers.$.google.requestTimeout` | duration | Timeout for network requests for Google auth| Default: _"10s"_ |
 | <a id="config-opt-portals.$.providers.$-google-portals-$-providers-$-google-icon"></a>`portals.$.providers.$.google.icon` | string | Optional icon for the provider<br>Defaults to the standard icon for the provider|  |
-| <a id="config-opt-portals.$.providers.$-google-portals-$-providers-$-google-color"></a>`portals.$.providers.$.google.color` | string | Optional color scheme for the provider<br>Defaults to the standard color for the provider|  |
+| <a id="config-opt-portals.$.providers.$-google-portals-$-providers-$-google-color"></a>`portals.$.providers.$.google.color` | string | Optional color scheme for the provider<br>Allowed values include all color schemes available in Tailwind 4<br>Defaults to the standard color for the provider|  |
 
 Example:
 
@@ -128,7 +128,7 @@ portals:
 | <a id="config-opt-portals.$.providers.$-microsoftentraid-portals-$-providers-$-microsoftentraid-azurefederatedidentity"></a>`portals.$.providers.$.microsoftEntraID.azureFederatedIdentity` | string | Enables the usage of Federated Identity Credentials to obtain assertions for confidential clients for Microsoft Entra ID applications.<br>This is an alternative to using client secrets, when the application is running in Azure in an environment that supports Managed Identity, or in an environment that supports Workload Identity Federation with Microsoft Entra ID.<br>Currently, these values are supported:<br><br>- `ManagedIdentity`: uses a system-assigned managed identity<br>- `ManagedIdentity=client-id`: uses a user-assigned managed identity with client id "client-id" (e.g. "ManagedIdentity=00000000-0000-0000-0000-000000000000")<br>- `WorkloadIdentity`: uses workload identity, e.g. for Kubernetes|  |
 | <a id="config-opt-portals.$.providers.$-microsoftentraid-portals-$-providers-$-microsoftentraid-requesttimeout"></a>`portals.$.providers.$.microsoftEntraID.requestTimeout` | duration | Timeout for network requests for Microsoft Entra ID auth| Default: _"10s"_ |
 | <a id="config-opt-portals.$.providers.$-microsoftentraid-portals-$-providers-$-microsoftentraid-icon"></a>`portals.$.providers.$.microsoftEntraID.icon` | string | Optional icon for the provider<br>Defaults to the standard icon for the provider|  |
-| <a id="config-opt-portals.$.providers.$-microsoftentraid-portals-$-providers-$-microsoftentraid-color"></a>`portals.$.providers.$.microsoftEntraID.color` | string | Optional color scheme for the provider<br>Defaults to the standard color for the provider|  |
+| <a id="config-opt-portals.$.providers.$-microsoftentraid-portals-$-providers-$-microsoftentraid-color"></a>`portals.$.providers.$.microsoftEntraID.color` | string | Optional color scheme for the provider<br>Allowed values include all color schemes available in Tailwind 4<br>Defaults to the standard color for the provider|  |
 
 Example:
 
@@ -167,7 +167,7 @@ portals:
 | <a id="config-opt-portals.$.providers.$-openidconnect-portals-$-providers-$-openidconnect-tlscacertificatepem"></a>`portals.$.providers.$.openIDConnect.tlsCACertificatePEM` | string | Optional PEM-encoded CA certificate to trust when connecting to the OpenID Connect Identity Provider.|  |
 | <a id="config-opt-portals.$.providers.$-openidconnect-portals-$-providers-$-openidconnect-tlscacertificatepath"></a>`portals.$.providers.$.openIDConnect.tlsCACertificatePath` | string | Optional path to a CA certificate to trust when connecting to the OpenID Connect Identity Provider.|  |
 | <a id="config-opt-portals.$.providers.$-openidconnect-portals-$-providers-$-openidconnect-icon"></a>`portals.$.providers.$.openIDConnect.icon` | string | Optional icon for the provider<br>Defaults to the standard icon for the provider|  |
-| <a id="config-opt-portals.$.providers.$-openidconnect-portals-$-providers-$-openidconnect-color"></a>`portals.$.providers.$.openIDConnect.color` | string | Optional color scheme for the provider<br>Defaults to the standard color for the provider|  |
+| <a id="config-opt-portals.$.providers.$-openidconnect-portals-$-providers-$-openidconnect-color"></a>`portals.$.providers.$.openIDConnect.color` | string | Optional color scheme for the provider<br>Allowed values include all color schemes available in Tailwind 4<br>Defaults to the standard color for the provider|  |
 
 Example:
 
@@ -211,7 +211,7 @@ portals:
 | <a id="config-opt-portals.$.providers.$-pocketid-portals-$-providers-$-pocketid-tlscacertificatepem"></a>`portals.$.providers.$.pocketID.tlsCACertificatePEM` | string | Optional PEM-encoded CA certificate to trust when connecting to the Pocket ID server.|  |
 | <a id="config-opt-portals.$.providers.$-pocketid-portals-$-providers-$-pocketid-tlscacertificatepath"></a>`portals.$.providers.$.pocketID.tlsCACertificatePath` | string | Optional path to a CA certificate to trust when connecting to the Pocket ID server.|  |
 | <a id="config-opt-portals.$.providers.$-pocketid-portals-$-providers-$-pocketid-icon"></a>`portals.$.providers.$.pocketID.icon` | string | Optional icon for the provider<br>Defaults to the standard icon for the provider|  |
-| <a id="config-opt-portals.$.providers.$-pocketid-portals-$-providers-$-pocketid-color"></a>`portals.$.providers.$.pocketID.color` | string | Optional color scheme for the provider<br>Defaults to the standard color for the provider|  |
+| <a id="config-opt-portals.$.providers.$-pocketid-portals-$-providers-$-pocketid-color"></a>`portals.$.providers.$.pocketID.color` | string | Optional color scheme for the provider<br>Allowed values include all color schemes available in Tailwind 4<br>Defaults to the standard color for the provider|  |
 
 Example:
 
@@ -248,7 +248,7 @@ portals:
 | <a id="config-opt-portals.$.providers.$-tailscalewhois-portals-$-providers-$-tailscalewhois-allowedtailnet"></a>`portals.$.providers.$.tailscaleWhois.allowedTailnet` | string | If non-empty, requires the Tailnet of the user to match this value|  |
 | <a id="config-opt-portals.$.providers.$-tailscalewhois-portals-$-providers-$-tailscalewhois-requesttimeout"></a>`portals.$.providers.$.tailscaleWhois.requestTimeout` | duration | Timeout for network requests for Tailscale Whois auth| Default: _"10s"_ |
 | <a id="config-opt-portals.$.providers.$-tailscalewhois-portals-$-providers-$-tailscalewhois-icon"></a>`portals.$.providers.$.tailscaleWhois.icon` | string | Optional icon for the provider<br>Defaults to the standard icon for the provider|  |
-| <a id="config-opt-portals.$.providers.$-tailscalewhois-portals-$-providers-$-tailscalewhois-color"></a>`portals.$.providers.$.tailscaleWhois.color` | string | Optional color scheme for the provider<br>Defaults to the standard color for the provider|  |
+| <a id="config-opt-portals.$.providers.$-tailscalewhois-portals-$-providers-$-tailscalewhois-color"></a>`portals.$.providers.$.tailscaleWhois.color` | string | Optional color scheme for the provider<br>Allowed values include all color schemes available in Tailwind 4<br>Defaults to the standard color for the provider|  |
 
 Example:
 
