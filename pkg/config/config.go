@@ -217,6 +217,8 @@ type ConfigPortalProvider struct {
 	OpenIDConnect *ProviderConfig_OpenIDConnect `yaml:"openIDConnect"`
 	// Use TailscaleWhois as authentication provider
 	TailscaleWhois *ProviderConfig_TailscaleWhois `yaml:"tailscaleWhois"`
+	// Use PocketID as authentication provider
+	PocketID *ProviderConfig_PocketID `yaml:"pocketID"`
 	// Name of a test provider; used in tests only
 	TestProvider *string `yaml:"testProvider" ignoredocs:"true"`
 
