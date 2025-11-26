@@ -53,6 +53,8 @@
     </div>
 </body>
 
-<script src="{{ .BaseUrl }}/icons.js"></script>
+{{ if gt (len .UsedIcons) 0 }}
+<script src="{{ .BaseUrl }}/icons.js?include={{ .UsedIcons }}"></script>
+{{ end }}
 
 </html>

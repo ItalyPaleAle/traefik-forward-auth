@@ -1,6 +1,9 @@
 package utils
 
 import (
+	"fmt"
+	"io"
+	"io/fs"
 	"os"
 	"strings"
 )
@@ -35,4 +38,20 @@ func FileExists(path string) (bool, error) {
 func IsSubDomain(domain, sub string) bool {
 	return domain == sub ||
 		strings.HasSuffix(sub, "."+domain)
+}
+
+// ReadFileFromFS reads a file from a fs.FS
+func ReadFileFromFS(repo fs.FS, name string) ([]byte, error) {
+	f, err := repo.Open(name)
+	if err != nil {
+		return nil, fmt.Errorf("failed to open embedded file: %w", err)
+	}
+	defer f.Close()
+
+	data, err := io.ReadAll(f)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read embedded file: %w", err)
+	}
+
+	return data, nil
 }

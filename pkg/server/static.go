@@ -1,6 +1,8 @@
 package server
 
 import (
+	"bytes"
+	"errors"
 	"fmt"
 	"html/template"
 	"io/fs"
@@ -13,6 +15,7 @@ import (
 
 	"github.com/italypaleale/traefik-forward-auth/client"
 	"github.com/italypaleale/traefik-forward-auth/pkg/config"
+	"github.com/italypaleale/traefik-forward-auth/pkg/utils"
 
 	"github.com/gin-gonic/gin"
 )
@@ -36,17 +39,23 @@ func (s *Server) addStaticRoutes(basePath string) error {
 	}
 	assetsHandler := http.FileServer(newStaticFS(assetsFS))
 
+	// icons.js
+	err = s.addIconsJSRoute(basePath, assetsFS)
+	if err != nil {
+		return fmt.Errorf("failed to add route for icons.js: %w", err)
+	}
+
 	// Use custom static file handler with cache control headers
 	// Gin's Serve* methods do not allow setting custom headers
 	s.appRouter.GET(
 		imgPath+"/*filepath",
 		// Add cache-control header for static assets to cache for 30 days
-		s.serveWithCacheControl(imgHandler, "", 30*86400),
+		s.addClientCacheHeaders(30*86400),
+		gin.WrapH(imgHandler),
 	)
 
 	// Add a route for static compiled assets
 	s.addStaticAssetRoute(basePath, "style.css", "text/css", assetsHandler)
-	s.addStaticAssetRoute(basePath, "icons.js", "application/javascript", assetsHandler)
 
 	return nil
 }
@@ -57,12 +66,22 @@ func (s *Server) addStaticAssetRoute(basePath string, assetName string, contentT
 		// Replace the path in the request with just the file name
 		// This way, assetsHandler can find it in its virtual FS
 		replaceRequestPath(assetName),
+		// Add the content-type header
+		s.addContentType(contentType),
 		// Add cache-control header for static assets to cache for 30 days
-		s.serveWithCacheControl(assetsHandler, contentType, 30*86400),
+		s.addClientCacheHeaders(30*86400),
+		// Serve the asset
+		gin.WrapH(assetsHandler),
 	)
 }
 
-func (s *Server) serveWithCacheControl(handler http.Handler, contentType string, cacheMaxAge int64) func(c *gin.Context) {
+func (s *Server) addContentType(contentType string) func(c *gin.Context) {
+	return func(c *gin.Context) {
+		c.Header("Content-Type", contentType)
+	}
+}
+
+func (s *Server) addClientCacheHeaders(cacheMaxAge int64) func(c *gin.Context) {
 	cfg := config.Get()
 
 	cacheControlHeader := fmt.Sprintf("public, max-age=%d", cacheMaxAge)
@@ -73,10 +92,7 @@ func (s *Server) serveWithCacheControl(handler http.Handler, contentType string,
 
 	if cfg.Dev.DisableClientCache {
 		return func(c *gin.Context) {
-			if contentType != "" {
-				c.Header("Content-Type", contentType)
-			}
-			handler.ServeHTTP(c.Writer, c.Request)
+			c.Header("Cache-Control", "no-cache")
 		}
 	}
 
@@ -89,12 +105,57 @@ func (s *Server) serveWithCacheControl(handler http.Handler, contentType string,
 		// Add cache-control and last-modified header
 		c.Header("Cache-Control", cacheControlHeader)
 		c.Header("Last-Modified", lastModifiedHeader)
-
-		if contentType != "" {
-			c.Header("Content-Type", contentType)
-		}
-		handler.ServeHTTP(c.Writer, c.Request)
 	}
+}
+
+func (s *Server) addIconsJSRoute(basePath string, assetsFS fs.FS) error {
+	iconsJSData, err := utils.ReadFileFromFS(assetsFS, "icons.js")
+	if err != nil {
+		return fmt.Errorf("failed to read embedded 'icons.js': %w", err)
+	}
+	iconsJSStart, iconsJSEnd, ok := bytes.Cut(iconsJSData, []byte("process.env.ICONS_DATA"))
+	if !ok || len(iconsJSStart) == 0 || len(iconsJSEnd) == 0 {
+		return errors.New("embedded 'icons.js' does not include the 'process.env.ICONS_DATA' token for replacing")
+	}
+	// Append curly brackets
+	iconsJSStart = append(iconsJSStart, '{')
+	iconsJSEnd = append([]byte{'}'}, iconsJSEnd...)
+
+	// Path is <base>/icons.js
+	// Optional query parameter ?include contains a comma-separated list of icons to include (by default it includes all)
+	s.appRouter.GET(
+		path.Join(basePath, "icons.js"),
+		// Set the content type explicitly
+		s.addContentType("application/javascript"),
+		// Add cache-control header for static assets to cache for 30 days
+		s.addClientCacheHeaders(30*86400),
+		// Serve the JS file
+		func(c *gin.Context) {
+			// Write the initial part of the data
+			c.Writer.Write(iconsJSStart)
+
+			// Write the JSON-serialized list of icons
+			if q := c.Query("include"); q != "" {
+				for name := range strings.SplitSeq(q, ",") {
+					if s.icons[name] == "" {
+						// Skip icons that don't exist
+						continue
+					}
+					c.Writer.WriteString("'" + name + "':`" + s.icons[name] + "`,")
+				}
+			} else {
+				// No list requested, write all icons
+				for name := range s.icons {
+					c.Writer.WriteString("'" + name + "':`" + s.icons[name] + "`,")
+				}
+			}
+
+			// Write the final part of the data
+			c.Writer.Write(iconsJSEnd)
+		},
+	)
+
+	return nil
 }
 
 func (s *Server) isNotModified(c *gin.Context) bool {
@@ -140,7 +201,57 @@ func (s *Server) loadTemplates(router *gin.Engine) error {
 	}
 	router.SetHTMLTemplate(s.templates)
 
+	// Read all icons
+	iconsFS := client.Icons()
+	entries, err := iconsFS.ReadDir("icons")
+	if err != nil {
+		return fmt.Errorf("failed to read embedded icons directory: %w", err)
+	}
+	s.icons = make(map[string]string, len(entries))
+	for _, e := range entries {
+		if e.IsDir() {
+			// There shouldn't be any directory
+			continue
+		}
+		name := e.Name()
+		ext := filepath.Ext(name)
+		if ext != ".svg" {
+			// All files should be SVGs
+			continue
+		}
+		iconName := name[0 : len(name)-4]
+		var iconData []byte
+		iconData, err = iconsFS.ReadFile("icons/" + name)
+		if err != nil {
+			return fmt.Errorf("failed to read embedded icon '%s': %w", name, err)
+		}
+		s.icons[iconName] = minifySVG(iconData)
+	}
+
 	return nil
+}
+
+// minifySVG removes all newlines and XML comments from the input string
+func minifySVG(inputData []byte) string {
+	// Remove all newlines (both \n and \r)
+	result := strings.ReplaceAll(string(inputData), "\n", "")
+	result = strings.ReplaceAll(result, "\r", "")
+
+	// Remove XML comments (<!-- ... -->)
+	for {
+		start := strings.Index(result, "<!--")
+		if start == -1 {
+			break
+		}
+		end := strings.Index(result[start:], "-->")
+		if end == -1 {
+			break
+		}
+		end += start + 3
+		result = result[:start] + result[end:]
+	}
+
+	return result
 }
 
 // staticFS extends http.FileSystem but does not list files in a directory

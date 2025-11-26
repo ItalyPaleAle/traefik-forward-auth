@@ -108,6 +108,7 @@ func (s *Server) renderSigninTemplate(c *gin.Context, portal *Portal, stateCooki
 		LogoutBanner     bool
 		BackgroundLarge  string
 		BackgroundMedium string
+		UsedIcons        string
 	}
 
 	data := signinTemplateData{
@@ -120,14 +121,28 @@ func (s *Server) renderSigninTemplate(c *gin.Context, portal *Portal, stateCooki
 	}
 
 	var i int
+	usedIcons := make(map[string]struct{}, len(portal.ProvidersList))
 	for _, name := range portal.ProvidersList {
 		provider := portal.Providers[name]
+
+		icon := provider.GetProviderIcon()
+		if icon != "" {
+			_, present := usedIcons[icon]
+			if !present {
+				usedIcons[icon] = struct{}{}
+				if data.UsedIcons == "" {
+					data.UsedIcons = icon
+				} else {
+					data.UsedIcons += "," + icon
+				}
+			}
+		}
 
 		data.Providers[i] = signingTemplateData_Provider{
 			Color:       provider.GetProviderColor(),
 			DisplayName: provider.GetProviderDisplayName(),
 			Href:        getPortalURI(c, portal.Name) + "/providers/" + name + "?state=" + stateCookieID + "~" + nonce,
-			Icon:        provider.GetProviderIcon(),
+			Icon:        icon,
 		}
 		i++
 	}

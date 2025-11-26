@@ -1,8 +1,8 @@
-(function() {
+(() => {
     'use strict'
 
     // Icon data
-    const icons = {/*ICONS_DATA*/}
+    const icons = process.env.ICONS_DATA
 
     // Initialize icons when DOM is ready
     function initIcons() {

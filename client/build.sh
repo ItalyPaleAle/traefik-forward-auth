@@ -19,8 +19,5 @@ for f in dist/*.html.tpl; do
     rm "$f.bak"
 done
 
-# Build icons
-node build-icons.js
-
 # Minify the icons.js file
-npx terser dist/icons.js -o dist/icons.js --compress --mangle
+npx terser src/icons.js -o dist/icons.js --compress --mangle

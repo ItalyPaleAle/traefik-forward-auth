@@ -73,8 +73,9 @@ type Server struct {
 	running atomic.Bool
 	wg      sync.WaitGroup
 
-	// Templates
+	// Templates and icons
 	templates *template.Template
+	icons     map[string]string
 
 	// Server start time, used for Last-Modified headers
 	startTime time.Time
