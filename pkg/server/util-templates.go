@@ -1,9 +1,12 @@
 package server
 
 import (
+	"crypto/rand"
+	"encoding/hex"
 	"fmt"
 	"net/http"
 	"net/url"
+	"strings"
 
 	"github.com/gin-gonic/gin"
 
@@ -16,7 +19,7 @@ const (
 	defaultPagesBackgroundLarge  = "img/greta-farnedi-EAt30ojfzOI-unsplash-lg.webp"
 
 	// Format string for the Content-Security-Policy header for templated pages
-	pagesContentSecurityHeaderFmt = `default-src 'none'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self'%s; font-src 'self'`
+	pagesContentSecurityHeaderFmt = `default-src 'none'; script-src 'nonce-NONCE'; style-src 'self' 'unsafe-inline'; img-src 'self'%s; font-src 'self'`
 )
 
 func getCSPOriginFromUrl(str string) (string, error) {
@@ -73,14 +76,30 @@ func setPagesPortalConfig(p config.ConfigPortal, portal *Portal) error {
 		cspImgSrc = " " + cspImgSrc
 	}
 
-	portal.PagesCSPHeader = fmt.Sprintf(pagesContentSecurityHeaderFmt, cspImgSrc)
+	portal.PagesCSPHeader = getPagesCSPHeaderFn(cspImgSrc)
 
 	return nil
 }
 
-func setPageSecurityHeaders(c *gin.Context, portal *Portal) {
+func getPagesCSPHeaderFn(cspImgSrc string) func(nonce string) string {
+	// Pre-calculate the parts of the CSP header to avoid allocations during requests
+	const noncePlaceholder = "NONCE"
+	cspParts := strings.Split(fmt.Sprintf(pagesContentSecurityHeaderFmt, cspImgSrc), noncePlaceholder)
+	if len(cspParts) < 2 {
+		// Should not happen...
+		panic("failed to find NONCE placeholder in CSP header template")
+	}
+
+	return func(nonce string) string {
+		return strings.Join(cspParts, nonce)
+	}
+}
+
+func setPageSecurityHeaders(c *gin.Context, portal *Portal) string {
+	nonce := generateNonce()
+
 	// Set the CSP header and the legacy X-Frame-Options
-	c.Header("Content-Security-Policy", portal.PagesCSPHeader)
+	c.Header("Content-Security-Policy", portal.PagesCSPHeader(nonce))
 	c.Header("X-Frame-Options", "DENY")
 
 	// Disable FLOC
@@ -88,6 +107,16 @@ func setPageSecurityHeaders(c *gin.Context, portal *Portal) {
 
 	// Disable indexing by search engines
 	c.Header("X-Robots-Tag", "noindex, nofollow")
+
+	return nonce
+}
+
+func generateNonce() string {
+	nonceBytes := make([]byte, 5)
+	// Per documentation, this never returns an error
+	// On some legacy Linux systems, it could cause a panic if there's no sufficient entropy
+	_, _ = rand.Read(nonceBytes)
+	return hex.EncodeToString(nonceBytes)
 }
 
 func (s *Server) renderSigninTemplate(c *gin.Context, portal *Portal, stateCookieID string, nonce string, logoutBanner bool) {
@@ -109,6 +138,7 @@ func (s *Server) renderSigninTemplate(c *gin.Context, portal *Portal, stateCooki
 		BackgroundLarge  string
 		BackgroundMedium string
 		UsedIcons        string
+		CspNonce         string
 	}
 
 	data := signinTemplateData{
@@ -147,7 +177,7 @@ func (s *Server) renderSigninTemplate(c *gin.Context, portal *Portal, stateCooki
 		i++
 	}
 
-	setPageSecurityHeaders(c, portal)
+	data.CspNonce = setPageSecurityHeaders(c, portal)
 	c.HTML(http.StatusOK, "signin.html.tpl", data)
 }
 
@@ -164,9 +194,10 @@ func (s *Server) renderAuthenticatedTemplate(c *gin.Context, portal *Portal, pro
 		LogoutUrl        string
 		BackgroundLarge  string
 		BackgroundMedium string
+		CspNonce         string
 	}
 
-	setPageSecurityHeaders(c, portal)
+	nonce := setPageSecurityHeaders(c, portal)
 	c.HTML(http.StatusOK, "authenticated.html.tpl", authenticatedTemplateData{
 		Title:            portal.DisplayName,
 		BaseUrl:          conf.Server.BasePath,
@@ -175,5 +206,6 @@ func (s *Server) renderAuthenticatedTemplate(c *gin.Context, portal *Portal, pro
 		LogoutUrl:        getPortalURI(c, portal.Name) + "/logout",
 		BackgroundLarge:  portal.PagesBackgroundLarge,
 		BackgroundMedium: portal.PagesBackgroundMedium,
+		CspNonce:         nonce,
 	})
 }

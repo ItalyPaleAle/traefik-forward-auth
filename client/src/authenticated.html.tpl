@@ -5,10 +5,10 @@
     <meta charset="utf-8">
     <title>{{ .Title }}</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <link rel="stylesheet" href="{{ .BaseUrl }}/style.css">
+    <link rel="stylesheet" href="{{ .BaseUrl }}/style.css" nonce="{{ .CspNonce }}">
 </head>
 
-<style>
+<style nonce="{{ .CspNonce }}">
 @layer theme {
     :root {
         --bg-image-lg: url({{ .BackgroundLarge }});

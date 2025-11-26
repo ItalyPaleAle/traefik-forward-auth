@@ -482,7 +482,7 @@ type Portal struct {
 	SessionLifetime       time.Duration
 	PagesBackgroundLarge  string
 	PagesBackgroundMedium string
-	PagesCSPHeader        string
+	PagesCSPHeader        func(nonce string) string
 }
 
 type cachedPredicate struct {

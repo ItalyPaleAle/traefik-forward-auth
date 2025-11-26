@@ -5,10 +5,10 @@
     <meta charset="utf-8">
     <title>{{ .Title }}</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <link rel="stylesheet" href="{{ .BaseUrl }}/style.css">
+    <link rel="stylesheet" href="{{ .BaseUrl }}/style.css" nonce="{{ .CspNonce }}">
 </head>
 
-<style>
+<style nonce="{{ .CspNonce }}">
 @layer theme {
     :root {
         --bg-image-lg: url({{ .BackgroundLarge }});
@@ -40,7 +40,7 @@
                         {{ range .Providers }}
                         <a href="{{ .Href }}" class="provider-button group tfa-{{ .Color }}">
                             <span class="provider-button-inner" data-svg-icon="{{ .Icon }}">
-                                <svg class="provider-icon" aria-hidden="true"></svg>
+                                <svg aria-hidden="true"></svg>
                                 {{ .DisplayName }}
                             </span>
                         </a>
@@ -54,7 +54,7 @@
 </body>
 
 {{ if gt (len .UsedIcons) 0 }}
-<script src="{{ .BaseUrl }}/icons.js?include={{ .UsedIcons }}"></script>
+<script src="{{ .BaseUrl }}/icons.js?include={{ .UsedIcons }}" crossorigin="anonymous" nonce="{{ .CspNonce }}"></script>
 {{ end }}
 
 </html>
