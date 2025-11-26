@@ -132,7 +132,7 @@ func (s *Server) addIconsJSRoute(basePath string, assetsFS fs.FS) error {
 		// Serve the JS file
 		func(c *gin.Context) {
 			// Write the initial part of the data
-			c.Writer.Write(iconsJSStart)
+			_, _ = c.Writer.Write(iconsJSStart)
 
 			// Write the JSON-serialized list of icons
 			if q := c.Query("include"); q != "" {
@@ -141,17 +141,17 @@ func (s *Server) addIconsJSRoute(basePath string, assetsFS fs.FS) error {
 						// Skip icons that don't exist
 						continue
 					}
-					c.Writer.WriteString("'" + name + "':`" + s.icons[name] + "`,")
+					_, _ = c.Writer.WriteString("'" + name + "':`" + s.icons[name] + "`,")
 				}
 			} else {
 				// No list requested, write all icons
 				for name := range s.icons {
-					c.Writer.WriteString("'" + name + "':`" + s.icons[name] + "`,")
+					_, _ = c.Writer.WriteString("'" + name + "':`" + s.icons[name] + "`,")
 				}
 			}
 
 			// Write the final part of the data
-			c.Writer.Write(iconsJSEnd)
+			_, _ = c.Writer.Write(iconsJSEnd)
 		},
 	)
 
