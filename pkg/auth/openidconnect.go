@@ -142,8 +142,12 @@ func newOpenIDConnectInternal(providerType string, providerMetadata ProviderMeta
 			ClientID:     opts.ClientID,
 			ClientSecret: opts.ClientSecret,
 		},
-		RequestTimeout: opts.RequestTimeout,
-		TokenIssuer:    opts.TokenIssuer,
+
+		RequestTimeout:   opts.RequestTimeout,
+		TokenIssuer:      opts.TokenIssuer,
+		PKCEKey:          opts.PKCEKey,
+		TLSSkipVerify:    opts.TLSSkipVerify,
+		TLSCACertificate: opts.TLSCACertificate,
 
 		skipClientSecretValidation:      opts.skipClientSecretValidation,
 		tokenExchangeParametersModifier: opts.tokenExchangeParametersModifier,

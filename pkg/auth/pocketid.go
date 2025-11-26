@@ -33,11 +33,13 @@ type NewPocketIDOptions struct {
 
 func (o NewPocketIDOptions) ToNewOpenIDConnectOptions() NewOpenIDConnectOptions {
 	return NewOpenIDConnectOptions{
-		ClientID:       o.ClientID,
-		ClientSecret:   o.ClientSecret,
-		RequestTimeout: o.RequestTimeout,
-		TokenIssuer:    o.Endpoint,
-		PKCEKey:        o.PKCEKey,
+		ClientID:         o.ClientID,
+		ClientSecret:     o.ClientSecret,
+		RequestTimeout:   o.RequestTimeout,
+		TokenIssuer:      o.Endpoint,
+		PKCEKey:          o.PKCEKey,
+		TLSSkipVerify:    o.TLSSkipVerify,
+		TLSCACertificate: o.TLSCACertificate,
 	}
 }
 
