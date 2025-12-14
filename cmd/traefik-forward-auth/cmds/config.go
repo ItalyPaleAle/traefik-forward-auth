@@ -10,6 +10,7 @@ import (
 	"strings"
 	"time"
 
+	slogkit "github.com/italypaleale/go-kit/slog"
 	"github.com/lmittmann/tint"
 	"github.com/mattn/go-isatty"
 	"github.com/mitchellh/go-homedir"
@@ -34,7 +35,7 @@ func loadConfigOrFatal(initLogger *slog.Logger) {
 		if errors.As(err, &lce) {
 			lce.LogFatal(initLogger)
 		} else {
-			utils.FatalError(initLogger, "Failed to load configuration", err)
+			slogkit.FatalError(initLogger, "Failed to load configuration", err)
 			return
 		}
 	}
@@ -150,7 +151,7 @@ func getLogger(ctx context.Context, cfg *config.Config) (log *slog.Logger, shutd
 	logGlobal.SetLoggerProvider(provider)
 
 	// Wrap the handler in a "fanout" one
-	handler = utils.LogFanoutHandler{
+	handler = slogkit.LogFanoutHandler{
 		handler,
 		otelslog.NewHandler(buildinfo.AppName, otelslog.WithLoggerProvider(provider)),
 	}
@@ -223,5 +224,5 @@ func (e loadConfigError) Error() string {
 
 // LogFatal causes a fatal log
 func (e loadConfigError) LogFatal(log *slog.Logger) {
-	utils.FatalError(log, e.msg, errors.New(e.err))
+	slogkit.FatalError(log, e.msg, errors.New(e.err))
 }

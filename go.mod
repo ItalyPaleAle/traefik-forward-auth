@@ -7,9 +7,9 @@ require (
 	github.com/Azure/azure-sdk-for-go/sdk/azidentity v1.13.1
 	github.com/alphadose/haxmap v1.4.1
 	github.com/cenkalti/backoff/v5 v5.0.3
-	github.com/fsnotify/fsnotify v1.9.0
 	github.com/gin-gonic/gin v1.11.0
 	github.com/google/uuid v1.6.0
+	github.com/italypaleale/go-kit v0.0.0-20251214064356-57c1a0f9caa3
 	github.com/jinzhu/copier v0.4.0
 	github.com/lestrrat-go/jwx/v3 v3.0.12
 	github.com/lmittmann/tint v1.1.2
@@ -51,6 +51,7 @@ require (
 	github.com/dblohm7/wingoes v0.0.0-20240119213807-a09d6be7affa // indirect
 	github.com/decred/dcrd/dcrec/secp256k1/v4 v4.4.0 // indirect
 	github.com/felixge/httpsnoop v1.0.4 // indirect
+	github.com/fsnotify/fsnotify v1.9.0 // indirect
 	github.com/fxamacker/cbor/v2 v2.7.0 // indirect
 	github.com/gabriel-vasile/mimetype v1.4.11 // indirect
 	github.com/gin-contrib/sse v1.1.0 // indirect

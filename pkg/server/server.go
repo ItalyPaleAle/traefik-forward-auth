@@ -21,6 +21,7 @@ import (
 
 	"github.com/alphadose/haxmap"
 	"github.com/gin-gonic/gin"
+	slogkit "github.com/italypaleale/go-kit/slog"
 	"go.opentelemetry.io/contrib/instrumentation/github.com/gin-gonic/gin/otelgin"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/propagation"
@@ -365,7 +366,7 @@ func (s *Server) startAppServer(ctx context.Context) error {
 			srvErr = s.appSrv.Serve(s.appListener)
 		}
 		if srvErr != http.ErrServerClosed {
-			utils.FatalError(log, "Error starting app server", srvErr)
+			slogkit.FatalError(log, "Error starting app server", srvErr)
 		}
 	}()
 

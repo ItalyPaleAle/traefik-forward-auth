@@ -8,8 +8,9 @@ import (
 	"path/filepath"
 	"sync"
 
+	"github.com/italypaleale/go-kit/fsnotify"
+
 	"github.com/italypaleale/traefik-forward-auth/pkg/utils"
-	"github.com/italypaleale/traefik-forward-auth/pkg/utils/fsnotify"
 )
 
 const (
