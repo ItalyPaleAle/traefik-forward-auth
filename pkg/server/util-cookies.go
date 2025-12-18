@@ -5,7 +5,6 @@ import (
 	"crypto/rand"
 	"crypto/sha256"
 	"encoding/base64"
-	"encoding/hex"
 	"errors"
 	"fmt"
 	"io"
@@ -29,12 +28,11 @@ const (
 	stateCookieNamePrefix = "tf_state"
 	acceptableClockSkew   = 30 * time.Second
 	nonceSize             = 12 // Nonce size in bytes
-	portalNameClaim       = "tf_portal"
-	nonceClaim            = "tf_nonce"
-	sigClaim              = "tf_sig"
-	returnURLClaim        = "tf_return_url"
-	expiredTokenCacheTTL  = 1 * time.Second // TTL for already-expired tokens
-	maxTokenCacheTTL      = 5 * time.Minute // Maximum TTL for valid tokens
+	portalNameClaim = "tf_portal"
+	nonceClaim      = "tf_nonce"
+	sigClaim        = "tf_sig"
+	returnURLClaim  = "tf_return_url"
+	maxTokenCacheTTL = 5 * time.Minute // Maximum TTL for token validation cache
 )
 
 func (s *Server) getSessionCookie(c *gin.Context, portalName string) (profile *user.Profile, provider auth.Provider, err error) {
@@ -86,8 +84,8 @@ func (s *Server) parseSessionToken(val string, portalName string) (openid.Token,
 	cacheKey := s.tokenCacheKey(val)
 
 	// Check if the token validation result is in the cache
-	if cached, ok := s.tokenCache.Get(cacheKey); ok {
-		if !cached.valid {
+	if valid, ok := s.tokenCache.Get(cacheKey); ok {
+		if !valid {
 			// Token failed validation (cached result)
 			return nil, errors.New("failed to parse session token JWT: token validation failed (cached)")
 		}
@@ -136,9 +134,7 @@ func (s *Server) parseSessionToken(val string, portalName string) (openid.Token,
 	ttl := s.computeTokenCacheTTL(oidcToken, !valid)
 
 	// Store validation result in cache
-	s.tokenCache.Set(cacheKey, &cachedTokenValidation{
-		valid: valid,
-	}, ttl)
+	s.tokenCache.Set(cacheKey, valid, ttl)
 
 	if !valid {
 		return nil, fmt.Errorf("failed to parse session token JWT: %w", err)
@@ -366,7 +362,7 @@ func stateCookieSig(c *gin.Context, portalName string, stateCookieID string, non
 // tokenCacheKey computes the SHA-256 hash of the token string for use as a cache key
 func (s *Server) tokenCacheKey(tokenStr string) string {
 	h := sha256.Sum256([]byte(tokenStr))
-	return hex.EncodeToString(h[:])
+	return base64.RawURLEncoding.EncodeToString(h[:])
 }
 
 // computeTokenCacheTTL computes the TTL for a token validation result in the cache
@@ -389,9 +385,8 @@ func (s *Server) computeTokenCacheTTL(token openid.Token, invalid bool) time.Dur
 	ttl := time.Until(exp)
 	if ttl <= 0 {
 		// Token already expired but was successfully parsed
-		// Cache for a short time to avoid repeated parsing attempts,
-		// but not for maxTokenCacheTTL since the token is expired
-		return expiredTokenCacheTTL
+		// Cache for maxTokenCacheTTL since the token is expired
+		return maxTokenCacheTTL
 	}
 
 	// Return the minimum of maxTokenCacheTTL and time until expiration

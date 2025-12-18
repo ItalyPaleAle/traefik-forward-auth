@@ -61,7 +61,7 @@ type Server struct {
 	metrics    *metrics.TFAMetrics
 	portals    map[string]Portal
 	predicates *haxmap.Map[string, cachedPredicate]
-	tokenCache *ttlcache.Cache[*cachedTokenValidation]
+	tokenCache *ttlcache.Cache[bool]
 
 	// Servers
 	appSrv *http.Server
@@ -111,8 +111,8 @@ func NewServer(opts NewServerOpts) (*Server, error) {
 		portals:    opts.Portals,
 		startTime:  time.Now().UTC(),
 		predicates: haxmap.New[string, cachedPredicate](),
-		tokenCache: ttlcache.NewCache[*cachedTokenValidation](&ttlcache.CacheOptions{
-			CleanupInterval: 1 * time.Minute,
+		tokenCache: ttlcache.NewCache[bool](&ttlcache.CacheOptions{
+			CleanupInterval: 2 * time.Minute,
 		}),
 
 		addTestRoutes: opts.addTestRoutes,
@@ -502,6 +502,4 @@ type cachedPredicate struct {
 	lastUsed  *atomic.Int64
 }
 
-type cachedTokenValidation struct {
-	valid bool
-}
+

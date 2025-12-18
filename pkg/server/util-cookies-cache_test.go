@@ -56,10 +56,9 @@ func TestTokenCaching(t *testing.T) {
 		cacheKey := srv.tokenCacheKey(cookieValue)
 
 		// Verify validation result is in the cache
-		cached, ok := srv.tokenCache.Get(cacheKey)
+		valid, ok := srv.tokenCache.Get(cacheKey)
 		require.True(t, ok, "token validation result should be in cache")
-		require.NotNil(t, cached)
-		require.True(t, cached.valid, "cached validation result should be true")
+		require.True(t, valid, "cached validation result should be true")
 
 		// Second parse - should use cache
 		token2, err := srv.parseSessionToken(cookieValue, testPortalName)
@@ -84,10 +83,9 @@ func TestTokenCaching(t *testing.T) {
 		cacheKey := srv.tokenCacheKey(invalidToken)
 
 		// Verify the validation failure is in the cache
-		cached, ok := srv.tokenCache.Get(cacheKey)
+		valid, ok := srv.tokenCache.Get(cacheKey)
 		require.True(t, ok, "validation result should be in cache")
-		require.NotNil(t, cached)
-		require.False(t, cached.valid, "cached validation result should be false")
+		require.False(t, valid, "cached validation result should be false")
 
 		// Second parse - should return cached error
 		token2, err := srv.parseSessionToken(invalidToken, testPortalName)
@@ -154,8 +152,8 @@ func TestTokenCaching(t *testing.T) {
 		// Compute cache key
 		cacheKey := srv.tokenCacheKey(testToken)
 		
-		// Verify it's a valid hex string of the right length (64 hex chars = 32 bytes = 256 bits)
-		assert.Len(t, cacheKey, 64)
+		// Verify it's a valid base64 string of the right length (43 chars for 32 bytes using RawURLEncoding)
+		assert.Len(t, cacheKey, 43)
 		
 		// Verify it's consistent
 		cacheKey2 := srv.tokenCacheKey(testToken)
