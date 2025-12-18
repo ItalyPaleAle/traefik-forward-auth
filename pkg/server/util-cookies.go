@@ -33,6 +33,8 @@ const (
 	nonceClaim            = "tf_nonce"
 	sigClaim              = "tf_sig"
 	returnURLClaim        = "tf_return_url"
+	expiredTokenCacheTTL  = 1 * time.Second // TTL for already-expired tokens
+	maxTokenCacheTTL      = 5 * time.Minute // Maximum TTL for valid tokens
 )
 
 func (s *Server) getSessionCookie(c *gin.Context, portalName string) (profile *user.Profile, provider auth.Provider, err error) {
@@ -83,7 +85,10 @@ func (s *Server) parseSessionToken(val string, portalName string) (openid.Token,
 
 	// Check if the token is in the cache
 	if cached, ok := s.tokenCache.Get(cacheKey); ok {
-		return cached.token, cached.err
+		if cached.err != nil {
+			return nil, fmt.Errorf("failed to parse session token JWT: %w", cached.err)
+		}
+		return cached.token, nil
 	}
 
 	// Token not in cache, validate it
@@ -102,8 +107,7 @@ func (s *Server) parseSessionToken(val string, portalName string) (openid.Token,
 		oidcToken, ok = token.(openid.Token)
 		if !ok {
 			// Should never happen
-			err = errors.New("returned token is not of type openid.Token")
-			oidcToken = nil
+			err = fmt.Errorf("JWT parsing returned unexpected token type: %T, expected openid.Token", token)
 		}
 	}
 
@@ -346,33 +350,31 @@ func (s *Server) tokenCacheKey(tokenStr string) string {
 }
 
 // computeTokenCacheTTL computes the TTL for a token in the cache
-// For valid tokens, the TTL is the minimum of 5 minutes or the token's expiration time
-// For invalid tokens, the TTL is always 5 minutes
+// For valid tokens, the TTL is the minimum of maxTokenCacheTTL or the token's expiration time
+// For invalid tokens, the TTL is always maxTokenCacheTTL
 func (s *Server) computeTokenCacheTTL(token openid.Token, err error) time.Duration {
-	const maxCacheTTL = 5 * time.Minute
-
-	// If the token validation failed, cache for 5 minutes
+	// If the token validation failed, cache for maxTokenCacheTTL
 	if err != nil {
-		return maxCacheTTL
+		return maxTokenCacheTTL
 	}
 
 	// Get the token's expiration time
 	exp, ok := token.Expiration()
 	if !ok || exp.IsZero() {
-		// No expiration, cache for 5 minutes
-		return maxCacheTTL
+		// No expiration, cache for maxTokenCacheTTL
+		return maxTokenCacheTTL
 	}
 
 	// Compute time until expiration
 	ttl := time.Until(exp)
 	if ttl <= 0 {
 		// Token already expired, cache for a very short time
-		return 1 * time.Second
+		return expiredTokenCacheTTL
 	}
 
-	// Return the minimum of maxCacheTTL and time until expiration
-	if ttl > maxCacheTTL {
-		return maxCacheTTL
+	// Return the minimum of maxTokenCacheTTL and time until expiration
+	if ttl > maxTokenCacheTTL {
+		return maxTokenCacheTTL
 	}
 	return ttl
 }
