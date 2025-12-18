@@ -32,6 +32,8 @@ const (
 	nonceClaim            = "tf_nonce"
 	sigClaim              = "tf_sig"
 	returnURLClaim        = "tf_return_url"
+
+	maxTokenCacheTTL = 5 * time.Minute // Maximum TTL for token validation cache
 )
 
 func (s *Server) getSessionCookie(c *gin.Context, portalName string) (profile *user.Profile, provider auth.Provider, err error) {
@@ -78,6 +80,36 @@ func (s *Server) getSessionCookie(c *gin.Context, portalName string) (profile *u
 
 func (s *Server) parseSessionToken(val string, portalName string) (openid.Token, error) {
 	cfg := config.Get()
+
+	// Compute the SHA-256 hash of the token for use as cache key
+	cacheKey := s.tokenCacheKey(val)
+
+	// Check if the token validation result is in the cache
+	valid, ok := s.tokenCache.Get(cacheKey)
+	if ok {
+		if !valid {
+			// Token failed validation (cached result)
+			return nil, errors.New("failed to parse session token JWT: token validation failed (cached)")
+		}
+
+		// Token was valid (cached result), now parse without validation to extract claims
+		token, err := jwt.Parse([]byte(val),
+			jwt.WithValidate(false),
+			jwt.WithVerify(false),
+			jwt.WithToken(openid.New()),
+		)
+		if err != nil {
+			return nil, fmt.Errorf("failed to parse pre-validated session token JWT: %w", err)
+		}
+
+		oidcToken, ok := token.(openid.Token)
+		if !ok {
+			return nil, fmt.Errorf("JWT parsing returned unexpected token type: %T, expected openid.Token", token)
+		}
+		return oidcToken, nil
+	}
+
+	// Token not in cache, validate it
 	token, err := jwt.Parse([]byte(val),
 		jwt.WithAcceptableSkew(acceptableClockSkew),
 		jwt.WithIssuer(jwtIssuer+":"+cfg.GetTokenAudienceClaim()+":"+portalName),
@@ -85,13 +117,29 @@ func (s *Server) parseSessionToken(val string, portalName string) (openid.Token,
 		jwt.WithKey(jwa.HS256(), cfg.GetTokenSigningKey()),
 		jwt.WithToken(openid.New()),
 	)
-	if err != nil {
-		return nil, fmt.Errorf("failed to parse session token JWT: %w", err)
+
+	// Determine validation result
+	valid = err == nil
+	var oidcToken openid.Token
+	if valid {
+		var ok bool
+		oidcToken, ok = token.(openid.Token)
+		if !ok {
+			// This indicates a programming error in the JWT library or incorrect usage
+			// We handle it gracefully with an error rather than panicking since this involves user input
+			valid = false
+			err = fmt.Errorf("JWT parsing returned unexpected token type: %T, expected openid.Token", token)
+		}
 	}
-	oidcToken, ok := token.(openid.Token)
-	if !ok {
-		// Should never happen
-		return nil, errors.New("returned token is not of type openid.Token")
+
+	// Compute the TTL for the cache based on validation result and token expiration
+	ttl := computeTokenCacheTTL(oidcToken, !valid)
+
+	// Store validation result in cache
+	s.tokenCache.Set(cacheKey, valid, ttl)
+
+	if !valid {
+		return nil, fmt.Errorf("failed to parse session token JWT: %w", err)
 	}
 	return oidcToken, nil
 }
@@ -311,4 +359,38 @@ func stateCookieSig(c *gin.Context, portalName string, stateCookieID string, non
 	h.Write([]byte(strings.ToLower(norm.NFKD.String(c.GetHeader("DNT")))))
 	h.Write([]byte(portalName))
 	return base64.RawURLEncoding.EncodeToString(h.Sum(nil))
+}
+
+// tokenCacheKey computes the SHA-256 hash of the token string for use as a cache key
+func (s *Server) tokenCacheKey(tokenStr string) string {
+	h := sha256.Sum256([]byte(tokenStr))
+	return base64.RawURLEncoding.EncodeToString(h[:])
+}
+
+// computeTokenCacheTTL computes the TTL for a token validation result in the cache
+// For valid (unexpired) tokens, the TTL is the minimum of maxTokenCacheTTL or the token's expiration time
+// For invalid tokens, the TTL is always maxTokenCacheTTL
+func computeTokenCacheTTL(token openid.Token, invalid bool) time.Duration {
+	// If the token validation failed, cache for maxTokenCacheTTL
+	if invalid {
+		return maxTokenCacheTTL
+	}
+
+	// Get the token's expiration time
+	exp, ok := token.Expiration()
+	if !ok || exp.IsZero() {
+		// No expiration, cache for maxTokenCacheTTL
+		return maxTokenCacheTTL
+	}
+
+	// Compute time until expiration
+	ttl := time.Until(exp)
+	if ttl <= 0 {
+		// Token already expired but was successfully parsed
+		// Cache for maxTokenCacheTTL since the token is expired
+		return maxTokenCacheTTL
+	}
+
+	// Return the minimum of maxTokenCacheTTL and time until expiration
+	return min(ttl, maxTokenCacheTTL)
 }
