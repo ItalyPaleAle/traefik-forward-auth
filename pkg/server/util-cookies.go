@@ -5,6 +5,7 @@ import (
 	"crypto/rand"
 	"crypto/sha256"
 	"encoding/base64"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"io"
@@ -77,6 +78,15 @@ func (s *Server) getSessionCookie(c *gin.Context, portalName string) (profile *u
 }
 
 func (s *Server) parseSessionToken(val string, portalName string) (openid.Token, error) {
+	// Compute the SHA-256 hash of the token for use as cache key
+	cacheKey := s.tokenCacheKey(val)
+
+	// Check if the token is in the cache
+	if cached, ok := s.tokenCache.Get(cacheKey); ok {
+		return cached.token, cached.err
+	}
+
+	// Token not in cache, validate it
 	cfg := config.Get()
 	token, err := jwt.Parse([]byte(val),
 		jwt.WithAcceptableSkew(acceptableClockSkew),
@@ -85,13 +95,29 @@ func (s *Server) parseSessionToken(val string, portalName string) (openid.Token,
 		jwt.WithKey(jwa.HS256(), cfg.GetTokenSigningKey()),
 		jwt.WithToken(openid.New()),
 	)
+
+	var oidcToken openid.Token
+	if err == nil {
+		var ok bool
+		oidcToken, ok = token.(openid.Token)
+		if !ok {
+			// Should never happen
+			err = errors.New("returned token is not of type openid.Token")
+			oidcToken = nil
+		}
+	}
+
+	// Compute the TTL for the cache
+	ttl := s.computeTokenCacheTTL(oidcToken, err)
+
+	// Store in cache
+	s.tokenCache.Set(cacheKey, &cachedToken{
+		token: oidcToken,
+		err:   err,
+	}, ttl)
+
 	if err != nil {
 		return nil, fmt.Errorf("failed to parse session token JWT: %w", err)
-	}
-	oidcToken, ok := token.(openid.Token)
-	if !ok {
-		// Should never happen
-		return nil, errors.New("returned token is not of type openid.Token")
 	}
 	return oidcToken, nil
 }
@@ -311,4 +337,42 @@ func stateCookieSig(c *gin.Context, portalName string, stateCookieID string, non
 	h.Write([]byte(strings.ToLower(norm.NFKD.String(c.GetHeader("DNT")))))
 	h.Write([]byte(portalName))
 	return base64.RawURLEncoding.EncodeToString(h.Sum(nil))
+}
+
+// tokenCacheKey computes the SHA-256 hash of the token string for use as a cache key
+func (s *Server) tokenCacheKey(tokenStr string) string {
+	h := sha256.Sum256([]byte(tokenStr))
+	return hex.EncodeToString(h[:])
+}
+
+// computeTokenCacheTTL computes the TTL for a token in the cache
+// For valid tokens, the TTL is the minimum of 5 minutes or the token's expiration time
+// For invalid tokens, the TTL is always 5 minutes
+func (s *Server) computeTokenCacheTTL(token openid.Token, err error) time.Duration {
+	const maxCacheTTL = 5 * time.Minute
+
+	// If the token validation failed, cache for 5 minutes
+	if err != nil {
+		return maxCacheTTL
+	}
+
+	// Get the token's expiration time
+	exp, ok := token.Expiration()
+	if !ok || exp.IsZero() {
+		// No expiration, cache for 5 minutes
+		return maxCacheTTL
+	}
+
+	// Compute time until expiration
+	ttl := time.Until(exp)
+	if ttl <= 0 {
+		// Token already expired, cache for a very short time
+		return 1 * time.Second
+	}
+
+	// Return the minimum of maxCacheTTL and time until expiration
+	if ttl > maxCacheTTL {
+		return maxCacheTTL
+	}
+	return ttl
 }

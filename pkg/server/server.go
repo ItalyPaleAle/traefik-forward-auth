@@ -22,6 +22,8 @@ import (
 	"github.com/alphadose/haxmap"
 	"github.com/gin-gonic/gin"
 	slogkit "github.com/italypaleale/go-kit/slog"
+	"github.com/italypaleale/go-kit/ttlcache"
+	"github.com/lestrrat-go/jwx/v3/jwt/openid"
 	"go.opentelemetry.io/contrib/instrumentation/github.com/gin-gonic/gin/otelgin"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/propagation"
@@ -60,6 +62,7 @@ type Server struct {
 	metrics    *metrics.TFAMetrics
 	portals    map[string]Portal
 	predicates *haxmap.Map[string, cachedPredicate]
+	tokenCache *ttlcache.Cache[*cachedToken]
 
 	// Servers
 	appSrv *http.Server
@@ -109,6 +112,9 @@ func NewServer(opts NewServerOpts) (*Server, error) {
 		portals:    opts.Portals,
 		startTime:  time.Now().UTC(),
 		predicates: haxmap.New[string, cachedPredicate](),
+		tokenCache: ttlcache.NewCache[*cachedToken](&ttlcache.CacheOptions{
+			CleanupInterval: 1 * time.Minute,
+		}),
 
 		addTestRoutes: opts.addTestRoutes,
 	}
@@ -264,6 +270,12 @@ func (s *Server) Run(ctx context.Context) error {
 	defer func() {
 		// Handle graceful shutdown
 		defer s.wg.Done()
+		
+		// Stop the token cache
+		if s.tokenCache != nil {
+			s.tokenCache.Stop()
+		}
+		
 		shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), 5*time.Second)
 		err := s.appSrv.Shutdown(shutdownCtx)
 		shutdownCancel()
@@ -489,4 +501,9 @@ type Portal struct {
 type cachedPredicate struct {
 	predicate conditions.UserProfilePredicate
 	lastUsed  *atomic.Int64
+}
+
+type cachedToken struct {
+	token openid.Token
+	err   error
 }
