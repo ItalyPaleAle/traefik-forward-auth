@@ -55,12 +55,11 @@ func TestTokenCaching(t *testing.T) {
 		// Compute cache key
 		cacheKey := srv.tokenCacheKey(cookieValue)
 
-		// Verify it's in the cache
+		// Verify validation result is in the cache
 		cached, ok := srv.tokenCache.Get(cacheKey)
-		require.True(t, ok, "token should be in cache")
+		require.True(t, ok, "token validation result should be in cache")
 		require.NotNil(t, cached)
-		require.Nil(t, cached.err)
-		require.NotNil(t, cached.token)
+		require.True(t, cached.valid, "cached validation result should be true")
 
 		// Second parse - should use cache
 		token2, err := srv.parseSessionToken(cookieValue, testPortalName)
@@ -84,12 +83,11 @@ func TestTokenCaching(t *testing.T) {
 		// Compute cache key
 		cacheKey := srv.tokenCacheKey(invalidToken)
 
-		// Verify the error is in the cache
+		// Verify the validation failure is in the cache
 		cached, ok := srv.tokenCache.Get(cacheKey)
-		require.True(t, ok, "error should be in cache")
+		require.True(t, ok, "validation result should be in cache")
 		require.NotNil(t, cached)
-		require.NotNil(t, cached.err, "cached error should not be nil")
-		require.Nil(t, cached.token, "cached token should be nil for invalid token")
+		require.False(t, cached.valid, "cached validation result should be false")
 
 		// Second parse - should return cached error
 		token2, err := srv.parseSessionToken(invalidToken, testPortalName)
@@ -129,8 +127,8 @@ func TestTokenCaching(t *testing.T) {
 		require.NoError(t, err)
 		require.NotNil(t, token)
 
-		// Check the TTL computation
-		ttl := srv.computeTokenCacheTTL(token, nil)
+		// Check the TTL computation for valid token
+		ttl := srv.computeTokenCacheTTL(token, false)
 
 		// TTL should be less than or equal to the token expiration
 		// and also less than 5 minutes (max cache TTL)
@@ -146,7 +144,7 @@ func TestTokenCaching(t *testing.T) {
 		require.Error(t, err)
 
 		// Check that the TTL for invalid tokens is 5 minutes
-		ttl := srv.computeTokenCacheTTL(nil, err)
+		ttl := srv.computeTokenCacheTTL(nil, true)
 		assert.Equal(t, 5*time.Minute, ttl)
 	})
 

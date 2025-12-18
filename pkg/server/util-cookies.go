@@ -80,19 +80,36 @@ func (s *Server) getSessionCookie(c *gin.Context, portalName string) (profile *u
 }
 
 func (s *Server) parseSessionToken(val string, portalName string) (openid.Token, error) {
+	cfg := config.Get()
+
 	// Compute the SHA-256 hash of the token for use as cache key
 	cacheKey := s.tokenCacheKey(val)
 
-	// Check if the token is in the cache
+	// Check if the token validation result is in the cache
 	if cached, ok := s.tokenCache.Get(cacheKey); ok {
-		if cached.err != nil {
-			return nil, fmt.Errorf("failed to parse session token JWT: %w", cached.err)
+		if !cached.valid {
+			// Token failed validation (cached result)
+			return nil, errors.New("failed to parse session token JWT: token validation failed (cached)")
 		}
-		return cached.token, nil
+
+		// Token was valid (cached result), now parse without validation to extract claims
+		token, err := jwt.Parse([]byte(val),
+			jwt.WithValidate(false),
+			jwt.WithVerify(false),
+			jwt.WithToken(openid.New()),
+		)
+		if err != nil {
+			return nil, fmt.Errorf("failed to parse session token JWT: %w", err)
+		}
+
+		oidcToken, ok := token.(openid.Token)
+		if !ok {
+			return nil, fmt.Errorf("JWT parsing returned unexpected token type: %T, expected openid.Token", token)
+		}
+		return oidcToken, nil
 	}
 
 	// Token not in cache, validate it
-	cfg := config.Get()
 	token, err := jwt.Parse([]byte(val),
 		jwt.WithAcceptableSkew(acceptableClockSkew),
 		jwt.WithIssuer(jwtIssuer+":"+cfg.GetTokenAudienceClaim()+":"+portalName),
@@ -101,27 +118,29 @@ func (s *Server) parseSessionToken(val string, portalName string) (openid.Token,
 		jwt.WithToken(openid.New()),
 	)
 
+	// Determine validation result
+	valid := err == nil
 	var oidcToken openid.Token
-	if err == nil {
+	if valid {
 		var ok bool
 		oidcToken, ok = token.(openid.Token)
 		if !ok {
 			// This indicates a programming error in the JWT library or incorrect usage
 			// We handle it gracefully with an error rather than panicking since this involves user input
+			valid = false
 			err = fmt.Errorf("JWT parsing returned unexpected token type: %T, expected openid.Token", token)
 		}
 	}
 
-	// Compute the TTL for the cache
-	ttl := s.computeTokenCacheTTL(oidcToken, err)
+	// Compute the TTL for the cache based on validation result and token expiration
+	ttl := s.computeTokenCacheTTL(oidcToken, !valid)
 
-	// Store in cache
-	s.tokenCache.Set(cacheKey, &cachedToken{
-		token: oidcToken,
-		err:   err,
+	// Store validation result in cache
+	s.tokenCache.Set(cacheKey, &cachedTokenValidation{
+		valid: valid,
 	}, ttl)
 
-	if err != nil {
+	if !valid {
 		return nil, fmt.Errorf("failed to parse session token JWT: %w", err)
 	}
 	return oidcToken, nil
@@ -350,12 +369,12 @@ func (s *Server) tokenCacheKey(tokenStr string) string {
 	return hex.EncodeToString(h[:])
 }
 
-// computeTokenCacheTTL computes the TTL for a token in the cache
+// computeTokenCacheTTL computes the TTL for a token validation result in the cache
 // For valid tokens, the TTL is the minimum of maxTokenCacheTTL or the token's expiration time
 // For invalid tokens, the TTL is always maxTokenCacheTTL
-func (s *Server) computeTokenCacheTTL(token openid.Token, err error) time.Duration {
+func (s *Server) computeTokenCacheTTL(token openid.Token, invalid bool) time.Duration {
 	// If the token validation failed, cache for maxTokenCacheTTL
-	if err != nil {
+	if invalid {
 		return maxTokenCacheTTL
 	}
 

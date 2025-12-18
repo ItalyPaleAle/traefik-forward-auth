@@ -23,7 +23,6 @@ import (
 	"github.com/gin-gonic/gin"
 	slogkit "github.com/italypaleale/go-kit/slog"
 	"github.com/italypaleale/go-kit/ttlcache"
-	"github.com/lestrrat-go/jwx/v3/jwt/openid"
 	"go.opentelemetry.io/contrib/instrumentation/github.com/gin-gonic/gin/otelgin"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/propagation"
@@ -62,7 +61,7 @@ type Server struct {
 	metrics    *metrics.TFAMetrics
 	portals    map[string]Portal
 	predicates *haxmap.Map[string, cachedPredicate]
-	tokenCache *ttlcache.Cache[*cachedToken]
+	tokenCache *ttlcache.Cache[*cachedTokenValidation]
 
 	// Servers
 	appSrv *http.Server
@@ -112,7 +111,7 @@ func NewServer(opts NewServerOpts) (*Server, error) {
 		portals:    opts.Portals,
 		startTime:  time.Now().UTC(),
 		predicates: haxmap.New[string, cachedPredicate](),
-		tokenCache: ttlcache.NewCache[*cachedToken](&ttlcache.CacheOptions{
+		tokenCache: ttlcache.NewCache[*cachedTokenValidation](&ttlcache.CacheOptions{
 			CleanupInterval: 1 * time.Minute,
 		}),
 
@@ -503,7 +502,6 @@ type cachedPredicate struct {
 	lastUsed  *atomic.Int64
 }
 
-type cachedToken struct {
-	token openid.Token
-	err   error
+type cachedTokenValidation struct {
+	valid bool
 }
