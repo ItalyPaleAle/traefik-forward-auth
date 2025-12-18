@@ -28,10 +28,11 @@ const (
 	stateCookieNamePrefix = "tf_state"
 	acceptableClockSkew   = 30 * time.Second
 	nonceSize             = 12 // Nonce size in bytes
-	portalNameClaim = "tf_portal"
-	nonceClaim      = "tf_nonce"
-	sigClaim        = "tf_sig"
-	returnURLClaim  = "tf_return_url"
+	portalNameClaim       = "tf_portal"
+	nonceClaim            = "tf_nonce"
+	sigClaim              = "tf_sig"
+	returnURLClaim        = "tf_return_url"
+
 	maxTokenCacheTTL = 5 * time.Minute // Maximum TTL for token validation cache
 )
 
@@ -84,7 +85,8 @@ func (s *Server) parseSessionToken(val string, portalName string) (openid.Token,
 	cacheKey := s.tokenCacheKey(val)
 
 	// Check if the token validation result is in the cache
-	if valid, ok := s.tokenCache.Get(cacheKey); ok {
+	valid, ok := s.tokenCache.Get(cacheKey)
+	if ok {
 		if !valid {
 			// Token failed validation (cached result)
 			return nil, errors.New("failed to parse session token JWT: token validation failed (cached)")
@@ -97,7 +99,7 @@ func (s *Server) parseSessionToken(val string, portalName string) (openid.Token,
 			jwt.WithToken(openid.New()),
 		)
 		if err != nil {
-			return nil, fmt.Errorf("failed to parse session token JWT: %w", err)
+			return nil, fmt.Errorf("failed to parse pre-validated session token JWT: %w", err)
 		}
 
 		oidcToken, ok := token.(openid.Token)
@@ -117,7 +119,7 @@ func (s *Server) parseSessionToken(val string, portalName string) (openid.Token,
 	)
 
 	// Determine validation result
-	valid := err == nil
+	valid = err == nil
 	var oidcToken openid.Token
 	if valid {
 		var ok bool
@@ -131,7 +133,7 @@ func (s *Server) parseSessionToken(val string, portalName string) (openid.Token,
 	}
 
 	// Compute the TTL for the cache based on validation result and token expiration
-	ttl := s.computeTokenCacheTTL(oidcToken, !valid)
+	ttl := computeTokenCacheTTL(oidcToken, !valid)
 
 	// Store validation result in cache
 	s.tokenCache.Set(cacheKey, valid, ttl)
@@ -366,9 +368,9 @@ func (s *Server) tokenCacheKey(tokenStr string) string {
 }
 
 // computeTokenCacheTTL computes the TTL for a token validation result in the cache
-// For valid tokens, the TTL is the minimum of maxTokenCacheTTL or the token's expiration time
+// For valid (unexpired) tokens, the TTL is the minimum of maxTokenCacheTTL or the token's expiration time
 // For invalid tokens, the TTL is always maxTokenCacheTTL
-func (s *Server) computeTokenCacheTTL(token openid.Token, invalid bool) time.Duration {
+func computeTokenCacheTTL(token openid.Token, invalid bool) time.Duration {
 	// If the token validation failed, cache for maxTokenCacheTTL
 	if invalid {
 		return maxTokenCacheTTL
@@ -390,8 +392,5 @@ func (s *Server) computeTokenCacheTTL(token openid.Token, invalid bool) time.Dur
 	}
 
 	// Return the minimum of maxTokenCacheTTL and time until expiration
-	if ttl > maxTokenCacheTTL {
-		return maxTokenCacheTTL
-	}
-	return ttl
+	return min(ttl, maxTokenCacheTTL)
 }

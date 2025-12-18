@@ -269,12 +269,12 @@ func (s *Server) Run(ctx context.Context) error {
 	defer func() {
 		// Handle graceful shutdown
 		defer s.wg.Done()
-		
+
 		// Stop the token cache
 		if s.tokenCache != nil {
 			s.tokenCache.Stop()
 		}
-		
+
 		shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), 5*time.Second)
 		err := s.appSrv.Shutdown(shutdownCtx)
 		shutdownCancel()
@@ -501,5 +501,3 @@ type cachedPredicate struct {
 	predicate conditions.UserProfilePredicate
 	lastUsed  *atomic.Int64
 }
-
-
