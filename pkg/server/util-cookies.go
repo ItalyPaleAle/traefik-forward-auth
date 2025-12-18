@@ -106,7 +106,8 @@ func (s *Server) parseSessionToken(val string, portalName string) (openid.Token,
 		var ok bool
 		oidcToken, ok = token.(openid.Token)
 		if !ok {
-			// Should never happen
+			// This indicates a programming error in the JWT library or incorrect usage
+			// We handle it gracefully with an error rather than panicking since this involves user input
 			err = fmt.Errorf("JWT parsing returned unexpected token type: %T, expected openid.Token", token)
 		}
 	}
@@ -368,7 +369,9 @@ func (s *Server) computeTokenCacheTTL(token openid.Token, err error) time.Durati
 	// Compute time until expiration
 	ttl := time.Until(exp)
 	if ttl <= 0 {
-		// Token already expired, cache for a very short time
+		// Token already expired but was successfully parsed
+		// Cache for a short time to avoid repeated parsing attempts,
+		// but not for maxTokenCacheTTL since the token is expired
 		return expiredTokenCacheTTL
 	}
 
