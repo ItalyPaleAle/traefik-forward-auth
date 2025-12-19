@@ -503,14 +503,13 @@ func authenticatedUserFromProfile(provider auth.Provider, portal string, profile
 func getForwardedProto(c *gin.Context) string {
 	// Map WebSocket protocols to HTTP protocols for OAuth2 redirect URI
 	// OAuth2 callback URLs must be HTTP/HTTPS for browsers to navigate to
-	proto := c.GetHeader(headerXForwardedProto)
-	switch proto {
+	switch c.GetHeader(headerXForwardedProto) {
 	case "ws":
 		return "http"
 	case "wss":
 		return "https"
-	case "http", "https":
-		return proto
+	case "https":
+		return "https"
 	default:
 		// Fallback to HTTP for unknown protocols
 		return "http"
