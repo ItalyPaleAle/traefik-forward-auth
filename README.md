@@ -2,10 +2,6 @@
 
 A simple service that provides authentication and SSO with OAuth2, OpenID Connect, and Tailscale Whois, for the [Traefik](https://github.com/traefik/traefik) reverse proxy.
 
-> These docs are for **Traefik Forward Auth v4**.
->
-> 👉 Looking for the source code and docs for Traefik Forward Auth v3? You can find them in the [v3 branch](https://github.com/ItalyPaleAle/traefik-forward-auth/tree/v3).
-
 ## ✨ Highlights
 
 - Supports authentication with **Google**, **Microsoft Entra ID** (formerly Azure AD), **GitHub**, and generic **OpenID Connect** providers (including Auth0, Okta, etc).
