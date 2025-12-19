@@ -509,7 +509,10 @@ func getForwardedProto(c *gin.Context) string {
 		return "http"
 	case "wss":
 		return "https"
-	default:
+	case "http", "https":
 		return proto
+	default:
+		// Fallback to HTTP for unknown protocols
+		return "http"
 	}
 }
