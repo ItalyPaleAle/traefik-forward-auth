@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"strconv"
 	"strings"
 	"time"
 
@@ -34,20 +35,53 @@ const (
 	returnURLClaim        = "tf_return_url"
 
 	maxTokenCacheTTL = 5 * time.Minute // Maximum TTL for token validation cache
+
+	// Cookie chunking constants
+	// The maximum size of a cookie is 4096 bytes
+	// We use 3500 bytes per chunk to leave room for cookie metadata (name, domain, path, secure, httponly, samesite, maxage)
+	maxCookieChunkSize = 3500
+	// Maximum total cookie size is constrained by the server's MaxHeaderBytes (1MB)
+	// With 3500 bytes per chunk, we can fit ~280 chunks in 1MB
+	// We set a conservative limit to ensure we don't exceed header limits
+	maxCookieChunks = 200
 )
 
 func (s *Server) getSessionCookie(c *gin.Context, portalName string) (profile *user.Profile, provider auth.Provider, err error) {
 	cfg := config.Get()
+	cookieName := cfg.Cookies.CookieName(portalName)
 
-	// Get the cookie
-	cookieValue, err := c.Cookie(cfg.Cookies.CookieName(portalName))
+	// Get the base cookie
+	cookieValue, err := c.Cookie(cookieName)
 	if errors.Is(err, http.ErrNoCookie) {
 		return nil, nil, nil
 	} else if err != nil {
 		return nil, nil, fmt.Errorf("failed to get session cookie: %w", err)
 	}
 	if cookieValue == "" {
-		return nil, nil, fmt.Errorf("session cookie %s is empty", cfg.Cookies.CookieName(portalName))
+		return nil, nil, fmt.Errorf("session cookie %s is empty", cookieName)
+	}
+
+	// Check if there are chunked cookies and reassemble them
+	// Look for cookies with suffixes _1, _2, etc.
+	var combinedValue strings.Builder
+	for i := 1; i < maxCookieChunks; i++ {
+		chunkName := cookieName + "_" + strconv.Itoa(i)
+		chunkValue, err := c.Cookie(chunkName)
+		if errors.Is(err, http.ErrNoCookie) {
+			// No more chunks
+			break
+		} else if err != nil {
+			return nil, nil, fmt.Errorf("failed to get session cookie chunk %s: %w", chunkName, err)
+		}
+		if chunkValue == "" {
+			return nil, nil, fmt.Errorf("session cookie chunk %s is empty", chunkName)
+		}
+		combinedValue.WriteString(chunkValue)
+	}
+
+	// Reassemble the cookie value if it was chunked
+	if combinedValue.Len() > 0 {
+		cookieValue += combinedValue.String()
 	}
 
 	// Parse the JWT in the cookie
@@ -180,16 +214,41 @@ func (s *Server) setSessionCookie(c *gin.Context, portalName string, profile *us
 		return fmt.Errorf("failed to serialize token: %w", err)
 	}
 
-	// The maximum size of a cookie, including the other properties, is 4096 bytes
-	// We limit the size to 400 bytes less the cookie and domain names to account for additional properties
 	cookieName := cfg.Cookies.CookieName(portalName)
-	if len(cookieValue) > 4000-len(cfg.Cookies.Domain)-len(cookieName) {
-		return errors.New("cookie is too large and exceeds the allowed size")
+	tokenStr := string(cookieValue)
+
+	// Check if we need to chunk the cookie
+	if len(tokenStr) <= maxCookieChunkSize {
+		// Cookie fits in a single chunk, set it normally
+		c.SetSameSite(http.SameSiteLaxMode)
+		c.SetCookie(cookieName, tokenStr, int(expiration.Seconds())-1, "/", cfg.Cookies.Domain, !cfg.Cookies.Insecure, true)
+		return nil
 	}
 
-	// Set the cookie
+	// Cookie needs to be chunked
+	numChunks := (len(tokenStr) + maxCookieChunkSize - 1) / maxCookieChunkSize
+	if numChunks > maxCookieChunks {
+		return fmt.Errorf("cookie is too large: requires %d chunks but maximum is %d (cookie size: %d bytes, max total size: ~%d bytes)", numChunks, maxCookieChunks, len(tokenStr), maxCookieChunks*maxCookieChunkSize)
+	}
+
+	// Split the cookie into chunks
 	c.SetSameSite(http.SameSiteLaxMode)
-	c.SetCookie(cookieName, string(cookieValue), int(expiration.Seconds())-1, "/", cfg.Cookies.Domain, !cfg.Cookies.Insecure, true)
+	for i := range numChunks {
+		start := i * maxCookieChunkSize
+		end := min(start+maxCookieChunkSize, len(tokenStr))
+		chunk := tokenStr[start:end]
+
+		var chunkName string
+		if i == 0 {
+			// First chunk uses the base cookie name
+			chunkName = cookieName
+		} else {
+			// Subsequent chunks use the base name with a suffix
+			chunkName = cookieName + "_" + strconv.Itoa(i)
+		}
+
+		c.SetCookie(chunkName, chunk, int(expiration.Seconds())-1, "/", cfg.Cookies.Domain, !cfg.Cookies.Insecure, true)
+	}
 
 	return nil
 }
@@ -198,14 +257,29 @@ func (s *Server) deleteSessionCookie(c *gin.Context, portalName string) {
 	cfg := config.Get()
 	cookieName := cfg.Cookies.CookieName(portalName)
 
+	// Check if the base cookie exists
 	_, err := c.Cookie(cookieName)
 	if err != nil {
 		// Cookie was not set in the request, nothing to unset
 		return
 	}
 
+	// Delete the base cookie
 	c.SetSameSite(http.SameSiteLaxMode)
 	c.SetCookie(cookieName, "", -1, "/", cfg.Cookies.Domain, !cfg.Cookies.Insecure, true)
+
+	// Delete any chunked cookies
+	// We look for cookies with the pattern cookieName_1, cookieName_2, etc.
+	for i := 1; i < maxCookieChunks; i++ {
+		chunkName := cookieName + "_" + strconv.Itoa(i)
+		_, err := c.Cookie(chunkName)
+		if errors.Is(err, http.ErrNoCookie) {
+			// No more chunks to delete
+			break
+		}
+		// Delete the chunk cookie
+		c.SetCookie(chunkName, "", -1, "/", cfg.Cookies.Domain, !cfg.Cookies.Insecure, true)
+	}
 }
 
 type stateCookieContent struct {

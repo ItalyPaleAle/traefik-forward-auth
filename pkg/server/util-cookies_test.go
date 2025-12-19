@@ -1,6 +1,7 @@
 package server
 
 import (
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -70,33 +71,23 @@ func TestSetSessionCookie(t *testing.T) {
 		require.ErrorContains(t, err, "profile is nil")
 	})
 
-	t.Run("cookie too large", func(t *testing.T) {
-		// Create a test profile with very large field values to exceed cookie size limit
-		largeString := strings.Repeat("a", 2000) // 2000 characters
+	t.Run("cookie chunking for large profile", func(t *testing.T) {
+		// Create a test profile with large field values that will require chunking
+		// (need to exceed 3500 bytes)
+		largeString := strings.Repeat("a", 1_500) // 1500 characters
 		testProfile := &user.Profile{
-			ID: "test-user-" + largeString, // Make ID very long
+			ID: "test-user-" + largeString,
 			Name: user.ProfileName{
 				FullName: "Test User " + largeString,
 				First:    "Test " + largeString,
 				Last:     "User " + largeString,
-				Middle:   "Middle " + largeString,
-				Nickname: "Nick " + largeString,
 			},
 			Email: &user.ProfileEmail{
 				Value:    "test" + largeString + "@example.com",
 				Verified: true,
 			},
 			Provider: "testoauth2",
-			Picture:  "https://example.com/picture/" + largeString,
-			Locale:   "en-US-" + largeString,
-			Timezone: "America/New_York-" + largeString,
 			Groups:   []string{"group1-" + largeString, "group2-" + largeString},
-			Roles:    []string{"role1-" + largeString, "role2-" + largeString},
-			AdditionalClaims: map[string]any{
-				"custom_claim_1": "value1-" + largeString,
-				"custom_claim_2": "value2-" + largeString,
-				"custom_claim_3": "value3-" + largeString,
-			},
 		}
 
 		// Create a gin context for testing
@@ -104,12 +95,75 @@ func TestSetSessionCookie(t *testing.T) {
 		c, _ := gin.CreateTestContext(w)
 		c.Request, _ = http.NewRequest(http.MethodGet, "/", nil)
 
-		// Test setting session cookie with large profile - should fail
+		// Test setting session cookie with large profile - should succeed with chunking
+		err := srv.setSessionCookie(c, testPortalName, testProfile, time.Hour)
+		require.NoError(t, err)
+
+		// Check that multiple cookies were set (chunked)
+		cookies := w.Result().Cookies()
+		require.NotEmpty(t, cookies)
+		t.Logf("Number of cookie chunks: %d", len(cookies))
+
+		cfg := config.Get()
+		baseCookieName := cfg.Cookies.CookieName(testPortalName)
+
+		// Verify cookie names
+		assert.Equal(t, baseCookieName, cookies[0].Name)
+		if len(cookies) > 1 {
+			for i := 1; i < len(cookies); i++ {
+				expectedName := fmt.Sprintf("%s_%d", baseCookieName, i)
+				assert.Equal(t, expectedName, cookies[i].Name)
+			}
+		}
+
+		// Now test reading the chunked cookie
+		w2 := httptest.NewRecorder()
+		c2, _ := gin.CreateTestContext(w2)
+		c2.Request, _ = http.NewRequest(http.MethodGet, "/", nil)
+		for _, cookie := range cookies {
+			c2.Request.AddCookie(cookie)
+		}
+
+		// Should be able to read the chunked cookie successfully
+		profile, provider, err := srv.getSessionCookie(c2, testPortalName)
+		require.NoError(t, err)
+		require.NotNil(t, profile)
+		require.NotNil(t, provider)
+
+		// Verify profile data matches
+		assert.Equal(t, testProfile.ID, profile.ID)
+		assert.Equal(t, testProfile.Name.FullName, profile.Name.FullName)
+		assert.Equal(t, testProfile.Email.Value, profile.Email.Value)
+	})
+
+	t.Run("cookie too large", func(t *testing.T) {
+		// Create an extremely large profile that exceeds even chunked cookie limits
+		// With 250 chunks max and 3500 bytes per chunk, max is ~875,000 bytes
+		// Let's create something that will definitely exceed this
+		veryLargeString := strings.Repeat("a", 500_000) // 500KB string
+		testProfile := &user.Profile{
+			ID: "test-user-" + veryLargeString,
+			Name: user.ProfileName{
+				FullName: "Test User " + veryLargeString,
+			},
+			Email: &user.ProfileEmail{
+				Value:    "test@example.com",
+				Verified: true,
+			},
+			Provider: "testoauth2",
+		}
+
+		// Create a gin context for testing
+		w := httptest.NewRecorder()
+		c, _ := gin.CreateTestContext(w)
+		c.Request, _ = http.NewRequest(http.MethodGet, "/", nil)
+
+		// Test setting session cookie - should fail
 		err := srv.setSessionCookie(c, testPortalName, testProfile, time.Hour)
 		require.Error(t, err)
-		require.ErrorContains(t, err, "cookie is too large and exceeds the allowed size")
+		require.ErrorContains(t, err, "cookie is too large")
 
-		// Check that no cookie was set in response
+		// Check that no cookies were set in response
 		cookies := w.Result().Cookies()
 		assert.Empty(t, cookies)
 	})
@@ -282,6 +336,58 @@ func TestDeleteSessionCookie(t *testing.T) {
 		// Should not set any deletion cookie since no cookie existed in the request
 		deletionCookies := w.Result().Cookies()
 		assert.Empty(t, deletionCookies)
+	})
+
+	t.Run("delete chunked cookies", func(t *testing.T) {
+		// Create a large profile that requires chunking
+		largeString := strings.Repeat("a", 1500)
+		testProfile := &user.Profile{
+			ID: "test-user-chunked-delete",
+			Name: user.ProfileName{
+				FullName: "Test User " + largeString,
+				First:    "Test " + largeString,
+			},
+			Email: &user.ProfileEmail{
+				Value:    "test" + largeString + "@example.com",
+				Verified: true,
+			},
+			Provider: "testoauth2",
+			Groups:   []string{"group1-" + largeString, "group2-" + largeString},
+		}
+
+		// Set the chunked cookie
+		w := httptest.NewRecorder()
+		c, _ := gin.CreateTestContext(w)
+		c.Request, _ = http.NewRequest(http.MethodGet, "/", nil)
+
+		err := srv.setSessionCookie(c, testPortalName, testProfile, time.Hour)
+		require.NoError(t, err)
+
+		cookies := w.Result().Cookies()
+		require.NotEmpty(t, cookies)
+		numChunks := len(cookies)
+		t.Logf("Created %d cookie chunks", numChunks)
+
+		// Create a new context with all the cookie chunks
+		w2 := httptest.NewRecorder()
+		c2, _ := gin.CreateTestContext(w2)
+		c2.Request, _ = http.NewRequest(http.MethodGet, "/", nil)
+		for _, cookie := range cookies {
+			c2.Request.AddCookie(cookie)
+		}
+
+		// Delete the chunked cookies
+		srv.deleteSessionCookie(c2, testPortalName)
+
+		// Check that all chunks were deleted
+		deletionCookies := w2.Result().Cookies()
+		require.Len(t, deletionCookies, numChunks, "should delete all cookie chunks")
+
+		// Verify all deletion cookies have MaxAge = -1
+		for _, cookie := range deletionCookies {
+			assert.Empty(t, cookie.Value)
+			assert.Equal(t, -1, cookie.MaxAge)
+		}
 	})
 }
 

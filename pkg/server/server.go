@@ -53,6 +53,8 @@ const (
 	headerXForwardAuthIf        = "X-Forward-Auth-If"
 
 	contentTypeTextPlain = "text/plain; charset=utf-8"
+
+	maxHeaderBytes = 1 << 20 // 1MB
 )
 
 // Server is the server based on Gin
@@ -337,7 +339,7 @@ func (s *Server) startAppServer(ctx context.Context) error {
 	// Create the HTTP(S) server
 	s.appSrv = &http.Server{
 		Addr:              net.JoinHostPort(cfg.Server.Bind, strconv.Itoa(cfg.Server.Port)),
-		MaxHeaderBytes:    1 << 20,
+		MaxHeaderBytes:    maxHeaderBytes,
 		ReadHeaderTimeout: 10 * time.Second,
 	}
 	if s.tlsConfig != nil {
