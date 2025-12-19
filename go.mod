@@ -9,7 +9,7 @@ require (
 	github.com/cenkalti/backoff/v5 v5.0.3
 	github.com/gin-gonic/gin v1.11.0
 	github.com/google/uuid v1.6.0
-	github.com/italypaleale/go-kit v0.0.0-20251214062341-a0edd6cd575f
+	github.com/italypaleale/go-kit v0.0.0-20251214064356-57c1a0f9caa3
 	github.com/jinzhu/copier v0.4.0
 	github.com/lestrrat-go/jwx/v3 v3.0.12
 	github.com/lmittmann/tint v1.1.2
@@ -32,7 +32,7 @@ require (
 	golang.org/x/net v0.48.0
 	golang.org/x/text v0.32.0
 	sigs.k8s.io/yaml v1.6.0
-	tailscale.com v1.92.2
+	tailscale.com v1.92.4
 )
 
 require (
