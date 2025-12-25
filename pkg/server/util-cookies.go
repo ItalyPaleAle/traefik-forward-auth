@@ -437,8 +437,8 @@ func stateCookieSig(c *gin.Context, portalName string, stateCookieID string, non
 }
 
 // tokenCacheKey computes the hash of the token string (using xxHash, variant XXH64) for use as a cache key
-func (s *Server) tokenCacheKey(tokenStr string) string {
-	return strconv.FormatUint(xxhash.Sum64String(tokenStr), 10)
+func (s *Server) tokenCacheKey(tokenStr string) uint64 {
+	return xxhash.Sum64String(tokenStr)
 }
 
 // computeTokenCacheTTL computes the TTL for a token validation result in the cache

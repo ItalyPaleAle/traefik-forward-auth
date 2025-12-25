@@ -7,9 +7,10 @@ require (
 	github.com/Azure/azure-sdk-for-go/sdk/azidentity v1.13.1
 	github.com/alphadose/haxmap v1.4.1
 	github.com/cenkalti/backoff/v5 v5.0.3
+	github.com/cespare/xxhash/v2 v2.3.0
 	github.com/gin-gonic/gin v1.11.0
 	github.com/google/uuid v1.6.0
-	github.com/italypaleale/go-kit v0.0.0-20251214064356-57c1a0f9caa3
+	github.com/italypaleale/go-kit v0.0.0-20251225113216-761762aba7b7
 	github.com/jinzhu/copier v0.4.0
 	github.com/lestrrat-go/jwx/v3 v3.0.12
 	github.com/lmittmann/tint v1.1.2
@@ -44,7 +45,6 @@ require (
 	github.com/bytedance/gopkg v0.1.3 // indirect
 	github.com/bytedance/sonic v1.14.2 // indirect
 	github.com/bytedance/sonic/loader v0.4.0 // indirect
-	github.com/cespare/xxhash/v2 v2.3.0 // indirect
 	github.com/cloudwego/base64x v0.1.6 // indirect
 	github.com/coder/websocket v1.8.12 // indirect
 	github.com/davecgh/go-spew v1.1.2-0.20180830191138-d8f796af33cc // indirect
