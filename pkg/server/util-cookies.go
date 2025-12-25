@@ -13,6 +13,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/cespare/xxhash/v2"
 	"github.com/gin-gonic/gin"
 	"github.com/lestrrat-go/jwx/v3/jwa"
 	"github.com/lestrrat-go/jwx/v3/jwt"
@@ -435,10 +436,9 @@ func stateCookieSig(c *gin.Context, portalName string, stateCookieID string, non
 	return base64.RawURLEncoding.EncodeToString(h.Sum(nil))
 }
 
-// tokenCacheKey computes the SHA-256 hash of the token string for use as a cache key
+// tokenCacheKey computes the hash of the token string (using xxHash, variant XXH64) for use as a cache key
 func (s *Server) tokenCacheKey(tokenStr string) string {
-	h := sha256.Sum256([]byte(tokenStr))
-	return base64.RawURLEncoding.EncodeToString(h[:])
+	return strconv.FormatUint(xxhash.Sum64String(tokenStr), 10)
 }
 
 // computeTokenCacheTTL computes the TTL for a token validation result in the cache

@@ -825,22 +825,20 @@ func TestTokenCaching(t *testing.T) {
 		assert.Equal(t, 5*time.Minute, ttl)
 	})
 
-	t.Run("cache uses SHA-256 hash as key", func(t *testing.T) {
-		testToken := "test.token.value"
-
-		// Compute cache key
-		cacheKey := srv.tokenCacheKey(testToken)
-
-		// Verify it's a valid base64 string of the right length (43 chars for 32 bytes using RawURLEncoding)
-		assert.Len(t, cacheKey, 43)
+	t.Run("cache key changes with tokens", func(t *testing.T) {
+		const (
+			testToken    = "test.token.value"
+			testTokenAlt = "different.token.value"
+		)
 
 		// Verify it's consistent
+		cacheKey1 := srv.tokenCacheKey(testToken)
 		cacheKey2 := srv.tokenCacheKey(testToken)
-		assert.Equal(t, cacheKey, cacheKey2)
+		assert.Equal(t, cacheKey1, cacheKey2)
 
 		// Verify different tokens produce different keys
-		cacheKey3 := srv.tokenCacheKey("different.token.value")
-		assert.NotEqual(t, cacheKey, cacheKey3)
+		cacheKey3 := srv.tokenCacheKey(testTokenAlt)
+		assert.NotEqual(t, cacheKey1, cacheKey3)
 	})
 }
 
