@@ -1,6 +1,7 @@
 package server
 
 import (
+	"encoding/json"
 	"fmt"
 	"net/http"
 	"reflect"
@@ -80,19 +81,26 @@ func (s *Server) RouteGetProfile(c *gin.Context) {
 
 	if len(profile.AdditionalClaims) > 0 {
 		fmt.Fprint(c.Writer, "Additional claims:\n")
+		enc := json.NewEncoder(c.Writer)
+		enc.SetEscapeHTML(false)
 		for k, v := range profile.AdditionalClaims {
-			if reflect.TypeOf(v).Kind() == reflect.Slice {
-				vs := cast.ToStringSlice(v)
+			switch reflect.TypeOf(v).Kind() {
+			case reflect.Slice:
+				vs, err := cast.ToStringSliceE(v)
 				switch {
+				case err != nil:
+					// Not a type that could be serialized to a string slice, so display it as JSON
+					fmt.Fprint(c.Writer, "   "+k+": ")
+					enc.Encode(v)
 				case len(vs) > 1:
 					fmt.Fprint(c.Writer, "   "+k+":\n")
 					for _, v := range vs {
 						fmt.Fprint(c.Writer, "     - "+v+"\n")
 					}
 				case len(vs) == 1:
-					fmt.Fprint(c.Writer, "   "+k+": "+profile.Roles[0]+"\n")
+					fmt.Fprint(c.Writer, "   "+k+": "+vs[0]+"\n")
 				}
-			} else {
+			default:
 				fmt.Fprint(c.Writer, "   "+k+": "+cast.ToString(v)+"\n")
 			}
 		}

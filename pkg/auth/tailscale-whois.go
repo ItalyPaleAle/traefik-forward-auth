@@ -2,7 +2,6 @@ package auth
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"net"
 	"net/http"
@@ -185,8 +184,8 @@ func (a *TailscaleWhois) PopulateAdditionalClaims(token jwt.Token, setClaimFn fu
 	if len(a.capabilityNames) > 0 {
 		for _, capName := range a.capabilityNames {
 			claimKey := "https://" + capName
-			var capValues []json.RawMessage
-			if token.Get(claimKey, &capValues) == nil && len(capValues) > 0 {
+			var capValues any
+			if token.Get(claimKey, &capValues) == nil {
 				setClaimFn(claimKey, capValues)
 			}
 		}
