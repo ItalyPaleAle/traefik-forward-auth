@@ -190,3 +190,71 @@ func TestIsHostname(t *testing.T) {
 		}
 	}
 }
+
+func TestIsCapabilityName(t *testing.T) {
+	tests := []struct {
+		name   string
+		input  string
+		expect bool
+	}{
+		{
+			name:   "Valid capability name",
+			input:  "example.com/path",
+			expect: true,
+		},
+		{
+			name:   "Valid capability name with subdomain",
+			input:  "italypaleale.me/traefik-forward-auth",
+			expect: true,
+		},
+		{
+			name:   "Valid capability name with multi-level path",
+			input:  "example.com/path/to/capability",
+			expect: true,
+		},
+		{
+			name:   "Invalid - no path",
+			input:  "example.com",
+			expect: false,
+		},
+		{
+			name:   "Invalid - no path (trailing slash only)",
+			input:  "example.com/",
+			expect: false,
+		},
+		{
+			name:   "Invalid - no host",
+			input:  "/path",
+			expect: false,
+		},
+		{
+			name:   "Invalid - empty string",
+			input:  "",
+			expect: false,
+		},
+		{
+			name:   "Invalid - only slash",
+			input:  "/",
+			expect: false,
+		},
+		{
+			name:   "Valid capability name with hyphen in hostname",
+			input:  "my-domain.com/capability",
+			expect: true,
+		},
+		{
+			name:   "Valid capability name with numbers",
+			input:  "example123.com/cap-1",
+			expect: true,
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			result := IsCapabilityName(test.input)
+			if result != test.expect {
+				t.Errorf("Expected %v, but got %v", test.expect, result)
+			}
+		})
+	}
+}

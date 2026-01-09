@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/italypaleale/traefik-forward-auth/pkg/auth"
+	"github.com/italypaleale/traefik-forward-auth/pkg/utils/validators"
 )
 
 var testProviderConfigFactory map[string]func() ProviderConfig
@@ -476,6 +477,12 @@ type ProviderConfig_TailscaleWhois struct {
 	// Timeout for network requests for Tailscale Whois auth
 	// +default "10s"
 	RequestTimeout time.Duration `yaml:"requestTimeout"`
+	// Names of capabilities to read from Tailscale peer capabilities.
+	// Each capability name must be a URL-like string with a hostname and path (e.g., "example.com/capability").
+	// If a capability has an https:// prefix, it will be removed. http:// prefixes are not allowed.
+	// +default ["italypaleale.me/traefik-forward-auth"]
+	// +example ["italypaleale.me/traefik-forward-auth"]
+	CapabilityNames []string `yaml:"capabilityNames"`
 	// Optional icon for the provider
 	// Defaults to the standard icon for the provider
 	// +example "tailscale"
@@ -488,10 +495,54 @@ type ProviderConfig_TailscaleWhois struct {
 }
 
 func (p *ProviderConfig_TailscaleWhois) GetAuthProvider(_ context.Context) (auth.Provider, error) {
+	// Set default capability names if not provided
+	capabilityNames := p.CapabilityNames
+	if len(capabilityNames) == 0 {
+		capabilityNames = []string{"italypaleale.me/traefik-forward-auth"}
+	}
+
+	// Validate and normalize capability names
+	normalizedCapNames := make([]string, len(capabilityNames))
+	for i, capName := range capabilityNames {
+		normalized, err := validateAndNormalizeCapabilityName(capName)
+		if err != nil {
+			return nil, fmt.Errorf("invalid capability name at index %d: %w", i, err)
+		}
+		normalizedCapNames[i] = normalized
+	}
+
 	return auth.NewTailscaleWhois(auth.NewTailscaleWhoisOptions{
-		AllowedTailnet: p.AllowedTailnet,
-		RequestTimeout: p.RequestTimeout,
+		AllowedTailnet:  p.AllowedTailnet,
+		RequestTimeout:  p.RequestTimeout,
+		CapabilityNames: normalizedCapNames,
 	})
+}
+
+// validateAndNormalizeCapabilityName validates a capability name and normalizes it.
+// It removes https:// prefix if present, returns error if http:// prefix is present,
+// and validates the format is a URL with hostname and path.
+func validateAndNormalizeCapabilityName(name string) (string, error) {
+	const (
+		httpsPrefix = "https://"
+		httpPrefix  = "http://"
+	)
+
+	// Check for and remove https:// prefix
+	if len(name) > len(httpsPrefix) && name[:len(httpsPrefix)] == httpsPrefix {
+		name = name[len(httpsPrefix):]
+	}
+
+	// Check for http:// prefix (not allowed)
+	if len(name) > len(httpPrefix) && name[:len(httpPrefix)] == httpPrefix {
+		return "", fmt.Errorf("capability name must not have http:// prefix, use https:// or omit the protocol")
+	}
+
+	// Validate the capability name format (hostname + path)
+	if !validators.IsCapabilityName(name) {
+		return "", fmt.Errorf("capability name '%s' must be a URL with a hostname and path (e.g., 'example.com/capability')", name)
+	}
+
+	return name, nil
 }
 
 func (p *ProviderConfig_TailscaleWhois) SetConfigObject(_ *Config) {

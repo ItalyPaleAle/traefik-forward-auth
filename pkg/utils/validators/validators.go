@@ -107,3 +107,31 @@ func IsHostname(s string) bool {
 
 	return nonNumeric
 }
+
+// IsCapabilityName validates that a string is a valid capability name (URL with host and path, no protocol).
+// Returns true if the string contains a hostname and a path (e.g., "example.com/path").
+func IsCapabilityName(s string) bool {
+	if s == "" {
+		return false
+	}
+
+	// Find the first slash to separate host and path
+	slashIdx := -1
+	for i := range len(s) {
+		if s[i] == '/' {
+			slashIdx = i
+			break
+		}
+	}
+
+	// Must have both host and path
+	if slashIdx <= 0 || slashIdx >= len(s)-1 {
+		return false
+	}
+
+	host := s[:slashIdx]
+	// Path must not be empty (already checked above)
+
+	// Validate the hostname part
+	return IsHostname(host)
+}
