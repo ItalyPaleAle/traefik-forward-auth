@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/italypaleale/traefik-forward-auth/pkg/auth"
@@ -528,12 +529,12 @@ func validateAndNormalizeCapabilityName(name string) (string, error) {
 	)
 
 	// Check for and remove https:// prefix
-	if len(name) > len(httpsPrefix) && name[:len(httpsPrefix)] == httpsPrefix {
+	if strings.HasPrefix(name, httpsPrefix) {
 		name = name[len(httpsPrefix):]
 	}
 
 	// Check for http:// prefix (not allowed)
-	if len(name) > len(httpPrefix) && name[:len(httpPrefix)] == httpPrefix {
+	if strings.HasPrefix(name, httpPrefix) {
 		return "", fmt.Errorf("capability name must not have http:// prefix, use https:// or omit the protocol")
 	}
 

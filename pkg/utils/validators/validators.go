@@ -3,6 +3,7 @@ package validators
 import (
 	"net"
 	"regexp"
+	"strings"
 )
 
 // Validates a string is a valid email address
@@ -116,13 +117,7 @@ func IsCapabilityName(s string) bool {
 	}
 
 	// Find the first slash to separate host and path
-	slashIdx := -1
-	for i := range len(s) {
-		if s[i] == '/' {
-			slashIdx = i
-			break
-		}
-	}
+	slashIdx := strings.Index(s, "/")
 
 	// Must have both host and path
 	if slashIdx <= 0 || slashIdx >= len(s)-1 {
