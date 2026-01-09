@@ -611,6 +611,14 @@ portals:
           ## Default: "10s"
           #requestTimeout: "10s"
 
+          ## portals.$.providers.$.tailscaleWhois.capabilityNames (list of strings)
+          ## Description:
+          ##   Names of capabilities to read from Tailscale peer capabilities.
+          ##   Each capability name must be a URL-like string with a hostname and path (e.g., "example.com/capability").
+          ##   If a capability has an https:// prefix, it will be removed. http:// prefixes are not allowed.
+          ## Default: ["italypaleale.me/traefik-forward-auth"]
+          #capabilityNames: ["italypaleale.me/traefik-forward-auth"]
+
           ## portals.$.providers.$.tailscaleWhois.icon (string)
           ## Description:
           ##   Optional icon for the provider

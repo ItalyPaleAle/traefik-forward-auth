@@ -259,6 +259,7 @@ portals:
 | <a id="config-opt-portals.$.providers.$-tailscalewhois-portals-$-providers-$-tailscalewhois-displayname"></a>`portals.$.providers.$.tailscaleWhois.displayName` | string | Optional display name for the provider<br>Defaults to the standard display name for the provider|  |
 | <a id="config-opt-portals.$.providers.$-tailscalewhois-portals-$-providers-$-tailscalewhois-allowedtailnet"></a>`portals.$.providers.$.tailscaleWhois.allowedTailnet` | string | If non-empty, requires the Tailnet of the user to match this value|  |
 | <a id="config-opt-portals.$.providers.$-tailscalewhois-portals-$-providers-$-tailscalewhois-requesttimeout"></a>`portals.$.providers.$.tailscaleWhois.requestTimeout` | duration | Timeout for network requests for Tailscale Whois auth| Default: _"10s"_ |
+| <a id="config-opt-portals.$.providers.$-tailscalewhois-portals-$-providers-$-tailscalewhois-capabilitynames"></a>`portals.$.providers.$.tailscaleWhois.capabilityNames` | list of strings | Names of capabilities to read from Tailscale peer capabilities.<br>Each capability name must be a URL-like string with a hostname and path (e.g., "example.com/capability").<br>If a capability has an https:// prefix, it will be removed. http:// prefixes are not allowed.| Default: _["italypaleale.me/traefik-forward-auth"]_ |
 | <a id="config-opt-portals.$.providers.$-tailscalewhois-portals-$-providers-$-tailscalewhois-icon"></a>`portals.$.providers.$.tailscaleWhois.icon` | string | Optional icon for the provider<br>Defaults to the standard icon for the provider|  |
 | <a id="config-opt-portals.$.providers.$-tailscalewhois-portals-$-providers-$-tailscalewhois-color"></a>`portals.$.providers.$.tailscaleWhois.color` | string | Optional color scheme for the provider<br>Allowed values include all color schemes available in Tailwind 4<br>Defaults to the standard color for the provider|  |
 
@@ -275,6 +276,8 @@ portals:
           #allowedTailnet: "yourtailnet.ts.net"
           ## Default: "10s"
           #requestTimeout: "10s"
+          ## Default: ["italypaleale.me/traefik-forward-auth"]
+          #capabilityNames: ["italypaleale.me/traefik-forward-auth"]
           #icon: "tailscale"
           #color: "slate"
 ```
