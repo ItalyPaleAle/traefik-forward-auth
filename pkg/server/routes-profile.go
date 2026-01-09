@@ -3,8 +3,10 @@ package server
 import (
 	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
 	"reflect"
+	"slices"
 
 	"github.com/gin-gonic/gin"
 	"github.com/spf13/cast"
@@ -81,28 +83,43 @@ func (s *Server) RouteGetProfile(c *gin.Context) {
 
 	if len(profile.AdditionalClaims) > 0 {
 		fmt.Fprint(c.Writer, "Additional claims:\n")
-		enc := json.NewEncoder(c.Writer)
-		enc.SetEscapeHTML(false)
-		for k, v := range profile.AdditionalClaims {
-			switch reflect.TypeOf(v).Kind() {
-			case reflect.Slice:
-				vs, err := cast.ToStringSliceE(v)
-				switch {
-				case err != nil:
-					// Not a type that could be serialized to a string slice, so display it as JSON
-					fmt.Fprint(c.Writer, "   "+k+": ")
-					enc.Encode(v)
-				case len(vs) > 1:
-					fmt.Fprint(c.Writer, "   "+k+":\n")
-					for _, v := range vs {
-						fmt.Fprint(c.Writer, "     - "+v+"\n")
-					}
-				case len(vs) == 1:
-					fmt.Fprint(c.Writer, "   "+k+": "+vs[0]+"\n")
+		printAdditionalClaimsText(c.Writer, profile.AdditionalClaims)
+	}
+}
+
+func printAdditionalClaimsText(w io.Writer, additionalClaims map[string]any) {
+	enc := json.NewEncoder(w)
+	enc.SetEscapeHTML(false)
+
+	// Collect all keys in a slice, so we can print the result in order
+	keys := make([]string, len(additionalClaims))
+	var i int
+	for k := range additionalClaims {
+		keys[i] = k
+		i++
+	}
+	slices.Sort(keys)
+
+	for _, k := range keys {
+		v := additionalClaims[k]
+		switch reflect.TypeOf(v).Kind() {
+		case reflect.Slice:
+			vs, err := cast.ToStringSliceE(v)
+			switch {
+			case err != nil:
+				// Not a type that could be serialized to a string slice, so display it as JSON
+				fmt.Fprint(w, "   "+k+": ")
+				enc.Encode(v)
+			case len(vs) > 1:
+				fmt.Fprint(w, "   "+k+":\n")
+				for _, v := range vs {
+					fmt.Fprint(w, "     - "+v+"\n")
 				}
-			default:
-				fmt.Fprint(c.Writer, "   "+k+": "+cast.ToString(v)+"\n")
+			case len(vs) == 1:
+				fmt.Fprint(w, "   "+k+": "+vs[0]+"\n")
 			}
+		default:
+			fmt.Fprint(w, "   "+k+": "+cast.ToString(v)+"\n")
 		}
 	}
 }
