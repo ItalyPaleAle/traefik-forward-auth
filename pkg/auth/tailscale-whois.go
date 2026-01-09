@@ -141,15 +141,10 @@ func (a *TailscaleWhois) SeamlessAuth(r *http.Request) (*user.Profile, error) {
 	if len(a.capabilityNames) > 0 && info.CapMap != nil {
 		for _, capName := range a.capabilityNames {
 			// Look for the capability in the CapMap
-			if capValues, ok := info.CapMap[tailcfg.PeerCapability(capName)]; ok && len(capValues) > 0 {
-				// Convert tailcfg.RawMessage values to json.RawMessage
-				jsonValues := make([]json.RawMessage, len(capValues))
-				for i, v := range capValues {
-					jsonValues[i] = json.RawMessage(v)
-				}
+			capValues, ok := info.CapMap[tailcfg.PeerCapability(capName)]
+			if ok && len(capValues) > 0 {
 				// Add with https:// prefix as the key
-				claimKey := "https://" + capName
-				profile.AdditionalClaims[claimKey] = jsonValues
+				profile.AdditionalClaims["https://"+capName] = capValues
 			}
 		}
 	}

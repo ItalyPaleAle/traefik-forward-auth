@@ -482,7 +482,6 @@ type ProviderConfig_TailscaleWhois struct {
 	// Each capability name must be a URL-like string with a hostname and path (e.g., "example.com/capability").
 	// If a capability has an https:// prefix, it will be removed. http:// prefixes are not allowed.
 	// +default ["italypaleale.me/traefik-forward-auth"]
-	// +example ["italypaleale.me/traefik-forward-auth"]
 	CapabilityNames []string `yaml:"capabilityNames"`
 	// Optional icon for the provider
 	// Defaults to the standard icon for the provider
@@ -503,19 +502,18 @@ func (p *ProviderConfig_TailscaleWhois) GetAuthProvider(_ context.Context) (auth
 	}
 
 	// Validate and normalize capability names
-	normalizedCapNames := make([]string, len(capabilityNames))
 	for i, capName := range capabilityNames {
 		normalized, err := validateAndNormalizeCapabilityName(capName)
 		if err != nil {
 			return nil, fmt.Errorf("invalid capability name at index %d: %w", i, err)
 		}
-		normalizedCapNames[i] = normalized
+		capabilityNames[i] = normalized
 	}
 
 	return auth.NewTailscaleWhois(auth.NewTailscaleWhoisOptions{
 		AllowedTailnet:  p.AllowedTailnet,
 		RequestTimeout:  p.RequestTimeout,
-		CapabilityNames: normalizedCapNames,
+		CapabilityNames: capabilityNames,
 	})
 }
 
@@ -523,23 +521,16 @@ func (p *ProviderConfig_TailscaleWhois) GetAuthProvider(_ context.Context) (auth
 // It removes https:// prefix if present, returns error if http:// prefix is present,
 // and validates the format is a URL with hostname and path.
 func validateAndNormalizeCapabilityName(name string) (string, error) {
-	const (
-		httpsPrefix = "https://"
-		httpPrefix  = "http://"
-	)
-
 	// Check for and remove https:// prefix
-	if strings.HasPrefix(name, httpsPrefix) {
-		name = name[len(httpsPrefix):]
-	}
+	name = strings.TrimPrefix(name, "https://")
 
 	// Check for http:// prefix (not allowed)
-	if strings.HasPrefix(name, httpPrefix) {
-		return "", fmt.Errorf("capability name must not have http:// prefix, use https:// or omit the protocol")
+	if strings.HasPrefix(name, "http://") {
+		return "", errors.New("capability name must not have http:// prefix; use https:// or omit the protocol")
 	}
 
 	// Validate the capability name format (hostname + path)
-	if !validators.IsCapabilityName(name) {
+	if !validators.IsTailscaleCapabilityName(name) {
 		return "", fmt.Errorf("capability name '%s' must be a URL with a hostname and path (e.g., 'example.com/capability')", name)
 	}
 

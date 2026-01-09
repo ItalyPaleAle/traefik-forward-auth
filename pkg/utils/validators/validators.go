@@ -109,9 +109,9 @@ func IsHostname(s string) bool {
 	return nonNumeric
 }
 
-// IsCapabilityName validates that a string is a valid capability name (URL with host and path, no protocol).
+// IsTailscaleCapabilityName validates that a string is a valid Tailscale capability name (URL with host and path, no protocol).
 // Returns true if the string contains a hostname and a path (e.g., "example.com/path").
-func IsCapabilityName(s string) bool {
+func IsTailscaleCapabilityName(s string) bool {
 	if s == "" {
 		return false
 	}
@@ -125,7 +125,6 @@ func IsCapabilityName(s string) bool {
 	}
 
 	host := s[:slashIdx]
-	// Path must not be empty (already checked above)
 
 	// Validate the hostname part
 	return IsHostname(host)

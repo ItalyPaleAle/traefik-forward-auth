@@ -5,6 +5,9 @@ package auth
 import (
 	"encoding/json"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestNewTailscaleWhois(t *testing.T) {
@@ -42,35 +45,17 @@ func TestNewTailscaleWhois(t *testing.T) {
 		},
 	}
 
-	for _, test := range tests {
-		t.Run(test.name, func(t *testing.T) {
-			provider, err := NewTailscaleWhois(test.opts)
-			if err != nil {
-				t.Fatalf("Unexpected error: %v", err)
-			}
-
-			if provider == nil {
-				t.Fatal("Expected provider but got nil")
-			}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			provider, err := NewTailscaleWhois(tt.opts)
+			require.NoError(t, err)
+			require.NotNil(t, provider)
 
 			// Check that capability names were set correctly
-			if len(provider.capabilityNames) != len(test.expectCapNames) {
-				t.Errorf("Expected %d capability names, got %d", len(test.expectCapNames), len(provider.capabilityNames))
-			}
-
-			for i, expected := range test.expectCapNames {
-				if i >= len(provider.capabilityNames) {
-					break
-				}
-				if provider.capabilityNames[i] != expected {
-					t.Errorf("Expected capability name[%d] = '%s', got '%s'", i, expected, provider.capabilityNames[i])
-				}
-			}
+			assert.Equal(t, tt.expectCapNames, provider.capabilityNames)
 
 			// Check that allowed tailnet was set correctly
-			if provider.allowedTailnet != test.expectAllowedTN {
-				t.Errorf("Expected allowedTailnet = '%s', got '%s'", test.expectAllowedTN, provider.allowedTailnet)
-			}
+			assert.Equal(t, tt.expectAllowedTN, provider.allowedTailnet)
 		})
 	}
 }
@@ -99,32 +84,15 @@ func TestTailscaleWhoisCapabilityExtraction(t *testing.T) {
 		},
 	}
 
-	for _, test := range tests {
-		t.Run(test.name, func(t *testing.T) {
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
 			// Convert string to json.RawMessage
-			rawMsg := json.RawMessage(test.input)
+			rawMsg := json.RawMessage(tt.input)
 
 			// Verify it can be marshaled back
 			marshaled, err := json.Marshal(rawMsg)
-			if err != nil {
-				t.Fatalf("Failed to marshal json.RawMessage: %v", err)
-			}
-
-			// Compare (note: marshaling may normalize formatting)
-			var expected, actual interface{}
-			if err := json.Unmarshal([]byte(test.expected), &expected); err != nil {
-				t.Fatalf("Failed to unmarshal expected JSON: %v", err)
-			}
-			if err := json.Unmarshal(marshaled, &actual); err != nil {
-				t.Fatalf("Failed to unmarshal actual JSON: %v", err)
-			}
-
-			// Deep comparison using JSON marshaling
-			expectedBytes, _ := json.Marshal(expected)
-			actualBytes, _ := json.Marshal(actual)
-			if string(expectedBytes) != string(actualBytes) {
-				t.Errorf("Expected JSON '%s', got '%s'", string(expectedBytes), string(actualBytes))
-			}
+			require.NoError(t, err)
+			require.JSONEq(t, tt.expected, string(marshaled))
 		})
 	}
 }

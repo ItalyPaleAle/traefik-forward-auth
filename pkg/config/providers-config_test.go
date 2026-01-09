@@ -2,6 +2,9 @@ package config
 
 import (
 	"testing"
+
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestValidateAndNormalizeCapabilityName(t *testing.T) {
@@ -73,21 +76,15 @@ func TestValidateAndNormalizeCapabilityName(t *testing.T) {
 		},
 	}
 
-	for _, test := range tests {
-		t.Run(test.name, func(t *testing.T) {
-			result, err := validateAndNormalizeCapabilityName(test.input)
-			if test.expectErr {
-				if err == nil {
-					t.Errorf("Expected error but got nil")
-				}
-			} else {
-				if err != nil {
-					t.Errorf("Unexpected error: %v", err)
-				}
-				if result != test.expected {
-					t.Errorf("Expected '%s' but got '%s'", test.expected, result)
-				}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result, err := validateAndNormalizeCapabilityName(tt.input)
+			if tt.expectErr {
+				require.Error(t, err)
+				return
 			}
+			require.NoError(t, err)
+			assert.Equal(t, tt.expected, result)
 		})
 	}
 }

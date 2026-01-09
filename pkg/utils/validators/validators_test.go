@@ -3,6 +3,8 @@ package validators
 import (
 	"strings"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
 )
 
 func TestEmail(t *testing.T) {
@@ -41,9 +43,7 @@ func TestEmail(t *testing.T) {
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			result := Email(test.input)
-			if result != test.expect {
-				t.Errorf("Expected %v, but got %v", test.expect, result)
-			}
+			assert.Equal(t, test.expect, result)
 		})
 	}
 }
@@ -84,9 +84,7 @@ func TestBase64URL(t *testing.T) {
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			result := Base64URL(test.apiKey, test.expectLen)
-			if result != test.expect {
-				t.Errorf("Expected %v, but got %v", test.expect, result)
-			}
+			assert.Equal(t, test.expect, result)
 		})
 	}
 }
@@ -152,9 +150,7 @@ func TestIsIP(t *testing.T) {
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			result := IsIP(test.input)
-			if result != test.expect {
-				t.Errorf("Expected %v, but got %v", test.expect, result)
-			}
+			assert.Equal(t, test.expect, result)
 		})
 	}
 }
@@ -185,13 +181,11 @@ func TestIsHostname(t *testing.T) {
 	}
 
 	for _, tc := range dnsNameTests {
-		if IsHostname(tc.name) != tc.result {
-			t.Errorf("IsHostname(%q) = %v; want %v", tc.name, !tc.result, tc.result)
-		}
+		assert.Equal(t, tc.result, IsHostname(tc.name))
 	}
 }
 
-func TestIsCapabilityName(t *testing.T) {
+func TestIsTailscaleCapabilityName(t *testing.T) {
 	tests := []struct {
 		name   string
 		input  string
@@ -251,10 +245,8 @@ func TestIsCapabilityName(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			result := IsCapabilityName(test.input)
-			if result != test.expect {
-				t.Errorf("Expected %v, but got %v", test.expect, result)
-			}
+			result := IsTailscaleCapabilityName(test.input)
+			assert.Equal(t, test.expect, result)
 		})
 	}
 }
