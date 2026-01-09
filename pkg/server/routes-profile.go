@@ -109,7 +109,7 @@ func printAdditionalClaimsText(w io.Writer, additionalClaims map[string]any) {
 			case err != nil:
 				// Not a type that could be serialized to a string slice, so display it as JSON
 				fmt.Fprint(w, "   "+k+": ")
-				enc.Encode(v)
+				_ = enc.Encode(v)
 			case len(vs) > 1:
 				fmt.Fprint(w, "   "+k+":\n")
 				for _, v := range vs {
