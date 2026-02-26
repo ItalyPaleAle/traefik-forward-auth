@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"net/url"
 	"strings"
 	"time"
 
@@ -126,25 +125,17 @@ func NewMicrosoftEntraID(opts NewMicrosoftEntraIDOptions) (*MicrosoftEntraID, er
 	if fic == nil && opts.ClientSecret == "" {
 		return nil, errors.New("value for clientSecret is required in config for auth with provider 'microsoft-entra-id' when not using Federated Identity Credentials")
 	} else if fic != nil {
-		oidcOpts.skipClientSecretValidation = true
-		oidcOpts.tokenExchangeParametersModifier = func(ctx context.Context, data url.Values) error {
+		oidcOpts.clientAssertionProvider = func(ctx context.Context) (string, error) {
 			// Get the client assertion
 			clientAssertion, err := fic.GetToken(ctx, policy.TokenRequestOptions{
 				// This is a constant value
 				Scopes: []string{"api://AzureADTokenExchange"},
 			})
 			if err != nil {
-				return fmt.Errorf("failed to obtain client assertion: %w", err)
+				return "", fmt.Errorf("failed to obtain client assertion: %w", err)
 			}
 
-			// This is a constant value
-			data.Set("client_assertion_type", "urn:ietf:params:oauth:client-assertion-type:jwt-bearer")
-			data.Set("client_assertion", clientAssertion.Token)
-
-			// Delete the client secret
-			data.Del("client_secret")
-
-			return nil
+			return clientAssertion.Token, nil
 		}
 	}
 

@@ -21,6 +21,8 @@ import (
 	"github.com/italypaleale/traefik-forward-auth/pkg/user"
 )
 
+const clientAssertionType = "urn:ietf:params:oauth:client-assertion-type:jwt-bearer"
+
 // oAuth2 is a Provider for authenticating with OAuth2.
 // This Provider cannot be used directly; instead, other providers can embed this struct and implement OAuth2RetrieveProfile.
 type oAuth2 struct {
@@ -34,7 +36,7 @@ type oAuth2 struct {
 	requestTimeout time.Duration
 	pkceKey        []byte
 
-	tokenExchangeParametersModifier tokenExchangeParametersModifierFn
+	clientAssertionProvider clientAssertionProviderFn
 
 	httpClient *http.Client
 }
@@ -55,7 +57,7 @@ type OAuth2Endpoints struct {
 	UserInfo string `json:"userinfo_endpoint"`
 }
 
-type tokenExchangeParametersModifierFn func(context.Context, url.Values) error
+type clientAssertionProviderFn func(context.Context) (string, error)
 
 // NewOAuth2Options is the options for NewOAuth2
 type NewOAuth2Options struct {
@@ -75,10 +77,10 @@ type NewOAuth2Options struct {
 	// Optional, PEM-encoded CA certificate used when connecting to the Identity Provider
 	TLSCACertificate []byte
 
-	// Some providers validate client secrets separately
-	skipClientSecretValidation bool
-	// Allows providers to modify the parameters passed to the IdP while invoking the token endpoint
-	tokenExchangeParametersModifier tokenExchangeParametersModifierFn
+	// Allows providers to set a value for the client_assertion parameter passed to the IdP while invoking the token endpoint
+	// This uses client assertions of type "urn:ietf:params:oauth:client-assertion-type:jwt-bearer"
+	// When set, the client_secret is not included in the request
+	clientAssertionProvider clientAssertionProviderFn
 }
 
 // NewOAuth2 returns a new OAuth2 provider
@@ -86,7 +88,7 @@ func NewOAuth2(providerType string, providerMetadata ProviderMetadata, opts NewO
 	if opts.Config.ClientID == "" {
 		return p, errors.New("value for clientId is required in config for auth provider")
 	}
-	if opts.Config.ClientSecret == "" && !opts.skipClientSecretValidation {
+	if opts.Config.ClientSecret == "" && opts.clientAssertionProvider == nil {
 		return p, errors.New("value for clientSecret is required in config for auth provider")
 	}
 	if providerType == "" {
@@ -136,7 +138,7 @@ func NewOAuth2(providerType string, providerMetadata ProviderMetadata, opts NewO
 		requestTimeout: reqTimeout,
 		pkceKey:        opts.PKCEKey,
 
-		tokenExchangeParametersModifier: opts.tokenExchangeParametersModifier,
+		clientAssertionProvider: opts.clientAssertionProvider,
 	}
 	return p, nil
 }
@@ -203,11 +205,10 @@ func (a *oAuth2) OAuth2ExchangeCode(ctx context.Context, state string, code stri
 	}
 
 	data := url.Values{
-		"code":          []string{code},
-		"client_id":     []string{a.config.ClientID},
-		"client_secret": []string{a.config.ClientSecret},
-		"redirect_uri":  []string{redirectURL},
-		"grant_type":    []string{"authorization_code"},
+		"code":         []string{code},
+		"client_id":    []string{a.config.ClientID},
+		"redirect_uri": []string{redirectURL},
+		"grant_type":   []string{"authorization_code"},
 	}
 
 	// Add the code verifier if PKCE is enabled
@@ -215,11 +216,17 @@ func (a *oAuth2) OAuth2ExchangeCode(ctx context.Context, state string, code stri
 		data.Add("code_verifier", a.getPKCECodeVerifier(state, redirectURL))
 	}
 
-	if a.tokenExchangeParametersModifier != nil {
-		err := a.tokenExchangeParametersModifier(ctx, data)
+	// Add the client secret if not using client assertions
+	if a.config.ClientSecret != "" {
+		data.Set("client_secret", a.config.ClientSecret)
+	} else if a.clientAssertionProvider == nil {
+		clientAssertion, err := a.clientAssertionProvider(ctx)
 		if err != nil {
 			return OAuth2AccessToken{}, err
 		}
+
+		data.Set("client_assertion_type", clientAssertionType)
+		data.Set("client_assertion", clientAssertion)
 	}
 
 	reqCtx, cancel := context.WithTimeout(ctx, a.requestTimeout)

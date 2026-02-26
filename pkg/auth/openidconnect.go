@@ -52,10 +52,10 @@ type NewOpenIDConnectOptions struct {
 	// Optional, PEM-encoded CA certificate used when connecting to the Identity Provider
 	TLSCACertificate []byte
 
-	// Some providers validate client secrets separately
-	skipClientSecretValidation bool
-	// Allows providers to modify the parameters passed to the IdP while invoking the token endpoint
-	tokenExchangeParametersModifier tokenExchangeParametersModifierFn
+	// Allows providers to set a value for the client_assertion parameter passed to the IdP while invoking the token endpoint
+	// This uses client assertions of type "urn:ietf:params:oauth:client-assertion-type:jwt-bearer"
+	// When set, the client_secret is not included in the request
+	clientAssertionProvider clientAssertionProviderFn
 	// Allows providers to modify the user profile
 	profileModifier profileModifierFn
 }
@@ -106,8 +106,7 @@ func NewOpenIDConnect(ctx context.Context, opts NewOpenIDConnectOptions) (*OpenI
 		TLSSkipVerify:    opts.TLSSkipVerify,
 		TLSCACertificate: opts.TLSCACertificate,
 
-		skipClientSecretValidation:      opts.skipClientSecretValidation,
-		tokenExchangeParametersModifier: opts.tokenExchangeParametersModifier,
+		clientAssertionProvider: opts.clientAssertionProvider,
 	})
 	if err != nil {
 		return nil, err
@@ -142,7 +141,7 @@ func newOpenIDConnectInternal(providerType string, providerMetadata ProviderMeta
 	if opts.ClientID == "" {
 		return nil, fmt.Errorf("value for clientId is required in config for auth with provider '%s'", providerType)
 	}
-	if opts.ClientSecret == "" && !opts.skipClientSecretValidation {
+	if opts.ClientSecret == "" && opts.clientAssertionProvider == nil {
 		return nil, fmt.Errorf("value for clientSecret is required in config for auth with provider '%s'", providerType)
 	}
 
@@ -159,8 +158,7 @@ func newOpenIDConnectInternal(providerType string, providerMetadata ProviderMeta
 		TLSSkipVerify:    opts.TLSSkipVerify,
 		TLSCACertificate: opts.TLSCACertificate,
 
-		skipClientSecretValidation:      opts.skipClientSecretValidation,
-		tokenExchangeParametersModifier: opts.tokenExchangeParametersModifier,
+		clientAssertionProvider: opts.clientAssertionProvider,
 	})
 	if err != nil {
 		return nil, err
