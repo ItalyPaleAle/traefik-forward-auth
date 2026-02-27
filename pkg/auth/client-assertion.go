@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
+	"os"
 	"strconv"
 	"strings"
 	"sync"
@@ -17,6 +18,8 @@ import (
 	"github.com/Azure/azure-sdk-for-go/sdk/azidentity"
 	"golang.org/x/sync/singleflight"
 )
+
+const kubernetesServiceAccountTokenPathDefault = "/var/run/secrets/kubernetes.io/serviceaccount/token"
 
 func getClientAssertionProvider(clientAssertion string, audience string) (clientAssertionProviderFn, error) {
 	clientAssertionLC := strings.ToLower(clientAssertion)
@@ -56,6 +59,22 @@ func getClientAssertionProvider(clientAssertion string, audience string) (client
 		fn, err := tsiamClientAssertionProvider(clientAssertion[len("tsiam="):], audience, http.DefaultClient)
 		if err != nil {
 			return nil, fmt.Errorf("failed to create tsiam client assertion provider: %w", err)
+		}
+		return fn, nil
+
+	// Kubernetes service account token with default path
+	case clientAssertionLC == "kubernetesserviceaccounttoken":
+		fn, err := kubernetesServiceAccountTokenClientAssertionProvider(kubernetesServiceAccountTokenPathDefault)
+		if err != nil {
+			return nil, fmt.Errorf("failed to create Kubernetes service account token client assertion provider: %w", err)
+		}
+		return fn, nil
+
+	// Kubernetes service account token with custom path
+	case strings.HasPrefix(clientAssertionLC, "kubernetesserviceaccounttoken="):
+		fn, err := kubernetesServiceAccountTokenClientAssertionProvider(clientAssertion[len("kubernetesserviceaccounttoken="):])
+		if err != nil {
+			return nil, fmt.Errorf("failed to create Kubernetes service account token client assertion provider: %w", err)
 		}
 		return fn, nil
 
@@ -178,4 +197,24 @@ func tsiamClientAssertionProvider(endpoint string, audience string, client *http
 	}
 
 	return fn, nil
+}
+
+func kubernetesServiceAccountTokenClientAssertionProvider(tokenPath string) (clientAssertionProviderFn, error) {
+	if tokenPath == "" {
+		return nil, errors.New("token path is empty")
+	}
+
+	return func(_ context.Context) (string, error) {
+		tokenBytes, err := os.ReadFile(tokenPath)
+		if err != nil {
+			return "", fmt.Errorf("failed to read Kubernetes service account token from '%s': %w", tokenPath, err)
+		}
+
+		token := strings.TrimSpace(string(tokenBytes))
+		if token == "" {
+			return "", fmt.Errorf("Kubernetes service account token file '%s' is empty", tokenPath)
+		}
+
+		return token, nil
+	}, nil
 }

@@ -41,9 +41,10 @@ type ProviderConfig_MicrosoftEntraID struct {
 	// Currently, these values are supported:
 	//
 	// - `AzureManagedIdentity`: uses Azure Managed Identity with a system-assigned identity
-	// - `AzureManagedIdentity=client-id`: uses Azure Managed Identity with a user-assigned identity whose client id is "client-id" (e.g. "AzureManagedIdentity=00000000-0000-0000-0000-000000000000")
+	// - `AzureManagedIdentity=client-id`: uses Azure Managed Identity with a user-assigned identity whose client id is "client-id" (e.g. `AzureManagedIdentity=00000000-0000-0000-0000-000000000000`)
 	// - `AzureWorkloadIdentity`: uses Azure Workload Identity, e.g. in Kubernetes
-	// - `tsiam=endpoint`: uses tsiam to obtain Workload Identity from nodes that use Tailscale. Specify the endpoint of tsiam as value, e.g. "tsiam=https://tsiam". Uses as resource name the constant value "api://AzureADTokenExchange".
+	// - `KubernetesServiceAccountToken=path`: uses a token read from a Kubernetes service account token file. If `path` is omitted, defaults to `/var/run/secrets/kubernetes.io/serviceaccount/token`.
+	// - `tsiam=endpoint`: uses tsiam to obtain Workload Identity from nodes that use Tailscale. Specify the endpoint of tsiam as value, e.g. `tsiam=https://tsiam`. Uses as resource name the constant value `api://AzureADTokenExchange`.
 	ClientAssertion string `yaml:"clientAssertion"`
 	// Timeout for network requests for Microsoft Entra ID auth
 	// +default "10s"

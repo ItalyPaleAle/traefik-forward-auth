@@ -76,6 +76,7 @@ Finally, configure Traefik Forward Auth by setting a value for [`clientAssertion
 - `AzureManagedIdentity`: uses Azure Managed Identity with a system-assigned identity
 - `AzureManagedIdentity=client-id`: uses Azure Managed Identity with a user-assigned identity whose client id is "client-id" (e.g. "AzureManagedIdentity=00000000-0000-0000-0000-000000000000")
 - `AzureWorkloadIdentity`: uses Azure Workload Identity, e.g. in Kubernetes
+- `KubernetesServiceAccountToken=path`: uses a token read from a Kubernetes service account token file. If `path` is omitted, defaults to `/var/run/secrets/kubernetes.io/serviceaccount/token`.
 
 ## Other OpenID Connect providers
 

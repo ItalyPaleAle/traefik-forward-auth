@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"os"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -213,5 +214,72 @@ func TestTsiamClientAssertionProvider(t *testing.T) {
 			assert.Equal(t, "token-shared", token)
 		}
 		assert.EqualValues(t, 1, callCount.Load())
+	})
+}
+
+func TestKubernetesServiceAccountTokenClientAssertionProvider(t *testing.T) {
+	t.Run("fails when token path is empty", func(t *testing.T) {
+		_, err := kubernetesServiceAccountTokenClientAssertionProvider("")
+		require.Error(t, err)
+		require.ErrorContains(t, err, "token path is empty")
+	})
+
+	t.Run("reads and trims token from explicit path", func(t *testing.T) {
+		tokenFile, err := os.CreateTemp(t.TempDir(), "k8s-sa-token-*")
+		require.NoError(t, err)
+		_, err = tokenFile.WriteString("token-abc123\n")
+		require.NoError(t, err)
+		require.NoError(t, tokenFile.Close())
+
+		fn, err := kubernetesServiceAccountTokenClientAssertionProvider(tokenFile.Name())
+		require.NoError(t, err)
+
+		token, err := fn(t.Context())
+		require.NoError(t, err)
+		assert.Equal(t, "token-abc123", token)
+	})
+
+	t.Run("fails when token file does not exist", func(t *testing.T) {
+		fn, err := kubernetesServiceAccountTokenClientAssertionProvider(t.TempDir() + "/missing-token")
+		require.NoError(t, err)
+
+		_, err = fn(t.Context())
+		require.Error(t, err)
+		require.ErrorContains(t, err, "failed to read Kubernetes service account token")
+	})
+
+	t.Run("fails when token file is empty", func(t *testing.T) {
+		tokenFile, err := os.CreateTemp(t.TempDir(), "k8s-sa-token-empty-*")
+		require.NoError(t, err)
+		require.NoError(t, tokenFile.Close())
+
+		fn, err := kubernetesServiceAccountTokenClientAssertionProvider(tokenFile.Name())
+		require.NoError(t, err)
+
+		_, err = fn(t.Context())
+		require.Error(t, err)
+		require.ErrorContains(t, err, "is empty")
+	})
+
+	t.Run("getClientAssertionProvider supports explicit token path", func(t *testing.T) {
+		tokenFile, err := os.CreateTemp(t.TempDir(), "k8s-sa-token-*")
+		require.NoError(t, err)
+		_, err = tokenFile.WriteString("token-via-get-provider\n")
+		require.NoError(t, err)
+		require.NoError(t, tokenFile.Close())
+
+		fn, err := getClientAssertionProvider("KubernetesServiceAccountToken="+tokenFile.Name(), "audience-not-used")
+		require.NoError(t, err)
+		require.NotNil(t, fn)
+
+		token, err := fn(t.Context())
+		require.NoError(t, err)
+		assert.Equal(t, "token-via-get-provider", token)
+	})
+
+	t.Run("getClientAssertionProvider supports omitted path", func(t *testing.T) {
+		fn, err := getClientAssertionProvider("KubernetesServiceAccountToken", "audience-not-used")
+		require.NoError(t, err)
+		require.NotNil(t, fn)
 	})
 }
