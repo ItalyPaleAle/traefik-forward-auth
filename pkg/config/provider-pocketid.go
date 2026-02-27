@@ -1,3 +1,4 @@
+//nolint:revive
 package config
 
 import (
@@ -98,6 +99,8 @@ func (p *ProviderConfig_PocketID) GetAuthProvider(ctx context.Context) (auth.Pro
 		PKCEKey:          pkceKey,
 		TLSSkipVerify:    p.TLSInsecureSkipVerify,
 		TLSCACertificate: tlsCACertificate,
+		Hostname:         p.config.Server.Hostname,
+		BasePath:         p.config.Server.BasePath,
 	}
 	err = populateSecretFromFile(&opts.ClientSecret, p.ClientSecretFile)
 	if err != nil {

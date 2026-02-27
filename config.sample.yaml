@@ -372,16 +372,17 @@ portals:
           ##   This is an alternative to passing the secret as `clientSecret`
           #clientSecretFile: "/var/run/secrets/traefik-forward-auth/microsoft-entra-id/client-secret"
 
-          ## portals.$.providers.$.microsoftEntraID.azureFederatedIdentity (string)
+          ## portals.$.providers.$.microsoftEntraID.clientAssertion (string)
           ## Description:
-          ##   Enables the usage of Federated Identity Credentials to obtain assertions for confidential clients for Microsoft Entra ID applications.
-          ##   This is an alternative to using client secrets, when the application is running in Azure in an environment that supports Managed Identity, or in an environment that supports Workload Identity Federation with Microsoft Entra ID.
+          ##   Enables the usage of client assertions (also known as "Federated Identity Credentials" or "Federated Workload Credentials") to obtain assertions for Microsoft Entra ID applications clients.
+          ##   This is an alternative to using client secrets, when the application is running in an environment that suports other ways to obtain federated credentials.
           ##   Currently, these values are supported:
           ##
-          ##   - `ManagedIdentity`: uses a system-assigned managed identity
-          ##   - `ManagedIdentity=client-id`: uses a user-assigned managed identity with client id "client-id" (e.g. "ManagedIdentity=00000000-0000-0000-0000-000000000000")
-          ##   - `WorkloadIdentity`: uses workload identity, e.g. for Kubernetes
-          #azureFederatedIdentity: ""
+          ##   - `AzureManagedIdentity`: uses Azure Managed Identity with a system-assigned identity
+          ##   - `AzureManagedIdentity=client-id`: uses Azure Managed Identity with a user-assigned identity whose client id is "client-id" (e.g. "AzureManagedIdentity=00000000-0000-0000-0000-000000000000")
+          ##   - `AzureWorkloadIdentity`: uses Azure Workload Identity, e.g. in Kubernetes
+          ##   - `tsiam=endpoint`: uses tsiam to obtain Workload Identity from nodes that use Tailscale. Specify the endpoint of tsiam as value, e.g. "tsiam=https://tsiam". Uses as resource name the constant value "api://AzureADTokenExchange".
+          #clientAssertion: ""
 
           ## portals.$.providers.$.microsoftEntraID.requestTimeout (duration)
           ## Description:
@@ -436,6 +437,7 @@ portals:
           ## portals.$.providers.$.openIDConnect.clientSecret (string)
           ## Description:
           ##   Client secret for the OpenID Connect application
+          ##   This is required when not using client assertions.
           ## Required
           clientSecret: "your-client-secret"
 
@@ -451,6 +453,18 @@ portals:
           ##   The OpenID Connect configuration document will be fetched at `<token-issuer>/.well-known/openid-configuration`
           ## Required
           tokenIssuer: "https://id.external-example.com"
+
+          ## portals.$.providers.$.openIDConnect.clientAssertion (string)
+          ## Description:
+          ##   Enables the usage of client assertions (also known as "Federated Identity Credentials" or "Federated Workload Credentials") to obtain assertions for OpenID Connect clients.
+          ##   This is an alternative to using client secrets, when the application is running in an environment that suports other ways to obtain federated credentials.
+          ##   Currently, these values are supported:
+          ##
+          ##   - `AzureManagedIdentity`: uses Azure Managed Identity with a system-assigned identity
+          ##   - `AzureManagedIdentity=client-id`: uses Azure Managed Identity with a user-assigned identity whose client id is "client-id" (e.g. "AzureManagedIdentity=00000000-0000-0000-0000-000000000000")
+          ##   - `AzureWorkloadIdentity`: uses Azure Workload Identity, e.g. in Kubernetes
+          ##   - `tsiam=endpoint`: uses tsiam to obtain Workload Identity from nodes that use Tailscale. Specify the endpoint of tsiam as value, e.g. "tsiam=https://tsiam". Uses as resource name the value of `tokenIssuer`.
+          #clientAssertion: ""
 
           ## portals.$.providers.$.openIDConnect.requestTimeout (duration)
           ## Description:

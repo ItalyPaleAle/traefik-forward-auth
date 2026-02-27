@@ -1,3 +1,4 @@
+//nolint:revive
 package config
 
 import (
@@ -35,14 +36,15 @@ type ProviderConfig_MicrosoftEntraID struct {
 	// This is an alternative to passing the secret as `clientSecret`
 	// +example "/var/run/secrets/traefik-forward-auth/microsoft-entra-id/client-secret"
 	ClientSecretFile string `yaml:"clientSecretFile"`
-	// Enables the usage of Federated Identity Credentials to obtain assertions for confidential clients for Microsoft Entra ID applications.
-	// This is an alternative to using client secrets, when the application is running in Azure in an environment that supports Managed Identity, or in an environment that supports Workload Identity Federation with Microsoft Entra ID.
+	// Enables the usage of client assertions (also known as "Federated Identity Credentials" or "Federated Workload Credentials") to obtain assertions for Microsoft Entra ID applications clients.
+	// This is an alternative to using client secrets, when the application is running in an environment that suports other ways to obtain federated credentials.
 	// Currently, these values are supported:
 	//
-	// - `ManagedIdentity`: uses a system-assigned managed identity
-	// - `ManagedIdentity=client-id`: uses a user-assigned managed identity with client id "client-id" (e.g. "ManagedIdentity=00000000-0000-0000-0000-000000000000")
-	// - `WorkloadIdentity`: uses workload identity, e.g. for Kubernetes
-	AzureFederatedIdentity string `yaml:"azureFederatedIdentity"`
+	// - `AzureManagedIdentity`: uses Azure Managed Identity with a system-assigned identity
+	// - `AzureManagedIdentity=client-id`: uses Azure Managed Identity with a user-assigned identity whose client id is "client-id" (e.g. "AzureManagedIdentity=00000000-0000-0000-0000-000000000000")
+	// - `AzureWorkloadIdentity`: uses Azure Workload Identity, e.g. in Kubernetes
+	// - `tsiam=endpoint`: uses tsiam to obtain Workload Identity from nodes that use Tailscale. Specify the endpoint of tsiam as value, e.g. "tsiam=https://tsiam". Uses as resource name the constant value "api://AzureADTokenExchange".
+	ClientAssertion string `yaml:"clientAssertion"`
 	// Timeout for network requests for Microsoft Entra ID auth
 	// +default "10s"
 	RequestTimeout time.Duration `yaml:"requestTimeout"`
@@ -59,18 +61,37 @@ type ProviderConfig_MicrosoftEntraID struct {
 	// +example "cyan"
 	Color string `yaml:"color"`
 
+	// Deprecated: Use `clientAssertion` instead. This is preserved for backwards-compatibility
+	// Enables the usage of Federated Identity Credentials to obtain assertions for confidential clients for Microsoft Entra ID applications.
+	// This is an alternative to using client secrets, when the application is running in Azure in an environment that supports Managed Identity, or in an environment that supports Workload Identity Federation with Microsoft Entra ID.
+	// Currently, these values are supported:
+	//
+	// - `ManagedIdentity`: uses a system-assigned managed identity
+	// - `ManagedIdentity=client-id`: uses a user-assigned managed identity with client id "client-id" (e.g. "ManagedIdentity=00000000-0000-0000-0000-000000000000")
+	// - `WorkloadIdentity`: uses workload identity, e.g. for Kubernetes
+	AzureFederatedIdentity string `yaml:"azureFederatedIdentity" deprecated:"true"`
+
 	config *Config
 }
 
 func (p *ProviderConfig_MicrosoftEntraID) GetAuthProvider(_ context.Context) (auth.Provider, error) {
+	// Migrate legacy AzureFederatedIdentity to ClientAssertions
+	if p.AzureFederatedIdentity != "" && p.ClientAssertion == "" {
+		// We need to add the "Azure" prefix
+		p.ClientAssertion = "Azure" + p.AzureFederatedIdentity
+		p.AzureFederatedIdentity = ""
+	}
+
 	opts := auth.NewMicrosoftEntraIDOptions{
-		TenantID:               p.TenantID,
-		ClientID:               p.ClientID,
-		ClientSecret:           p.ClientSecret,
-		AzureFederatedIdentity: p.AzureFederatedIdentity,
-		RequestTimeout:         p.RequestTimeout,
-		Scopes:                 p.Scopes,
-		PKCEKey:                p.config.internal.pkceKey,
+		TenantID:        p.TenantID,
+		ClientID:        p.ClientID,
+		ClientSecret:    p.ClientSecret,
+		ClientAssertion: p.ClientAssertion,
+		RequestTimeout:  p.RequestTimeout,
+		Scopes:          p.Scopes,
+		PKCEKey:         p.config.internal.pkceKey,
+		Hostname:        p.config.Server.Hostname,
+		BasePath:        p.config.Server.BasePath,
 	}
 	err := populateSecretFromFile(&opts.ClientSecret, p.ClientSecretFile)
 	if err != nil {

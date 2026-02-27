@@ -71,11 +71,11 @@ az ad app federated-credential create \
   --parameters "{\"name\": \"mi-${IDENTITY_OBJECT_ID}\",\"issuer\": \"https://login.microsoftonline.com/${TENANT_ID}/v2.0\",\"subject\": \"${IDENTITY_OBJECT_ID}\",\"description\": \"Federated Identity for Managed Identity ${IDENTITY_OBJECT_ID}\",\"audiences\": [\"api://AzureADTokenExchange\"]}"
 ```
 
-Finally, configure Traefik Forward Auth by setting a value for [`azureFederatedIdentity`](./03-all-configuration-options.md#config-opt-portals.$.providers.$-microsoftentraid-portals-$-providers-$-microsoftentraid-azurefederatedidentity):
+Finally, configure Traefik Forward Auth by setting a value for [`clientAssertion`](./03-all-configuration-options.md#config-opt-portals.$.providers.$-microsoftentraid-portals-$-providers-$-microsoftentraid-clientassertion):
 
-- `"ManagedIdentity"` for using a system-assigned managed identity
-- `"ManagedIdentity=xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"` for using a user-assigned managed identity (replace the placeholder value with the **client ID** of your managed identity)
-- `"WorkloadIdentity"` for using workload identity
+- `AzureManagedIdentity`: uses Azure Managed Identity with a system-assigned identity
+- `AzureManagedIdentity=client-id`: uses Azure Managed Identity with a user-assigned identity whose client id is "client-id" (e.g. "AzureManagedIdentity=00000000-0000-0000-0000-000000000000")
+- `AzureWorkloadIdentity`: uses Azure Workload Identity, e.g. in Kubernetes
 
 ## Other OpenID Connect providers
 

@@ -1,3 +1,4 @@
+//nolint:revive
 package config
 
 import (
@@ -27,6 +28,7 @@ type ProviderConfig_OpenIDConnect struct {
 	// +example "your-client-id"
 	ClientID string `yaml:"clientID"`
 	// Client secret for the OpenID Connect application
+	// This is required when not using client assertions.
 	// +required
 	// +example "your-client-secret"
 	ClientSecret string `yaml:"clientSecret"`
@@ -39,6 +41,15 @@ type ProviderConfig_OpenIDConnect struct {
 	// +required
 	// +example "https://id.external-example.com"
 	TokenIssuer string `yaml:"tokenIssuer"`
+	// Enables the usage of client assertions (also known as "Federated Identity Credentials" or "Federated Workload Credentials") to obtain assertions for OpenID Connect clients.
+	// This is an alternative to using client secrets, when the application is running in an environment that suports other ways to obtain federated credentials.
+	// Currently, these values are supported:
+	//
+	// - `AzureManagedIdentity`: uses Azure Managed Identity with a system-assigned identity
+	// - `AzureManagedIdentity=client-id`: uses Azure Managed Identity with a user-assigned identity whose client id is "client-id" (e.g. "AzureManagedIdentity=00000000-0000-0000-0000-000000000000")
+	// - `AzureWorkloadIdentity`: uses Azure Workload Identity, e.g. in Kubernetes
+	// - `tsiam=endpoint`: uses tsiam to obtain Workload Identity from nodes that use Tailscale. Specify the endpoint of tsiam as value, e.g. "tsiam=https://tsiam". Uses as resource name the value of `tokenIssuer`.
+	ClientAssertion string `yaml:"clientAssertion"`
 	// Timeout for network requests for OpenID Connect auth
 	// +default "10s"
 	RequestTimeout time.Duration `yaml:"requestTimeout"`
@@ -93,12 +104,15 @@ func (p *ProviderConfig_OpenIDConnect) GetAuthProvider(ctx context.Context) (aut
 	opts := auth.NewOpenIDConnectOptions{
 		ClientID:         p.ClientID,
 		ClientSecret:     p.ClientSecret,
+		ClientAssertion:  p.ClientAssertion,
 		TokenIssuer:      p.TokenIssuer,
 		RequestTimeout:   p.RequestTimeout,
 		Scopes:           p.Scopes,
 		PKCEKey:          pkceKey,
 		TLSSkipVerify:    p.TLSInsecureSkipVerify,
 		TLSCACertificate: tlsCACertificate,
+		Hostname:         p.config.Server.Hostname,
+		BasePath:         p.config.Server.BasePath,
 	}
 	err = populateSecretFromFile(&opts.ClientSecret, p.ClientSecretFile)
 	if err != nil {

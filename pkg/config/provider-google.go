@@ -1,3 +1,4 @@
+//nolint:revive
 package config
 
 import (
@@ -48,6 +49,8 @@ type ProviderConfig_Google struct {
 	// Defaults to the standard color for the provider
 	// +example "yellow"
 	Color string `yaml:"color"`
+
+	config *Config
 }
 
 func (p *ProviderConfig_Google) GetAuthProvider(_ context.Context) (auth.Provider, error) {
@@ -56,6 +59,8 @@ func (p *ProviderConfig_Google) GetAuthProvider(_ context.Context) (auth.Provide
 		ClientSecret:   p.ClientSecret,
 		RequestTimeout: p.RequestTimeout,
 		Scopes:         p.Scopes,
+		Hostname:       p.config.Server.Hostname,
+		BasePath:       p.config.Server.BasePath,
 	}
 	err := populateSecretFromFile(&opts.ClientSecret, p.ClientSecretFile)
 	if err != nil {
@@ -65,8 +70,8 @@ func (p *ProviderConfig_Google) GetAuthProvider(_ context.Context) (auth.Provide
 	return auth.NewGoogle(opts)
 }
 
-func (p *ProviderConfig_Google) SetConfigObject(_ *Config) {
-	// Nop for this provider
+func (p *ProviderConfig_Google) SetConfigObject(c *Config) {
+	p.config = c
 }
 
 func (p *ProviderConfig_Google) GetProviderMetadata() auth.ProviderMetadata {

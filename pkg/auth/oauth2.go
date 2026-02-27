@@ -219,10 +219,10 @@ func (a *oAuth2) OAuth2ExchangeCode(ctx context.Context, state string, code stri
 	// Add the client secret if not using client assertions
 	if a.config.ClientSecret != "" {
 		data.Set("client_secret", a.config.ClientSecret)
-	} else if a.clientAssertionProvider == nil {
+	} else if a.clientAssertionProvider != nil {
 		clientAssertion, err := a.clientAssertionProvider(ctx)
 		if err != nil {
-			return OAuth2AccessToken{}, err
+			return OAuth2AccessToken{}, fmt.Errorf("error getting client assertion: %w", err)
 		}
 
 		data.Set("client_assertion_type", clientAssertionType)
@@ -248,6 +248,11 @@ func (a *oAuth2) OAuth2ExchangeCode(ctx context.Context, state string, code stri
 	}()
 
 	if res.StatusCode != http.StatusOK {
+		// Try reading the whole response body
+		body, _ := io.ReadAll(res.Body)
+		if len(body) > 0 {
+			return OAuth2AccessToken{}, fmt.Errorf("invalid response status code: %d. Response: %s", res.StatusCode, string(body))
+		}
 		return OAuth2AccessToken{}, fmt.Errorf("invalid response status code: %d", res.StatusCode)
 	}
 
