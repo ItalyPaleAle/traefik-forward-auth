@@ -113,7 +113,7 @@ func (o NewMicrosoftEntraIDOptions) ToNewOpenIDConnectOptions() NewOpenIDConnect
 // NewMicrosoftEntraID returns a new MicrosoftEntraID provider
 func NewMicrosoftEntraID(opts NewMicrosoftEntraIDOptions) (*MicrosoftEntraID, error) {
 	if opts.TenantID == "" {
-		return nil, errors.New("value for clientId is required in config for auth with provider 'microsoft-entra-id'")
+		return nil, errors.New("value for tenantId is required in config for auth with provider 'microsoft-entra-id'")
 	}
 	if opts.ClientSecret == "" && opts.ClientAssertion == "" {
 		return nil, errors.New("value for clientSecret is required in config for auth with provider 'microsoft-entra-id' when not using client assertions")

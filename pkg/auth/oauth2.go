@@ -248,8 +248,8 @@ func (a *oAuth2) OAuth2ExchangeCode(ctx context.Context, state string, code stri
 	}()
 
 	if res.StatusCode != http.StatusOK {
-		// Try reading the whole response body
-		body, _ := io.ReadAll(res.Body)
+		// Try reading the response body (limit to 4KB)
+		body, _ := io.ReadAll(io.LimitReader(res.Body, 4<<10))
 		if len(body) > 0 {
 			return OAuth2AccessToken{}, fmt.Errorf("invalid response status code: %d. Response: %s", res.StatusCode, string(body))
 		}

@@ -71,7 +71,7 @@ func NewOpenIDConnect(ctx context.Context, opts NewOpenIDConnectOptions) (*OpenI
 		return nil, errors.New("value for clientId is required in config for auth with provider 'openidconnect'")
 	}
 	if opts.ClientSecret == "" && opts.ClientAssertion == "" {
-		return nil, errors.New("value for clientSecret is required in config for auth with provider 'openidconnect'")
+		return nil, errors.New("value for either clientSecret or clientAssertion is required in config for auth with provider 'openidconnect'")
 	}
 	if opts.TokenIssuer == "" {
 		return nil, errors.New("value for tokenIssuer is required in config for auth with provider 'openidconnect'")
@@ -152,7 +152,7 @@ func newOpenIDConnectInternal(providerType string, providerMetadata ProviderMeta
 		return nil, fmt.Errorf("value for clientId is required in config for auth with provider '%s'", providerType)
 	}
 	if opts.ClientSecret == "" && opts.ClientAssertion == "" {
-		return nil, fmt.Errorf("value for clientSecret is required in config for auth with provider '%s'", providerType)
+		return nil, fmt.Errorf("value for clientSecret or clientAssertion is required in config for auth with provider '%s'", providerType)
 	}
 
 	// Get the client assertion provider (will be nil if the option is an empty string)

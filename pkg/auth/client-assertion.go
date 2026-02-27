@@ -19,14 +19,14 @@ import (
 )
 
 func getClientAssertionProvider(clientAssertion string, audience string) (clientAssertionProviderFn, error) {
-	clientAssertion = strings.ToLower(clientAssertion)
+	clientAssertionLC := strings.ToLower(clientAssertion)
 	switch {
 	// If there's no client assertion, return
-	case clientAssertion == "":
+	case clientAssertionLC == "":
 		return nil, nil
 
 	// Azure with user-assigned managed identity
-	case strings.HasPrefix(clientAssertion, "azuremanagedidentity="):
+	case strings.HasPrefix(clientAssertionLC, "azuremanagedidentity="):
 		fic, err := azidentity.NewManagedIdentityCredential(&azidentity.ManagedIdentityCredentialOptions{
 			ID: azidentity.ClientID(clientAssertion[len("azuremanagedidentity="):]),
 		})
@@ -36,7 +36,7 @@ func getClientAssertionProvider(clientAssertion string, audience string) (client
 		return azureClientAssertionProvider(fic), nil
 
 	// Azure with system-assigned managed identity
-	case clientAssertion == "azuremanagedidentity":
+	case clientAssertionLC == "azuremanagedidentity":
 		fic, err := azidentity.NewManagedIdentityCredential(nil)
 		if err != nil {
 			return nil, fmt.Errorf("failed to create Azure Managed Identity credential object: %w", err)
@@ -44,7 +44,7 @@ func getClientAssertionProvider(clientAssertion string, audience string) (client
 		return azureClientAssertionProvider(fic), nil
 
 	// Azure Workload Identity
-	case clientAssertion == "azureworkloadidentity":
+	case clientAssertionLC == "azureworkloadidentity":
 		fic, err := azidentity.NewWorkloadIdentityCredential(nil)
 		if err != nil {
 			return nil, fmt.Errorf("failed to create Azure Workload Identity credential object: %w", err)
@@ -52,7 +52,7 @@ func getClientAssertionProvider(clientAssertion string, audience string) (client
 		return azureClientAssertionProvider(fic), nil
 
 	// tsiam
-	case strings.HasPrefix(clientAssertion, "tsiam="):
+	case strings.HasPrefix(clientAssertionLC, "tsiam="):
 		fn, err := tsiamClientAssertionProvider(clientAssertion[len("tsiam="):], audience)
 		if err != nil {
 			return nil, fmt.Errorf("failed to create tsiam client assertion provider: %w", err)

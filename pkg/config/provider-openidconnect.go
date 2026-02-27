@@ -114,9 +114,13 @@ func (p *ProviderConfig_OpenIDConnect) GetAuthProvider(ctx context.Context) (aut
 		Hostname:         p.config.Server.Hostname,
 		BasePath:         p.config.Server.BasePath,
 	}
-	err = populateSecretFromFile(&opts.ClientSecret, p.ClientSecretFile)
-	if err != nil {
-		return nil, err
+
+	// Only load client secret from file when not using client assertions and when a client secret has not already been provided directly
+	if opts.ClientAssertion == "" && opts.ClientSecret == "" {
+		err = populateSecretFromFile(&opts.ClientSecret, p.ClientSecretFile)
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	return auth.NewOpenIDConnect(ctx, opts)
