@@ -42,7 +42,7 @@ type ProviderConfig_OpenIDConnect struct {
 	// +example "https://id.external-example.com"
 	TokenIssuer string `yaml:"tokenIssuer"`
 	// Enables the usage of client assertions (also known as "Federated Identity Credentials" or "Federated Workload Credentials") to obtain assertions for OpenID Connect clients.
-	// This is an alternative to using client secrets, when the application is running in an environment that suports other ways to obtain federated credentials.
+	// This is an alternative to using client secrets, when the application is running in an environment that supports other ways to obtain federated credentials.
 	// Currently, these values are supported:
 	//
 	// - `AzureManagedIdentity`: uses Azure Managed Identity with a system-assigned identity

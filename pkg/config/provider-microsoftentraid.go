@@ -37,7 +37,7 @@ type ProviderConfig_MicrosoftEntraID struct {
 	// +example "/var/run/secrets/traefik-forward-auth/microsoft-entra-id/client-secret"
 	ClientSecretFile string `yaml:"clientSecretFile"`
 	// Enables the usage of client assertions (also known as "Federated Identity Credentials" or "Federated Workload Credentials") to obtain assertions for Microsoft Entra ID applications clients.
-	// This is an alternative to using client secrets, when the application is running in an environment that suports other ways to obtain federated credentials.
+	// This is an alternative to using client secrets, when the application is running in an environment that supports other ways to obtain federated credentials.
 	// Currently, these values are supported:
 	//
 	// - `AzureManagedIdentity`: uses Azure Managed Identity with a system-assigned identity
