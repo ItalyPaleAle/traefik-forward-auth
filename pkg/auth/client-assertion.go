@@ -53,7 +53,7 @@ func getClientAssertionProvider(clientAssertion string, audience string) (client
 
 	// tsiam
 	case strings.HasPrefix(clientAssertionLC, "tsiam="):
-		fn, err := tsiamClientAssertionProvider(clientAssertion[len("tsiam="):], audience)
+		fn, err := tsiamClientAssertionProvider(clientAssertion[len("tsiam="):], audience, http.DefaultClient)
 		if err != nil {
 			return nil, fmt.Errorf("failed to create tsiam client assertion provider: %w", err)
 		}
@@ -80,7 +80,7 @@ func azureClientAssertionProvider(fic azcore.TokenCredential) clientAssertionPro
 	}
 }
 
-func tsiamClientAssertionProvider(endpoint string, audience string) (clientAssertionProviderFn, error) {
+func tsiamClientAssertionProvider(endpoint string, audience string, client *http.Client) (clientAssertionProviderFn, error) {
 	if audience == "" {
 		return nil, errors.New("audience is empty")
 	}
@@ -94,8 +94,6 @@ func tsiamClientAssertionProvider(endpoint string, audience string) (clientAsser
 	q.Set("resource", audience)
 	u.RawQuery = q.Encode()
 	reqUrl := u.String()
-
-	client := http.DefaultClient
 
 	type tokenResponse struct {
 		AccessToken string `json:"access_token"`
