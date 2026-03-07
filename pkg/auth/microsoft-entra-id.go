@@ -1,16 +1,9 @@
 package auth
 
 import (
-	"context"
 	"errors"
-	"fmt"
-	"net/url"
-	"strings"
 	"time"
 
-	"github.com/Azure/azure-sdk-for-go/sdk/azcore"
-	"github.com/Azure/azure-sdk-for-go/sdk/azcore/policy"
-	"github.com/Azure/azure-sdk-for-go/sdk/azidentity"
 	"github.com/lestrrat-go/jwx/v3/jwt"
 	"github.com/lestrrat-go/jwx/v3/jwt/openid"
 	"github.com/spf13/cast"
@@ -38,8 +31,8 @@ type NewMicrosoftEntraIDOptions struct {
 	ClientID string
 	// Client secret
 	ClientSecret string
-	// Enables the use of Federated Identity Credentials
-	AzureFederatedIdentity string
+	// Enables the use of client assertions
+	ClientAssertion string
 	// Request timeout; defaults to 10s
 	RequestTimeout time.Duration
 	// Scopes for requesting the token
@@ -48,16 +41,23 @@ type NewMicrosoftEntraIDOptions struct {
 	// Key for generating PKCE code verifiers
 	// Enables the use of PKCE if non-empty
 	PKCEKey []byte
+	// Server's hostname
+	Hostname string
+	// Server's base path (could be empty)
+	BasePath string
 }
 
 func (o NewMicrosoftEntraIDOptions) ToNewOpenIDConnectOptions() NewOpenIDConnectOptions {
 	return NewOpenIDConnectOptions{
-		ClientID:       o.ClientID,
-		ClientSecret:   o.ClientSecret,
-		RequestTimeout: o.RequestTimeout,
-		Scopes:         o.Scopes,
-		TokenIssuer:    "https://login.microsoftonline.com/" + o.TenantID + "/v2.0",
-		PKCEKey:        o.PKCEKey,
+		ClientID:        o.ClientID,
+		ClientSecret:    o.ClientSecret,
+		ClientAssertion: o.ClientAssertion,
+		RequestTimeout:  o.RequestTimeout,
+		Scopes:          o.Scopes,
+		TokenIssuer:     "https://login.microsoftonline.com/" + o.TenantID + "/v2.0",
+		PKCEKey:         o.PKCEKey,
+		Hostname:        o.Hostname,
+		BasePath:        o.BasePath,
 
 		// Profile modifier functions that add these claims:
 		// - id: uses "oid" instead of "sub"
@@ -104,48 +104,25 @@ func (o NewMicrosoftEntraIDOptions) ToNewOpenIDConnectOptions() NewOpenIDConnect
 				return nil
 			},
 		},
+
+		// When requesting tokens for client assertions, the audience is hardcoded as "api://AzureADTokenExchange"
+		clientAssertionAudience: "api://AzureADTokenExchange",
 	}
 }
 
 // NewMicrosoftEntraID returns a new MicrosoftEntraID provider
 func NewMicrosoftEntraID(opts NewMicrosoftEntraIDOptions) (*MicrosoftEntraID, error) {
 	if opts.TenantID == "" {
-		return nil, errors.New("value for clientId is required in config for auth with provider 'microsoft-entra-id'")
+		return nil, errors.New("value for tenantId is required in config for auth with provider 'microsoft-entra-id'")
 	}
-
-	fic, err := getFederatedIdentity(opts.AzureFederatedIdentity)
-	if err != nil {
-		return nil, fmt.Errorf("failed to initialize Federated Identity Credentials for auth provider 'microsoft-entra-id': %w", err)
+	if opts.ClientSecret == "" && opts.ClientAssertion == "" {
+		return nil, errors.New("value for clientSecret is required in config for auth with provider 'microsoft-entra-id' when not using client assertions")
 	}
 
 	oidcOpts := opts.ToNewOpenIDConnectOptions()
 	// Set default scopes if not specified
 	if oidcOpts.Scopes == "" {
 		oidcOpts.Scopes = "openid profile email"
-	}
-	if fic == nil && opts.ClientSecret == "" {
-		return nil, errors.New("value for clientSecret is required in config for auth with provider 'microsoft-entra-id' when not using Federated Identity Credentials")
-	} else if fic != nil {
-		oidcOpts.skipClientSecretValidation = true
-		oidcOpts.tokenExchangeParametersModifier = func(ctx context.Context, data url.Values) error {
-			// Get the client assertion
-			clientAssertion, err := fic.GetToken(ctx, policy.TokenRequestOptions{
-				// This is a constant value
-				Scopes: []string{"api://AzureADTokenExchange"},
-			})
-			if err != nil {
-				return fmt.Errorf("failed to obtain client assertion: %w", err)
-			}
-
-			// This is a constant value
-			data.Set("client_assertion_type", "urn:ietf:params:oauth:client-assertion-type:jwt-bearer")
-			data.Set("client_assertion", clientAssertion.Token)
-
-			// Delete the client secret
-			data.Del("client_secret")
-
-			return nil
-		}
 	}
 
 	const providerType = "microsoftentraid"
@@ -169,40 +146,6 @@ func NewMicrosoftEntraID(opts NewMicrosoftEntraIDOptions) (*MicrosoftEntraID, er
 	}
 
 	return a, nil
-}
-
-func getFederatedIdentity(afi string) (fic azcore.TokenCredential, err error) {
-	// Crete the federated identity credential object depending on the kind of federated identity
-	afi = strings.ToLower(afi)
-	switch {
-	case afi == "":
-		// If federated identity is disabled, return
-		return nil, nil
-	case strings.HasPrefix(afi, "managedidentity="):
-		// User-assigned managed identity
-		fic, err = azidentity.NewManagedIdentityCredential(&azidentity.ManagedIdentityCredentialOptions{
-			ID: azidentity.ClientID(afi[len("managedidentity="):]),
-		})
-		if err != nil {
-			return nil, fmt.Errorf("failed to create managed identity credential object: %w", err)
-		}
-	case afi == "managedidentity":
-		// System-assigned managed identity
-		fic, err = azidentity.NewManagedIdentityCredential(nil)
-		if err != nil {
-			return nil, fmt.Errorf("failed to create managed identity credential object: %w", err)
-		}
-	case afi == "workloadidentity":
-		// Workload Identity
-		fic, err = azidentity.NewWorkloadIdentityCredential(nil)
-		if err != nil {
-			return nil, fmt.Errorf("failed to create workload identity credential object: %w", err)
-		}
-	default:
-		return nil, fmt.Errorf("invalid value for configuration option 'azureFederatedIdentity': '%s'", afi)
-	}
-
-	return fic, nil
 }
 
 func (a *MicrosoftEntraID) PopulateAdditionalClaims(token jwt.Token, setClaimFn func(key string, val any)) {

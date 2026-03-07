@@ -53,9 +53,15 @@ func generateFromStruct(dir string) error {
 	if err != nil {
 		return fmt.Errorf("failed to parse structs in config.go file: %w", err)
 	}
-	err = parseStructsInFile(filepath.Join(dir, "providers-config.go"))
+	providerFiles, err := filepath.Glob(filepath.Join(dir, "provider-*.go"))
 	if err != nil {
-		return fmt.Errorf("failed to parse structs in providers-config.go file: %w", err)
+		return fmt.Errorf("failed to glob provider files: %w", err)
+	}
+	for _, f := range providerFiles {
+		err = parseStructsInFile(f)
+		if err != nil {
+			return fmt.Errorf("failed to parse structs in %s file: %w", filepath.Base(f), err)
+		}
 	}
 
 	// Process the root Config struct

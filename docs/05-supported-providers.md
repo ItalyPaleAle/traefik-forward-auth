@@ -49,10 +49,12 @@ Using Federated Identity Credentials is the **recommended** approach when:
 
 - The application is running on Azure on a platform that supports [Managed Identity](https://learn.microsoft.com/en-us/entra/identity/managed-identities-azure-resources/overview). Both system-assigned and user-assigned identities are supported.
 - The application is running on platforms that support [Workload Identity Federation](https://learn.microsoft.com/en-us/entra/workload-id/workload-identity-federation), for example on Kubernetes (on any cloud or on-premises) or other clouds.
+- The application is running on Kubernetes and can use service account tokens
+- The application is running on a node connected to a Tailscale network and you have deployed [tsiam](https://github.com/italypaleale/tsiam)
 
 > Check the documentation for your platform on configuring the managed identity or the workload identity for your application.
 
-To use Federated Identity Credentials, you need configure the application for federated credentials. The steps below show an example for using managed identity; for using workload identity federation, consult the documentation for your platform.
+To use Federated Identity Credentials, you first need to configure your Entra ID applictaion. The steps below show an example for using managed identity; for using workload identity federation, consult the documentation for your platform.
 
 For managed identity, you will need the **object ID** (i.e. "principal ID") of your identity. This can usually be found on the Azure Portal in the "Identity" section of your resource.
 
@@ -71,11 +73,13 @@ az ad app federated-credential create \
   --parameters "{\"name\": \"mi-${IDENTITY_OBJECT_ID}\",\"issuer\": \"https://login.microsoftonline.com/${TENANT_ID}/v2.0\",\"subject\": \"${IDENTITY_OBJECT_ID}\",\"description\": \"Federated Identity for Managed Identity ${IDENTITY_OBJECT_ID}\",\"audiences\": [\"api://AzureADTokenExchange\"]}"
 ```
 
-Finally, configure Traefik Forward Auth by setting a value for [`azureFederatedIdentity`](./03-all-configuration-options.md#config-opt-portals.$.providers.$-microsoftentraid-portals-$-providers-$-microsoftentraid-azurefederatedidentity):
+Finally, configure Traefik Forward Auth by setting a value for [`clientAssertion`](./03-all-configuration-options.md#config-opt-portals.$.providers.$-microsoftentraid-portals-$-providers-$-microsoftentraid-clientassertion):
 
-- `"ManagedIdentity"` for using a system-assigned managed identity
-- `"ManagedIdentity=xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"` for using a user-assigned managed identity (replace the placeholder value with the **client ID** of your managed identity)
-- `"WorkloadIdentity"` for using workload identity
+- `AzureManagedIdentity`: uses Azure Managed Identity with a system-assigned identity
+- `AzureManagedIdentity=client-id`: uses Azure Managed Identity with a user-assigned identity whose client id is "client-id" (e.g. "AzureManagedIdentity=00000000-0000-0000-0000-000000000000")
+- `AzureWorkloadIdentity`: uses Azure Workload Identity, e.g. in Kubernetes
+- `KubernetesServiceAccountToken=path`: uses a token read from a Kubernetes service account token file. If `path` is omitted, defaults to `/var/run/secrets/kubernetes.io/serviceaccount/token`.
+- `tsiam=endpoint`: uses tsiam to obtain Workload Identity from nodes that use Tailscale. Specify the endpoint of tsiam as value, e.g. `tsiam=https://tsiam`. Uses as resource name the constant value `api://AzureADTokenExchange`.
 
 ## Other OpenID Connect providers
 
@@ -117,6 +121,27 @@ The Pocket ID provider supports additional configuration options that can be hel
 - [`tlsCACertificatepath`](./03-all-configuration-options.md#config-opt-portals.$.providers.$-pocketID-portals-$-providers-$-pocketID-tlscacertificatepath): Path to a file containing the PEM-encoded CA certificate used when communicating with Pocket ID.
 
 [Full list of configuration options for Pocket ID and example](./03-all-configuration-options.md#using-pocketID)
+
+### Using Federated Client Credentials
+
+Using Federated Client Credentials is an alternative to configuring your Pocket ID application with a client secret. This offers better security because there are no pre-shared secrets to manage, and easier maintenance since client secrets need to be rotated periodically.
+
+Using Federated Client Credentials is the **recommended** approach when:
+
+- The application is running on Azure on a platform that supports [Managed Identity](https://learn.microsoft.com/en-us/entra/identity/managed-identities-azure-resources/overview). Both system-assigned and user-assigned identities are supported.
+- The application is running on platforms that support [Workload Identity Federation](https://learn.microsoft.com/en-us/entra/workload-id/workload-identity-federation), for example on Kubernetes (on any cloud or on-premises) or other clouds.
+- The application is running on Kubernetes and can use service account tokens.
+- The application is running on a node connected to a Tailscale network and you have deployed [tsiam](https://github.com/italypaleale/tsiam).
+
+To use Federated Client Credentials, you first need to configure your OAuth2 Client in Pocket ID, as described in the [official documentation](https://pocket-id.org/docs/guides/oidc-client-authentication).
+
+Finally, configure Traefik Forward Auth by setting a value for [`clientAssertion`](./03-all-configuration-options.md#config-opt-portals.$.providers.$-pocketid-portals-$-providers-$-pocketid-clientassertion):
+
+- `AzureManagedIdentity`: uses Azure Managed Identity with a system-assigned identity
+- `AzureManagedIdentity=client-id`: uses Azure Managed Identity with a user-assigned identity whose client id is "client-id" (e.g. "AzureManagedIdentity=00000000-0000-0000-0000-000000000000")
+- `AzureWorkloadIdentity`: uses Azure Workload Identity, e.g. in Kubernetes
+- `KubernetesServiceAccountToken=path`: uses a token read from a Kubernetes service account token file. If `path` is omitted, defaults to `/var/run/secrets/kubernetes.io/serviceaccount/token`.
+- `tsiam=endpoint`: uses tsiam to obtain Workload Identity from nodes that use Tailscale. Specify the endpoint of tsiam as value, e.g. `tsiam=https://tsiam`. Uses as resource name the value of `endpoint`.
 
 ## Tailscale Whois
 

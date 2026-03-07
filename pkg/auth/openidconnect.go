@@ -37,6 +37,8 @@ type NewOpenIDConnectOptions struct {
 	ClientID string
 	// Client secret
 	ClientSecret string
+	// Client assertion option
+	ClientAssertion string
 	// Token issuer
 	TokenIssuer string
 	// Request timeout; defaults to 10s
@@ -51,13 +53,15 @@ type NewOpenIDConnectOptions struct {
 	TLSSkipVerify bool
 	// Optional, PEM-encoded CA certificate used when connecting to the Identity Provider
 	TLSCACertificate []byte
+	// Server's hostname
+	Hostname string
+	// Server's base path (could be empty)
+	BasePath string
 
-	// Some providers validate client secrets separately
-	skipClientSecretValidation bool
-	// Allows providers to modify the parameters passed to the IdP while invoking the token endpoint
-	tokenExchangeParametersModifier tokenExchangeParametersModifierFn
 	// Allows providers to modify the user profile
 	profileModifier profileModifierFn
+	// Audience for client assertion tokens
+	clientAssertionAudience string
 }
 
 // NewOpenIDConnect returns a new OpenIDConnect provider
@@ -66,8 +70,8 @@ func NewOpenIDConnect(ctx context.Context, opts NewOpenIDConnectOptions) (*OpenI
 	if opts.ClientID == "" {
 		return nil, errors.New("value for clientId is required in config for auth with provider 'openidconnect'")
 	}
-	if opts.ClientSecret == "" {
-		return nil, errors.New("value for clientSecret is required in config for auth with provider 'openidconnect'")
+	if opts.ClientSecret == "" && opts.ClientAssertion == "" {
+		return nil, errors.New("value for either clientSecret or clientAssertion is required in config for auth with provider 'openidconnect'")
 	}
 	if opts.TokenIssuer == "" {
 		return nil, errors.New("value for tokenIssuer is required in config for auth with provider 'openidconnect'")
@@ -83,6 +87,12 @@ func NewOpenIDConnect(ctx context.Context, opts NewOpenIDConnectOptions) (*OpenI
 	// Set default scopes if not specified
 	if opts.Scopes == "" {
 		opts.Scopes = "openid profile email"
+	}
+
+	// Get the client assertion provider (will be nil if the option is an empty string)
+	clientAssertionProvider, err := getClientAssertionProvider(opts.ClientAssertion, opts.TokenIssuer)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get client assertion provider for auth with provider 'openidconnect': %w", err)
 	}
 
 	// Create the provider
@@ -106,8 +116,7 @@ func NewOpenIDConnect(ctx context.Context, opts NewOpenIDConnectOptions) (*OpenI
 		TLSSkipVerify:    opts.TLSSkipVerify,
 		TLSCACertificate: opts.TLSCACertificate,
 
-		skipClientSecretValidation:      opts.skipClientSecretValidation,
-		tokenExchangeParametersModifier: opts.tokenExchangeParametersModifier,
+		clientAssertionProvider: clientAssertionProvider,
 	})
 	if err != nil {
 		return nil, err
@@ -142,10 +151,21 @@ func newOpenIDConnectInternal(providerType string, providerMetadata ProviderMeta
 	if opts.ClientID == "" {
 		return nil, fmt.Errorf("value for clientId is required in config for auth with provider '%s'", providerType)
 	}
-	if opts.ClientSecret == "" && !opts.skipClientSecretValidation {
-		return nil, fmt.Errorf("value for clientSecret is required in config for auth with provider '%s'", providerType)
+	if opts.ClientSecret == "" && opts.ClientAssertion == "" {
+		return nil, fmt.Errorf("value for clientSecret or clientAssertion is required in config for auth with provider '%s'", providerType)
 	}
 
+	// Get the client assertion provider (will be nil if the option is an empty string)
+	clientAssertionAudience := opts.clientAssertionAudience
+	if clientAssertionAudience == "" {
+		clientAssertionAudience = opts.TokenIssuer
+	}
+	clientAssertionProvider, err := getClientAssertionProvider(opts.ClientAssertion, clientAssertionAudience)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get client assertion provider for auth with provider '%s': %w", providerType, err)
+	}
+
+	// Create the underlying OAuth2 provider
 	oauth2, err := NewOAuth2(providerType, providerMetadata, NewOAuth2Options{
 		Config: OAuth2Config{
 			ClientID:     opts.ClientID,
@@ -159,8 +179,7 @@ func newOpenIDConnectInternal(providerType string, providerMetadata ProviderMeta
 		TLSSkipVerify:    opts.TLSSkipVerify,
 		TLSCACertificate: opts.TLSCACertificate,
 
-		skipClientSecretValidation:      opts.skipClientSecretValidation,
-		tokenExchangeParametersModifier: opts.tokenExchangeParametersModifier,
+		clientAssertionProvider: clientAssertionProvider,
 	})
 	if err != nil {
 		return nil, err

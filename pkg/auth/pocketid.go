@@ -28,10 +28,16 @@ type NewPocketIDOptions struct {
 	// Key for generating PKCE code verifiers
 	// Enables the use of PKCE if non-empty
 	PKCEKey []byte
+	// Client assertion option
+	ClientAssertion string
 	// Skip validating TLS certificates when connecting to the Identity Provider
 	TLSSkipVerify bool
 	// Optional, PEM-encoded CA certificate used when connecting to the Identity Provider
 	TLSCACertificate []byte
+	// Server's hostname
+	Hostname string
+	// Server's base path (could be empty)
+	BasePath string
 }
 
 func (o NewPocketIDOptions) ToNewOpenIDConnectOptions() NewOpenIDConnectOptions {
@@ -42,8 +48,14 @@ func (o NewPocketIDOptions) ToNewOpenIDConnectOptions() NewOpenIDConnectOptions 
 		Scopes:           o.Scopes,
 		TokenIssuer:      o.Endpoint,
 		PKCEKey:          o.PKCEKey,
+		ClientAssertion:  o.ClientAssertion,
 		TLSSkipVerify:    o.TLSSkipVerify,
 		TLSCACertificate: o.TLSCACertificate,
+		Hostname:         o.Hostname,
+		BasePath:         o.BasePath,
+
+		// When there's a client assertion, use the endpoint as audience for the tokens
+		clientAssertionAudience: o.Endpoint,
 	}
 }
 
@@ -58,8 +70,8 @@ func NewPocketID(opts NewPocketIDOptions) (*PocketID, error) {
 	if opts.ClientID == "" {
 		return nil, errors.New("value for clientID is required in config for auth with provider 'pocket-id'")
 	}
-	if opts.ClientSecret == "" {
-		return nil, errors.New("value for clientSecret is required in config for auth with provider 'pocket-id'")
+	if opts.ClientSecret == "" && opts.ClientAssertion == "" {
+		return nil, errors.New("value for either clientSecret or clientAssertion is required in config for auth with provider 'pocket-id'")
 	}
 
 	oidcOpts := opts.ToNewOpenIDConnectOptions()

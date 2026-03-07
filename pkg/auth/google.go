@@ -29,6 +29,10 @@ type NewGoogleOptions struct {
 	// Scopes for requesting the token
 	// This is optional and defaults to "openid profile email"
 	Scopes string
+	// Server's hostname
+	Hostname string
+	// Server's base path (could be empty)
+	BasePath string
 }
 
 func (o NewGoogleOptions) ToNewOpenIDConnectOptions() NewOpenIDConnectOptions {
@@ -38,6 +42,8 @@ func (o NewGoogleOptions) ToNewOpenIDConnectOptions() NewOpenIDConnectOptions {
 		RequestTimeout: o.RequestTimeout,
 		Scopes:         o.Scopes,
 		TokenIssuer:    "https://accounts.google.com",
+		Hostname:       o.Hostname,
+		BasePath:       o.BasePath,
 
 		// Profile modifier functions that add the "hd" claim
 		// This is set by Google on accounts that belong to an organization and indicates the domain of the org
