@@ -374,7 +374,7 @@ portals:
 
           ## portals.$.providers.$.microsoftEntraID.clientAssertion (string)
           ## Description:
-          ##   Enables the usage of client assertions (also known as "Federated Identity Credentials" or "Federated Workload Credentials") to obtain assertions for Microsoft Entra ID applications clients.
+          ##   Enables the usage of client assertions (also known as "Federated Identity Credentials" or "Federated Workload Credentials") to obtain assertions for Microsoft Entra ID applications.
           ##   This is an alternative to using client secrets, when the application is running in an environment that supports other ways to obtain federated credentials.
           ##   Currently, these values are supported:
           ##
@@ -575,6 +575,19 @@ portals:
           ##   If true, enables the use of PKCE during the code exchange.
           ## Default: false
           #enablePKCE: false
+
+          ## portals.$.providers.$.pocketID.clientAssertion (string)
+          ## Description:
+          ##   Enables the usage of client assertions (also known as "Federated Identity Credentials" or "Federated Workload Credentials") to obtain assertions for client applications.
+          ##   This is an alternative to using client secrets, when the application is running in an environment that supports other ways to obtain federated credentials.
+          ##   Currently, these values are supported:
+          ##
+          ##   - `AzureManagedIdentity`: uses Azure Managed Identity with a system-assigned identity
+          ##   - `AzureManagedIdentity=client-id`: uses Azure Managed Identity with a user-assigned identity whose client id is "client-id" (e.g. `AzureManagedIdentity=00000000-0000-0000-0000-000000000000`)
+          ##   - `AzureWorkloadIdentity`: uses Azure Workload Identity, e.g. in Kubernetes
+          ##   - `KubernetesServiceAccountToken=path`: uses a token read from a Kubernetes service account token file. If `path` is omitted, defaults to `/var/run/secrets/kubernetes.io/serviceaccount/token`.
+          ##   - `tsiam=endpoint`: uses tsiam to obtain Workload Identity from nodes that use Tailscale. Specify the endpoint of tsiam as value, e.g. `tsiam=https://tsiam`. Uses as resource name the value of `endpoint`.
+          #clientAssertion: ""
 
           ## portals.$.providers.$.pocketID.tlsInsecureSkipVerify (boolean)
           ## Description:
