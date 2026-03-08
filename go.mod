@@ -1,6 +1,6 @@
 module github.com/italypaleale/traefik-forward-auth
 
-go 1.26
+go 1.26.1
 
 require (
 	github.com/Azure/azure-sdk-for-go/sdk/azcore v1.21.0
@@ -8,10 +8,10 @@ require (
 	github.com/alphadose/haxmap v1.4.1
 	github.com/cenkalti/backoff/v5 v5.0.3
 	github.com/cespare/xxhash/v2 v2.3.0
-	github.com/gin-gonic/gin v1.11.0
+	github.com/gin-gonic/gin v1.12.0
 	github.com/google/uuid v1.6.0
 	github.com/h2non/go-is-svg v0.0.0-20160927212452-35e8c4b0612c
-	github.com/italypaleale/go-kit v0.0.0-20260216203933-c7019c99fc77
+	github.com/italypaleale/go-kit v0.0.0-20260222225720-3e03a8a3f5f3
 	github.com/jinzhu/copier v0.4.0
 	github.com/lestrrat-go/jwx/v3 v3.0.13
 	github.com/lmittmann/tint v1.1.3
@@ -31,11 +31,11 @@ require (
 	go.opentelemetry.io/otel/sdk v1.40.0
 	go.opentelemetry.io/otel/sdk/log v0.16.0
 	go.opentelemetry.io/otel/sdk/metric v1.40.0
-	golang.org/x/net v0.50.0
+	golang.org/x/net v0.51.0
 	golang.org/x/sync v0.19.0
 	golang.org/x/text v0.34.0
 	sigs.k8s.io/yaml v1.6.0
-	tailscale.com v1.94.2
+	tailscale.com v1.96.0
 )
 
 require (
@@ -105,6 +105,7 @@ require (
 	github.com/ugorji/go/codec v1.3.1 // indirect
 	github.com/valyala/fastjson v1.6.7 // indirect
 	github.com/x448/float16 v0.8.4 // indirect
+	go.mongodb.org/mongo-driver/v2 v2.5.0 // indirect
 	go.opentelemetry.io/auto/sdk v1.2.1 // indirect
 	go.opentelemetry.io/contrib/bridges/prometheus v0.65.0 // indirect
 	go.opentelemetry.io/otel/exporters/otlp/otlplog/otlploggrpc v0.16.0 // indirect
