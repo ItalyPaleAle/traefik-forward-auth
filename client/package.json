@@ -1,7 +1,7 @@
 {
   "dependencies": {
-    "@tailwindcss/cli": "^4.1.18",
-    "tailwindcss": "^4.1.18",
-    "terser": "^5.44.1"
+    "@tailwindcss/cli": "^4.2.2",
+    "tailwindcss": "^4.2.2",
+    "terser": "^5.46.1"
   }
 }
