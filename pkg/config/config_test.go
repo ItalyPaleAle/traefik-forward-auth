@@ -164,6 +164,21 @@ func TestValidateConfig(t *testing.T) {
 		require.Len(t, config.Portals, 1)
 		assert.EqualValues(t, expectProviderConfig, config.Portals[0].Providers[0].configParsed)
 	})
+
+	t.Run("fails when headers contain invalid template", func(t *testing.T) {
+		t.Cleanup(SetTestConfig(func(c *Config) {
+			c.Headers = []ConfigHeader{
+				{
+					Name:  "X-Forwarded-User",
+					Value: "{{ foo }}",
+				},
+			}
+		}))
+
+		err := config.Validate(log)
+		require.Error(t, err)
+		assert.ErrorContains(t, err, "function \"foo\" not defined")
+	})
 }
 
 func TestSetTokenSigningKey(t *testing.T) {

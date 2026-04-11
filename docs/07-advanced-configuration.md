@@ -65,6 +65,32 @@ By default, sessions are valid for 2 hours.
 
 You can configure the lifetime of a session using the option [`tokens.sessionLifetime`](./03-all-configuration-options.md#config-opt-tokens-sessionlifetime), which accepts a Go duration (such as `2h` for 2 hours, or `30m` for 30 minutes).
 
+## Configure headers
+
+By default, Traefik Forward Auth adds the following headers to its response:
+
+- `X-Forwarded-User`: the user identifier
+- `X-Forwarded-Displayname`: the user name
+- `X-Authenticated-User`: a JSON object that includes the user ID, the portal's name, and the provider's name.
+
+You may overwrite those headers by adding the `headers` section to the configuration:
+
+```yaml
+headers:
+- name: X-Forwarded-Email
+  value: '{{ .Claim "email" | safeToLower }}'
+```
+
+The header values are interpreted Go templates. In the templates, you may use template functions provided by [Sprout](https://docs.atom.codes/sprout/groups/hermetic), and you have access to the following built-in values:
+
+| Template                       | Description                                                                              |
+|--------------------------------|------------------------------------------------------------------------------------------|
+| `{{ .Claim "$" }}`             | One of the claims returned by the identity provider (replace `$` with name of the claim) |
+| `{{ .Portal.Name }}`           | The name of the authentication portal                                                    |
+| `{{ .Portal.DisplayName }} `   | The display name of the authentication portal                                            |
+| `{{ .Provider.Name }}`         | The name of the identity provider                                                        |
+| `{{ .Provider.DisplayName }} ` | The display name of the identity provider                                                |
+
 ## Security hardening
 
 This section contains some advanced options to harden the security of Traefik Forward Auth.

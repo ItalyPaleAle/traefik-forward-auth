@@ -287,4 +287,11 @@ portals:
           #color: "slate"
 ```
 
+## Header configuration
+
+| Name | Type | Description | |
+| --- | --- | --- | --- |
+| <a id="config-opt-headers-headers-$-name"></a>`headers.$.name` | string | Name of the header.| **Required** |
+| <a id="config-opt-headers-headers-$-value"></a>`headers.$.value` | string | Value of the header.<br>The value is evaluated as a Go template.| **Required** |
+
 <!-- END CONFIG TABLE -->

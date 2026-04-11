@@ -3,6 +3,7 @@ package server
 import (
 	"context"
 	"fmt"
+	"io"
 	"net/http"
 	"strings"
 	"testing"
@@ -146,6 +147,99 @@ func TestServerAuthRoutes(t *testing.T) {
 	t.Run("with basePath, requesting default portal using long path", testFn("/auth/portals/test1", "/auth/portals/test1/signin", func(c *config.Config) {
 		c.Server.BasePath = "/auth"
 		c.DefaultPortal = "test1"
+	}))
+}
+
+func TestRouteGetAuthRootAuthenticated(t *testing.T) {
+	testFn := func(setConfigFn func(c *config.Config), checkResFn func(t *testing.T, res *http.Response, profile *user.Profile)) func(t *testing.T) {
+		return func(t *testing.T) {
+			if setConfigFn != nil {
+				t.Cleanup(config.SetTestConfig(setConfigFn))
+			}
+
+			// Create the server
+			srv, _ := newTestServer(t)
+			require.NotNil(t, srv)
+			stopServerFn := startTestServer(t, srv)
+			defer stopServerFn(t)
+			appClient := clientForListener(srv.appListener)
+
+			cfg := config.Get()
+			const portalName = "test1"
+
+			// Create a session token with a full profile
+			profile := createFullTestProfile()
+			token := createTestSessionToken(t, portalName, profile, time.Hour)
+			cookieName := cfg.Cookies.CookieName(portalName)
+
+			// Make a request to the /portals/:portal/profile.json endpoint
+			reqCtx, reqCancel := context.WithTimeout(t.Context(), 10*time.Second)
+			defer reqCancel()
+			req, err := http.NewRequestWithContext(reqCtx, http.MethodGet,
+				fmt.Sprintf("http://localhost:%d/portals/%s", testServerPort, portalName), nil)
+			require.NoError(t, err)
+			req.AddCookie(&http.Cookie{Name: cookieName, Value: token})
+			populateRequiredProxyHeaders(t, req)
+
+			res, err := appClient.Do(req)
+			require.NoError(t, err)
+			defer closeBody(res)
+
+			// Check the response
+			if checkResFn != nil {
+				checkResFn(t, res, profile)
+			}
+		}
+	}
+
+	t.Run("authenticated with default headers", testFn(nil, func(t *testing.T, res *http.Response, profile *user.Profile) {
+		expectedAuthenticatedUser := fmt.Sprintf(
+			`{"portal":"test1","provider":"%s","user":"%s"}`, profile.Provider, profile.ID,
+		)
+		require.Equal(t, http.StatusOK, res.StatusCode)
+		require.Equal(t, profile.ID, res.Header.Get("X-Forwarded-User"))
+		require.Equal(t, profile.Name.FullName, res.Header.Get("X-Forwarded-Displayname"))
+		require.Equal(t, expectedAuthenticatedUser, res.Header.Get("X-Authenticated-User"))
+	}))
+
+	t.Run("authenticated with custom headers", testFn(func(c *config.Config) {
+		c.Headers = []config.ConfigHeader{
+			{
+				Name:  "X-Forwarded-Email",
+				Value: `{{ .Claim "email" | safeToUpper }}`,
+			},
+			{
+				Name:  "X-Missing-With-Safe",
+				Value: `missing:{{ .Claim "missing" | safeToUpper }}`,
+			},
+			{
+				Name:  "X-Missing-With-Default",
+				Value: `missing:{{ .Claim "missing" | default "" }}`,
+			},
+			{
+				Name:  "X-Missing-Without-Default",
+				Value: `missing:{{ .Claim "missing" }}`,
+			},
+		}
+	}, func(t *testing.T, res *http.Response, profile *user.Profile) {
+		require.Equal(t, strings.ToUpper(profile.Email.Value), res.Header.Get("X-Forwarded-Email"))
+		require.Equal(t, "missing:", res.Header.Get("X-Missing-With-Safe"))
+		require.Equal(t, "missing:", res.Header.Get("X-Missing-With-Default"))
+		require.Equal(t, "missing:<no value>", res.Header.Get("X-Missing-Without-Default"))
+	}))
+
+	t.Run("authenticated with header template error", testFn(func(c *config.Config) {
+		c.Headers = []config.ConfigHeader{
+			{
+				Name:  "X-Invalid-Header",
+				Value: `{{ .Portal.MissingField }}`,
+			},
+		}
+	}, func(t *testing.T, res *http.Response, profile *user.Profile) {
+		require.Equal(t, http.StatusInternalServerError, res.StatusCode)
+		body, err := io.ReadAll(res.Body)
+		require.NoError(t, err)
+		require.Equal(t, "Error: An internal error occurred", string(body))
 	}))
 }
 

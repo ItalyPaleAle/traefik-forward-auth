@@ -51,6 +51,7 @@ ghcr.io/italypaleale/traefik-forward-auth:4.x.x
   - [Observability: Logs, Traces, Metrics](./docs/07-advanced-configuration.md#observability-logs-traces-metrics)
   - [Token signing keys](./docs/07-advanced-configuration.md#token-signing-keys)
   - [Configure session lifetime](./docs/07-advanced-configuration.md#configure-session-lifetime)
+  - [Configure headers](./docs/07-advanced-configuration.md#configure-headers)
   - [Security hardening](./docs/07-advanced-configuration.md#security-hardening)
   - [Container health checks](./docs/07-advanced-configuration.md#container-health-checks)
 - [**📍 Endpoints**](./docs/08-endpoints.md)

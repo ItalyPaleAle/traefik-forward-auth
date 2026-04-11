@@ -669,3 +669,25 @@ portals:
           ##   Defaults to the standard color for the provider
           #color: "slate"
 
+## headers (list of headers)
+## Description:
+##   HTTP headers to add to the response
+##   When this section is omitted, the following headers are added by default:
+##   - X-Forwarded-User
+##   - X-Forwarded-Displayname
+##   - X-Authenticated-User
+#headers:
+#  -
+#    ## headers.$.name (string)
+#    ## Description:
+#    ##   Name of the header.
+#    ## Required
+#    name: "X-Forwarded-User"
+
+#    ## headers.$.value (string)
+#    ## Description:
+#    ##   Value of the header.
+#    ##   The value is evaluated as a Go template.
+#    ## Required
+#    value: '{{ .Claim "id" | default "" }}'
+

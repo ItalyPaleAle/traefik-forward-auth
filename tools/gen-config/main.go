@@ -155,6 +155,9 @@ func processStruct(structDef structDef, yamlPrefix string, parentYamlPath string
 		printMarkdownHeader("## Portal configuration", outMD)
 	case parentYamlPath == "portals.$.providers.$" && strings.HasPrefix(sectionName, "portals.$.providers.$-"):
 		providerName = strings.TrimPrefix(sectionName, "portals.$.providers.$-")
+	case parentYamlPath == "headers.$" && sectionName == "headers":
+		fmt.Fprint(outMD, "\n")
+		printMarkdownHeader("## Header configuration", outMD)
 	}
 
 	for _, field := range structDef.StructType.Fields.List {
@@ -215,6 +218,10 @@ func processStruct(structDef structDef, yamlPrefix string, parentYamlPath string
 		// Handle the special "providers" field
 		case fullYamlPath == "portals.$.providers" && sectionName == "portals":
 			processProvidersField(outYAML, outMD, yamlPrefix)
+
+		// Handle the special "headers" field
+		case fullYamlPath == "headers" && sectionName == "":
+			processHeadersField(outYAML, outMD, yamlPrefix)
 
 		// Handle regular (non-struct) fields
 		case !isStructField:
@@ -377,6 +384,22 @@ func processPortalsField(outYAML io.Writer, outMD io.Writer, yamlPrefix string) 
 	y("  -\n")
 
 	processStruct(structTypes["ConfigPortal"], "    ", "portals.$", "portals", outYAML, outMD, false)
+}
+
+// processHeadersField handles the special "headers" field
+func processHeadersField(outYAML io.Writer, outMD io.Writer, yamlPrefix string) {
+	y := func(format string, a ...any) { fmt.Fprintf(outYAML, yamlPrefix+format, a...) }
+	y("## headers (list of headers)\n")
+	y("## Description:\n")
+	y("##   HTTP headers to add to the response\n")
+	y("##   When this section is omitted, the following headers are added by default:\n")
+	y("##   - X-Forwarded-User\n")
+	y("##   - X-Forwarded-Displayname\n")
+	y("##   - X-Authenticated-User\n")
+	y("#headers:\n")
+	y("#  -\n")
+
+	processStruct(structTypes["ConfigHeader"], "#    ", "headers.$", "headers", outYAML, outMD, false)
 }
 
 // processProvidersField handles the special "providers" field

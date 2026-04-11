@@ -49,6 +49,20 @@ func GetDefaultConfig() *Config {
 			Level:            "info",
 			OmitHealthChecks: true,
 		},
+		Headers: []ConfigHeader{
+			{
+				Name:  headerXForwardedUser,
+				Value: `{{ .Claim "id" | default "" }}`,
+			},
+			{
+				Name:  headerXForwardedDisplayName,
+				Value: `{{ .Claim "name" | default "" }}`,
+			},
+			{
+				Name:  headerXAuthenticatedUser,
+				Value: `{{ .Claim "id" | dict "provider" .Provider.Name "portal" .Portal.Name "user" | toJSON }}`,
+			},
+		},
 	}
 }
 

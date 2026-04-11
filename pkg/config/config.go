@@ -1,6 +1,7 @@
 package config
 
 import (
+	"bytes"
 	"context"
 	"crypto"
 	"crypto/hmac"
@@ -17,13 +18,22 @@ import (
 	"reflect"
 	"regexp"
 	"strings"
+	"text/template"
 	"time"
 
+	"github.com/go-sprout/sprout"
+	"github.com/go-sprout/sprout/group/hermetic"
 	"github.com/lestrrat-go/jwx/v3/jwk"
 
 	"github.com/italypaleale/traefik-forward-auth/pkg/auth"
 	"github.com/italypaleale/traefik-forward-auth/pkg/utils"
 	"github.com/italypaleale/traefik-forward-auth/pkg/utils/validators"
+)
+
+const (
+	headerXForwardedDisplayName = "X-Forwarded-Displayname"
+	headerXForwardedUser        = "X-Forwarded-User"
+	headerXAuthenticatedUser    = "X-Authenticated-User"
 )
 
 // Config is the struct containing configuration
@@ -48,6 +58,9 @@ type Config struct {
 	// At least one configured portal and provider is required
 	// +required
 	Portals []ConfigPortal `yaml:"portals"`
+
+	// HTTP headers to add to the response
+	Headers []ConfigHeader `yaml:"headers"`
 
 	// Dev is meant for development only; it's undocumented
 	Dev ConfigDev `yaml:"dev" ignoredocs:"true"`
@@ -232,6 +245,21 @@ type ConfigPortalProvider struct {
 	configParsed ProviderConfig
 }
 
+type ConfigHeader struct {
+	// Name of the header.
+	// +required
+	// +example "X-Forwarded-User"
+	Name string `yaml:"name"`
+	// Value of the header.
+	// The value is evaluated as a Go template.
+	// +required
+	// +example '{{ .Claim "id" | default "" }}'
+	Value string `yaml:"value"`
+
+	// Parsed template - internal
+	template *template.Template
+}
+
 // ConfigDev includes options using during development only
 type ConfigDev struct {
 	// If true, disables caching on the client
@@ -381,6 +409,17 @@ func (c *Config) Validate(logger *slog.Logger) error {
 		}
 	}
 
+	// Parse headers' configuration
+	for i := range c.Headers {
+		err = c.Headers[i].Parse(c)
+		if err != nil {
+			if c.Headers[i].Name == "" {
+				return fmt.Errorf("invalid header at index %d: %w", i, err)
+			}
+			return fmt.Errorf("invalid header '%s' (at index %d): %w", c.Headers[i].Name, i, err)
+		}
+	}
+
 	return nil
 }
 
@@ -512,6 +551,41 @@ func (v *ConfigPortalProvider) Parse(c *Config) (err error) {
 	v.configParsed.SetConfigObject(c)
 
 	return nil
+}
+
+func (h *ConfigHeader) Parse(c *Config) (err error) {
+	if h.Name == "" {
+		return errors.New("property 'name' is required")
+	}
+	if h.Value == "" {
+		return errors.New("property 'value' is required")
+	}
+
+	funcs := sprout.New(
+		sprout.WithSafeFuncs(true),
+		sprout.WithGroups(hermetic.RegistryGroup()),
+	).Build()
+
+	tpl, err := template.New("").Funcs(funcs).Parse(h.Value)
+	if err != nil {
+		return fmt.Errorf("property 'value' is invalid: %w", err)
+	}
+
+	h.template = tpl
+	return nil
+}
+
+func (h *ConfigHeader) Evaluate(data any) (string, error) {
+	if h.template == nil {
+		return "", errors.New("method Parse was not called on header configuration object")
+	}
+
+	var buff bytes.Buffer
+	err := h.template.Execute(&buff, data)
+	if err != nil {
+		return "", err
+	}
+	return buff.String(), nil
 }
 
 func sanitizeProviderName(name string) (string, error) {

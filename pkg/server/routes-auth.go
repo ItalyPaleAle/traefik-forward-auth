@@ -3,7 +3,6 @@ package server
 import (
 	"crypto/sha256"
 	"encoding/base64"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"net/http"
@@ -110,16 +109,19 @@ func (s *Server) handleAuthenticatedRoot(c *gin.Context, portal Portal, provider
 		}
 	}
 
+	// Set headers
+	headers, err := getHeaders(portal, provider, profile)
+	if err != nil {
+		AbortWithError(c, err)
+		return
+	}
+	for name, value := range headers {
+		c.Header(name, value)
+	}
+
 	// If we are here, we have a valid session, so respond with a 200 status code
 	// Include the user name in the response body in case a visitor is hitting the auth server directly
 	s.metrics.RecordAuthentication(true)
-
-	// Set the X-Forwarded-User, X-Authenticated-User, X-Forwarded-Displayname headers
-	c.Header(headerXForwardedUser, profile.ID)
-	c.Header(headerXAuthenticatedUser, authenticatedUserFromProfile(provider, portal.Name, profile))
-	if profile.Name.FullName != "" {
-		c.Header(headerXForwardedDisplayName, profile.Name.FullName)
-	}
 
 	switch {
 	case utils.IsTruthy(c.Query("html")):
@@ -490,13 +492,6 @@ func getPortalURI(c *gin.Context, portal string) string {
 	}
 
 	return baseURI + "/portals/" + portal
-}
-
-// Returns the user information to include in the "X-Authenticated-User" header
-func authenticatedUserFromProfile(provider auth.Provider, portal string, profile *user.Profile) string {
-	userID, _ := json.Marshal(profile.ID)
-	// Provider and portal names is already guaranteed to not include characters that must be escaped as JSON
-	return `{"provider":"` + provider.GetProviderName() + `","portal":"` + portal + `","user":` + string(userID) + `}`
 }
 
 // Returns the value from the X-Forwarded-Proto header, handling WebSockets
