@@ -22,6 +22,8 @@ type Profile struct {
 	Name ProfileName
 	// Email address
 	Email *ProfileEmail
+	// Preferred username
+	Username string
 	// URL of the user's picture
 	Picture string
 	// End user's locale, as a string (e.g. "en" or "fr-FR" or "de_DE")
@@ -64,6 +66,7 @@ type ProfileEmail struct {
 func NewProfileFromOpenIDToken(token openid.Token, provider string) (*Profile, error) {
 	profile := Profile{
 		Provider: provider,
+		Username: stringOrEmpty(token.PreferredUsername()),
 		Picture:  stringOrEmpty(token.Picture()),
 		Locale:   stringOrEmpty(token.Locale()),
 		Timezone: stringOrEmpty(token.Zoneinfo()),
@@ -119,6 +122,7 @@ func NewProfileFromOpenIDToken(token openid.Token, provider string) (*Profile, e
 func NewProfileFromClaims(claims map[string]any, provider string) (*Profile, error) {
 	profile := &Profile{
 		Provider: provider,
+		Username: cast.ToString(claims["preferred_username"]),
 		Picture:  cast.ToString(claims["picture"]),
 		Locale:   cast.ToString(claims["locale"]),
 		Timezone: cast.ToString(claims["zoneinfo"]),
@@ -241,6 +245,9 @@ func (p *Profile) AppendClaims(builder *jwt.Builder) {
 			builder.Claim("email_verified", p.Email.Verified)
 		}
 	}
+	if p.Username != "" {
+		builder.Claim("preferred_username", p.Username)
+	}
 	if p.Picture != "" {
 		builder.Claim("picture", p.Picture)
 	}
@@ -294,6 +301,8 @@ func (p *Profile) Get(claim string) any {
 			return ""
 		}
 		return p.Email.Verified
+	case "preferred_username":
+		return p.Username
 	case "picture":
 		return p.Picture
 	case "locale":

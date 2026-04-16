@@ -21,6 +21,7 @@ Name:
 Email:
    Address: alessandro@example.com
    Verified: true
+Username: alessandro
 Picture: https://example.com/cf81e854-5289-4124-a3f6-ead700cfd192/profile-picture.png
 Groups:
   - 32908b2b-82f2-49af-b114-e25c968b6f5f
@@ -43,6 +44,7 @@ The same data is also available in JSON format at **`/portal/<portal>/profile.js
     "address": "alessandro@example.com",
     "verified": true
   },
+  "username": "alessandro",
   "picture": "https://example.com/cf81e854-5289-4124-a3f6-ead700cfd192/profile-picture.png",
   "groups": [
     "32908b2b-82f2-49af-b114-e25c968b6f5f",
@@ -88,6 +90,7 @@ Response will be similar to:
     "name": "Alessandro Segala",
     "nbf": "2025-03-16T03:10:17Z",
     "picture": "https://example.com/cf81e854-5289-4124-a3f6-ead700cfd192/profile-picture.png",
+    "preferred_username": "alessandro",
     "sub": "cf81e854-5289-4124-a3f6-ead700cfd192"
   }
 }

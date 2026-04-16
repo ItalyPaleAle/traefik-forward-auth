@@ -51,6 +51,9 @@ func (s *Server) RouteGetProfile(c *gin.Context) {
 			fmt.Fprint(c.Writer, "   Verified: true\n")
 		}
 	}
+	if profile.Username != "" {
+		fmt.Fprint(c.Writer, "Username: "+profile.Username+"\n")
+	}
 	if profile.Picture != "" {
 		fmt.Fprint(c.Writer, "Picture: "+profile.Picture+"\n")
 	}
@@ -153,6 +156,7 @@ func (s *Server) RouteGetProfileJSON(c *gin.Context) {
 		ID               string             `json:"id"`
 		Name             responseDataName   `json:"name"`
 		Email            *responseDataEmail `json:"email,omitempty"`
+		Username         string             `json:"username,omitempty"`
 		Picture          string             `json:"picture,omitempty"`
 		Locale           string             `json:"local,omitempty"`
 		Timezone         string             `json:"timezone,omitempty"`
@@ -171,6 +175,7 @@ func (s *Server) RouteGetProfileJSON(c *gin.Context) {
 			Middle:   profile.Name.Middle,
 			Last:     profile.Name.Last,
 		},
+		Username: profile.Username,
 		Picture:  profile.Picture,
 		Locale:   profile.Locale,
 		Timezone: profile.Timezone,

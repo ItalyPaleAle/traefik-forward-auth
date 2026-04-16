@@ -69,6 +69,7 @@ Name:
 Email:
    Address: john@example.com
    Verified: true
+Username: john.doe
 Picture: https://example.com/avatar.jpg
 Locale: en-US
 Timezone: America/New_York
@@ -288,6 +289,7 @@ func TestRouteGetProfileJSON(t *testing.T) {
 		assert.Equal(t, true, email["verified"])
 
 		// Verify other fields
+		assert.Equal(t, "john.doe", response["username"])
 		assert.Equal(t, "https://example.com/avatar.jpg", response["picture"])
 		assert.Equal(t, "en-US", response["local"])
 		assert.Equal(t, "America/New_York", response["timezone"])
@@ -471,6 +473,7 @@ func createFullTestProfile() *user.Profile {
 			Value:    "john@example.com",
 			Verified: true,
 		},
+		Username: "john.doe",
 		Picture:  "https://example.com/avatar.jpg",
 		Locale:   "en-US",
 		Timezone: "America/New_York",
