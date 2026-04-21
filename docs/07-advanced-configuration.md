@@ -65,6 +65,32 @@ By default, sessions are valid for 2 hours.
 
 You can configure the lifetime of a session using the option [`tokens.sessionLifetime`](./03-all-configuration-options.md#config-opt-tokens-sessionlifetime), which accepts a Go duration (such as `2h` for 2 hours, or `30m` for 30 minutes).
 
+## Configure headers
+
+By default, Traefik Forward Auth adds the following headers to its response:
+
+- `X-Forwarded-User`: the user identifier
+- `X-Forwarded-Displayname`: the user name
+- `X-Authenticated-User`: a JSON object that includes the user ID, the portal's name, and the provider's name.
+
+You may override those headers by adding a `headers` section to a portal's configuration:
+
+```yaml
+portals:
+  - name: "main"
+    providers:
+      - # Configure one provider
+    headers:
+      - name: X-Forwarded-User
+        claim: id
+      - name: X-Forwarded-Email
+        claim: email
+```
+
+Do not forget to include your custom headers in the `forwardAuth` middleware configuration if you want Traefik to add them to the authenticated request.
+
+Note that only scalar values (strings, numbers, and booleans) are supported for the moment.
+
 ## Security hardening
 
 This section contains some advanced options to harden the security of Traefik Forward Auth.

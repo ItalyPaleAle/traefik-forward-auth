@@ -206,6 +206,9 @@ type ConfigPortal struct {
 	// The recommended size is 940x1410.
 	BackgroundLarge string `yaml:"backgroundLarge"`
 
+	// List of HTTP headers to add to the response.
+	Headers *[]ConfigPortalHeader `yaml:"headers"`
+
 	// List of allowed authentication providers.
 	// At least one provider is required.
 	// +required
@@ -230,6 +233,18 @@ type ConfigPortalProvider struct {
 
 	// Parsed config object - internal
 	configParsed ProviderConfig
+}
+
+type ConfigPortalHeader struct {
+	// Name of the header.
+	// +required
+	// +example "X-Forwarded-User"
+	Name string `yaml:"name"`
+	// ID token claim to use as the header's value.
+	// Only scalar values (strings, numbers, and booleans) are supported for the moment.
+	// +required
+	// +example "email"
+	Claim string `yaml:"claim"`
 }
 
 // ConfigDev includes options using during development only
@@ -459,6 +474,19 @@ func (p *ConfigPortal) Parse(c *Config) error {
 		}
 	}
 
+	// Parse headers' configuration
+	if p.Headers != nil {
+		for i := range *p.Headers {
+			err := (*p.Headers)[i].Parse(c)
+			if err != nil {
+				if (*p.Headers)[i].Name == "" {
+					return fmt.Errorf("invalid header at index %d: %w", i, err)
+				}
+				return fmt.Errorf("invalid header '%s' (at index %d): %w", (*p.Headers)[i].Name, i, err)
+			}
+		}
+	}
+
 	return nil
 }
 
@@ -511,6 +539,16 @@ func (v *ConfigPortalProvider) Parse(c *Config) (err error) {
 
 	v.configParsed.SetConfigObject(c)
 
+	return nil
+}
+
+func (h *ConfigPortalHeader) Parse(c *Config) (err error) {
+	if h.Name == "" {
+		return errors.New("property 'name' is required")
+	}
+	if h.Claim == "" {
+		return errors.New("property 'claim' is required")
+	}
 	return nil
 }
 

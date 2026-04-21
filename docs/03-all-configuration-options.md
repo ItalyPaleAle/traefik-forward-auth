@@ -39,6 +39,9 @@
 | <a id="config-opt-portals-portals-$-sessionlifetime"></a>`portals.$.sessionLifetime` | duration | Lifetime for sessions after a successful authentication for the portal.<br>If set, this overrides the default value configured in the `tokens` section for this portal.|  |
 | <a id="config-opt-portals-portals-$-backgroundmedium"></a>`portals.$.backgroundMedium` | string | URL to override the background image for the portal, size medium.<br>The recommended size is 720x1080.|  |
 | <a id="config-opt-portals-portals-$-backgroundlarge"></a>`portals.$.backgroundLarge` | string | URL to override the background image for the portal, size large.<br>The recommended size is 940x1410.|  |
+| <a id="config-opt-portals-$-headers"></a>`portals.$.headers`| list of headers | List of HTTP headers to add to the response. | |
+| <a id="config-opt-portals.$.headers-portals-$-headers-$-name"></a>`portals.$.headers.$.name` | string | Name of the header.| **Required** |
+| <a id="config-opt-portals.$.headers-portals-$-headers-$-claim"></a>`portals.$.headers.$.claim` | string | ID token claim to use as the header's value.<br>Only scalar values (strings, numbers, and booleans) are supported for the moment.| **Required** |
 | <a id="config-opt-providers"></a>`providers`| list of [provider configurations](#provider-configuration) | List of allowed authentication providers<br>See the [provider configuration](#provider-configuration) section for more details. | **Required**<br>At least one provider is required. |
 
 ## Provider Configuration
