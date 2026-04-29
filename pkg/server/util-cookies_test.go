@@ -136,6 +136,161 @@ func TestSetSessionCookie(t *testing.T) {
 		assert.Equal(t, testProfile.Email.Value, profile.Email.Value)
 	})
 
+	t.Run("shrinking session expires stale chunks", func(t *testing.T) {
+		// Simulate a previous large session: write a chunked cookie set, capture its names
+		largeString := strings.Repeat("a", 1500)
+		largeProfile := &user.Profile{
+			ID: "test-user-shrink",
+			Name: user.ProfileName{
+				FullName: "Test User " + largeString,
+				First:    "Test " + largeString,
+			},
+			Email: &user.ProfileEmail{
+				Value:    "test" + largeString + "@example.com",
+				Verified: true,
+			},
+			Provider: "testoauth2",
+			Groups:   []string{"group1-" + largeString, "group2-" + largeString},
+		}
+
+		wLarge := httptest.NewRecorder()
+		cLarge, _ := gin.CreateTestContext(wLarge)
+		cLarge.Request, _ = http.NewRequest(http.MethodGet, "/", nil)
+
+		err := srv.setSessionCookie(cLarge, testPortalName, largeProfile, time.Hour)
+		require.NoError(t, err)
+
+		largeCookies := wLarge.Result().Cookies()
+		require.Greater(t, len(largeCookies), 1, "large profile should require chunking for this test to be meaningful")
+
+		// Now simulate a fresh request that still carries all the chunk cookies, then write a small (unchunked) session
+		smallProfile := &user.Profile{
+			ID: "test-user-shrink",
+			Name: user.ProfileName{
+				FullName: "Small",
+			},
+			Email: &user.ProfileEmail{
+				Value:    "small@example.com",
+				Verified: true,
+			},
+			Provider: "testoauth2",
+		}
+
+		wSmall := httptest.NewRecorder()
+		cSmall, _ := gin.CreateTestContext(wSmall)
+		cSmall.Request, _ = http.NewRequest(http.MethodGet, "/", nil)
+		for _, cookie := range largeCookies {
+			cSmall.Request.AddCookie(cookie)
+		}
+
+		err = srv.setSessionCookie(cSmall, testPortalName, smallProfile, time.Hour)
+		require.NoError(t, err)
+
+		// Response should contain: 1 fresh base cookie + (len(largeCookies)-1) Max-Age=-1 chunk cookies
+		respCookies := wSmall.Result().Cookies()
+		require.Len(t, respCookies, len(largeCookies))
+
+		cfg := config.Get()
+		baseCookieName := cfg.Cookies.CookieName(testPortalName)
+
+		var freshBase *http.Cookie
+		expiredChunkNames := make(map[string]bool)
+		for _, cookie := range respCookies {
+			if cookie.Name == baseCookieName {
+				freshBase = cookie
+				continue
+			}
+			assert.Empty(t, cookie.Value, "stale chunk %s should have empty value", cookie.Name)
+			assert.Equal(t, -1, cookie.MaxAge, "stale chunk %s should have MaxAge=-1", cookie.Name)
+			expiredChunkNames[cookie.Name] = true
+		}
+		require.NotNil(t, freshBase)
+		assert.NotEmpty(t, freshBase.Value)
+		assert.NotEqual(t, -1, freshBase.MaxAge)
+
+		// Every chunk from the previous session (other than base) must be expired
+		for _, prev := range largeCookies {
+			if prev.Name == baseCookieName {
+				continue
+			}
+			assert.True(t, expiredChunkNames[prev.Name], "chunk %s from previous session should be expired", prev.Name)
+		}
+
+		// Confirm reading the new session works once the browser has dropped the expired chunks
+		wRead := httptest.NewRecorder()
+		cRead, _ := gin.CreateTestContext(wRead)
+		cRead.Request, _ = http.NewRequest(http.MethodGet, "/", nil)
+		cRead.Request.AddCookie(&http.Cookie{Name: baseCookieName, Value: freshBase.Value})
+
+		profile, provider, err := srv.getSessionCookie(cRead, testPortalName)
+		require.NoError(t, err)
+		require.NotNil(t, profile)
+		require.NotNil(t, provider)
+		assert.Equal(t, smallProfile.ID, profile.ID)
+		assert.Equal(t, smallProfile.Email.Value, profile.Email.Value)
+	})
+
+	t.Run("shrinking from N to fewer chunks expires only surplus", func(t *testing.T) {
+		// Build a fake "previous" set of chunks at indices 1..5 alongside an existing base cookie
+		// Then write a session that requires exactly 2 chunks (base + _1) and verify chunks _2.._5 are expired
+		mediumString := strings.Repeat("b", 1500)
+		profile := &user.Profile{
+			ID: "test-user-2chunks",
+			Name: user.ProfileName{
+				FullName: "Test User " + mediumString,
+			},
+			Email: &user.ProfileEmail{
+				Value:    "tw@example.com",
+				Verified: true,
+			},
+			Provider: "testoauth2",
+		}
+
+		// Prime the request with stale chunks _1.._5 (values are irrelevant for the expiry path)
+		w := httptest.NewRecorder()
+		c, _ := gin.CreateTestContext(w)
+		c.Request, _ = http.NewRequest(http.MethodGet, "/", nil)
+		cfg := config.Get()
+		baseCookieName := cfg.Cookies.CookieName(testPortalName)
+		for i := 1; i <= 5; i++ {
+			c.Request.AddCookie(&http.Cookie{Name: fmt.Sprintf("%s_%d", baseCookieName, i), Value: "stale"})
+		}
+
+		err := srv.setSessionCookie(c, testPortalName, profile, time.Hour)
+		require.NoError(t, err)
+
+		respCookies := w.Result().Cookies()
+
+		// Find which indices were freshly written (non-empty value, MaxAge>0) vs expired
+		freshChunks := make(map[string]bool)
+		expiredChunks := make(map[string]bool)
+		for _, cookie := range respCookies {
+			if cookie.MaxAge == -1 {
+				expiredChunks[cookie.Name] = true
+			} else {
+				freshChunks[cookie.Name] = true
+			}
+		}
+
+		// At minimum we expect base to be freshly written and at least one stale chunk expired
+		require.True(t, freshChunks[baseCookieName], "base cookie should be freshly written")
+
+		// Determine how many chunks the profile actually required by counting fresh chunks
+		numFresh := len(freshChunks)
+		require.GreaterOrEqual(t, numFresh, 1)
+
+		// All stale chunks at indices >= numFresh must be expired
+		for i := numFresh; i <= 5; i++ {
+			name := fmt.Sprintf("%s_%d", baseCookieName, i)
+			assert.True(t, expiredChunks[name], "stale chunk %s should be expired", name)
+		}
+		// Stale chunks at indices < numFresh would have been overwritten with fresh values (not expired)
+		for i := 1; i < numFresh; i++ {
+			name := fmt.Sprintf("%s_%d", baseCookieName, i)
+			assert.True(t, freshChunks[name], "chunk %s should be freshly written, not expired", name)
+		}
+	})
+
 	t.Run("cookie too large", func(t *testing.T) {
 		// Create an extremely large profile that exceeds even chunked cookie limits
 		// With 250 chunks max and 3500 bytes per chunk, max is ~875,000 bytes

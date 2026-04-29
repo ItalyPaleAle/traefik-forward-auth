@@ -223,6 +223,8 @@ func (s *Server) setSessionCookie(c *gin.Context, portalName string, profile *us
 		// Cookie fits in a single chunk, set it normally
 		c.SetSameSite(http.SameSiteLaxMode)
 		c.SetCookie(cookieName, tokenStr, int(expiration.Seconds())-1, "/", cfg.Cookies.Domain, !cfg.Cookies.Insecure, true)
+		// Expire any stale chunked cookies the browser may still hold from a previous, larger session
+		expireStaleSessionChunks(c, cookieName, 1, cfg.Cookies.Domain, !cfg.Cookies.Insecure)
 		return nil
 	}
 
@@ -251,6 +253,9 @@ func (s *Server) setSessionCookie(c *gin.Context, portalName string, profile *us
 		c.SetCookie(chunkName, chunk, int(expiration.Seconds())-1, "/", cfg.Cookies.Domain, !cfg.Cookies.Insecure, true)
 	}
 
+	// Expire any stale chunks beyond the ones we just wrote
+	expireStaleSessionChunks(c, cookieName, numChunks, cfg.Cookies.Domain, !cfg.Cookies.Insecure)
+
 	return nil
 }
 
@@ -269,17 +274,26 @@ func (s *Server) deleteSessionCookie(c *gin.Context, portalName string) {
 	c.SetSameSite(http.SameSiteLaxMode)
 	c.SetCookie(cookieName, "", -1, "/", cfg.Cookies.Domain, !cfg.Cookies.Insecure, true)
 
-	// Delete any chunked cookies
-	// We look for cookies with the pattern cookieName_1, cookieName_2, etc.
-	for i := 1; i < maxCookieChunks; i++ {
-		chunkName := cookieName + "_" + strconv.Itoa(i)
-		_, err := c.Cookie(chunkName)
-		if errors.Is(err, http.ErrNoCookie) {
-			// No more chunks to delete
-			break
+	// Delete any chunked cookies present in the request
+	// We iterate over actual request cookies rather than probing names sequentially so a missing chunk in the middle does not stop us early
+	expireStaleSessionChunks(c, cookieName, 1, cfg.Cookies.Domain, !cfg.Cookies.Insecure)
+}
+
+// expireStaleSessionChunks emits Max-Age=-1 Set-Cookie headers for any chunked session cookies in the request whose numeric suffix is >= startIdx
+// Used to clean up stale chunks from previous, larger sessions when the new session uses fewer (or zero) chunks
+func expireStaleSessionChunks(c *gin.Context, cookieName string, startIdx int, domain string, secure bool) {
+	prefix := cookieName + "_"
+	for _, cookie := range c.Request.Cookies() {
+		if cookie == nil || !strings.HasPrefix(cookie.Name, prefix) {
+			continue
 		}
-		// Delete the chunk cookie
-		c.SetCookie(chunkName, "", -1, "/", cfg.Cookies.Domain, !cfg.Cookies.Insecure, true)
+
+		idx, err := strconv.Atoi(cookie.Name[len(prefix):])
+		if err != nil || idx < startIdx || idx >= maxCookieChunks {
+			continue
+		}
+
+		c.SetCookie(cookie.Name, "", -1, "/", domain, secure, true)
 	}
 }
 
