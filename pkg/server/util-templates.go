@@ -19,7 +19,7 @@ const (
 	defaultPagesBackgroundLarge  = "img/greta-farnedi-EAt30ojfzOI-unsplash-lg.webp"
 
 	// Format string for the Content-Security-Policy header for templated pages
-	pagesContentSecurityHeaderFmt = `default-src 'none'; script-src 'nonce-NONCE'; style-src 'self' 'nonce-NONCE'; img-src 'self'%s; font-src 'self'`
+	pagesContentSecurityHeaderFmt = `default-src 'none'; script-src 'nonce-NONCE'; style-src 'self' 'nonce-NONCE'; img-src 'self'%s; font-src 'self'; frame-ancestors 'none'`
 )
 
 func getCSPOriginFromUrl(str string) (string, error) {
