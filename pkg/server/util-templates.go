@@ -19,7 +19,7 @@ const (
 	defaultPagesBackgroundLarge  = "img/greta-farnedi-EAt30ojfzOI-unsplash-lg.webp"
 
 	// Format string for the Content-Security-Policy header for templated pages
-	pagesContentSecurityHeaderFmt = `default-src 'none'; script-src 'nonce-NONCE'; style-src 'self' 'unsafe-inline'; img-src 'self'%s; font-src 'self'`
+	pagesContentSecurityHeaderFmt = `default-src 'none'; script-src 'nonce-NONCE'; style-src 'self' 'nonce-NONCE'; img-src 'self'%s; font-src 'self'`
 )
 
 func getCSPOriginFromUrl(str string) (string, error) {
@@ -112,7 +112,7 @@ func setPageSecurityHeaders(c *gin.Context, portal *Portal) string {
 }
 
 func generateNonce() string {
-	nonceBytes := make([]byte, 5)
+	nonceBytes := make([]byte, 16)
 	// Per documentation, this never returns an error
 	// On some legacy Linux systems, it could cause a panic if there's no sufficient entropy
 	_, _ = rand.Read(nonceBytes)
