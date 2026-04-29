@@ -21,11 +21,11 @@ jobs:
       contents: read
     env:
       CGO_ENABLED: "0"
-      GOLANGCI_LINT_VERSION: "v2.9.0"
+      GOLANGCI_LINT_VERSION: "v2.11.4"
     steps:
 
     - name: Check out code
-      uses: actions/checkout@v5
+      uses: actions/checkout@v6
 
     - name: Set up Go
       uses: actions/setup-go@v6
