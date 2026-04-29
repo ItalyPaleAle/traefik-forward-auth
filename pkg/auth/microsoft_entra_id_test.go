@@ -6,6 +6,7 @@ import (
 	"net/url"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/lestrrat-go/jwx/v3/jwt"
 	"github.com/stretchr/testify/assert"
@@ -13,7 +14,9 @@ import (
 )
 
 func TestMicrosoftEntraIDOAuth2FlowAndClaims(t *testing.T) {
-	provider, err := NewMicrosoftEntraID(NewMicrosoftEntraIDOptions{
+	signer := newTestSigningKey(t)
+
+	provider, err := NewMicrosoftEntraID(t.Context(), NewMicrosoftEntraIDOptions{
 		TenantID:     "tenant-1",
 		ClientID:     "cid",
 		ClientSecret: "secret",
@@ -30,43 +33,46 @@ func TestMicrosoftEntraIDOAuth2FlowAndClaims(t *testing.T) {
 
 	provider.httpClient = &http.Client{
 		Transport: roundTripperFunc(func(req *http.Request) (*http.Response, error) {
-			if req.URL.String() != "https://login.microsoftonline.com/tenant-1/oauth2/v2.0/token" {
+			switch req.URL.String() {
+			case "https://login.microsoftonline.com/tenant-1/oauth2/v2.0/token":
+				body, rErr := io.ReadAll(req.Body)
+				if rErr != nil {
+					return nil, rErr
+				}
+				vals, rErr := url.ParseQuery(string(body))
+				if rErr != nil {
+					return nil, rErr
+				}
+				if vals.Get("code") != "code-1" {
+					return nil, assert.AnError
+				}
+				return &http.Response{
+					StatusCode: http.StatusOK,
+					Header:     make(http.Header),
+					Body:       io.NopCloser(strings.NewReader(`{"access_token":"access-1","expires_in":3600}`)),
+				}, nil
+			case "https://login.microsoftonline.com/tenant-1/discovery/v2.0/keys":
+				return signer.serveJWKS(), nil
+			default:
 				return nil, assert.AnError
 			}
-			body, rErr := io.ReadAll(req.Body)
-			if rErr != nil {
-				return nil, rErr
-			}
-			vals, rErr := url.ParseQuery(string(body))
-			if rErr != nil {
-				return nil, rErr
-			}
-
-			if vals.Get("code") != "code-1" {
-				return nil, assert.AnError
-			}
-
-			return &http.Response{
-				StatusCode: http.StatusOK,
-				Header:     make(http.Header),
-				Body:       io.NopCloser(strings.NewReader(`{"access_token":"access-1","expires_in":3600}`)),
-			}, nil
 		}),
 	}
 
 	at, err := provider.OAuth2ExchangeCode(t.Context(), "st", "code-1", "https://app.example.com/callback")
 	require.NoError(t, err)
 
-	idTokenClaims := map[string]any{
+	now := time.Now().Unix()
+	at.IDToken = signer.SignClaims(t, map[string]any{
 		"iss":                     "https://login.microsoftonline.com/tenant-1/v2.0",
 		"aud":                     "cid",
 		"sub":                     "subject-1",
 		microsoftEntraIDClaimOid:  "oid-1",
 		microsoftEntraIDClaimTid:  "tenant-1",
 		microsoftEntraIDClaimWids: []string{"role-a", "role-b"},
-	}
-	at.IDToken, err = buildUnsignedJWT(idTokenClaims)
-	require.NoError(t, err)
+		"exp":                     now + 600,
+		"iat":                     now,
+	})
 
 	profile, err := provider.OAuth2RetrieveProfile(t.Context(), at)
 	require.NoError(t, err)

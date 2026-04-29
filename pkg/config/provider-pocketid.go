@@ -122,7 +122,7 @@ func (p *ProviderConfig_PocketID) GetAuthProvider(ctx context.Context) (auth.Pro
 		}
 	}
 
-	return auth.NewPocketID(opts)
+	return auth.NewPocketID(ctx, opts)
 }
 
 func (p *ProviderConfig_PocketID) SetConfigObject(c *Config) {

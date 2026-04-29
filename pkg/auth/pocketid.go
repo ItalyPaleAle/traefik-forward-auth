@@ -1,6 +1,7 @@
 package auth
 
 import (
+	"context"
 	"errors"
 	"strings"
 	"time"
@@ -60,7 +61,7 @@ func (o NewPocketIDOptions) ToNewOpenIDConnectOptions() NewOpenIDConnectOptions 
 }
 
 // NewPocketID returns a new PocketID provider
-func NewPocketID(opts NewPocketIDOptions) (*PocketID, error) {
+func NewPocketID(ctx context.Context, opts NewPocketIDOptions) (*PocketID, error) {
 	// Remove the trailing slash if present
 	opts.Endpoint = strings.TrimRight(opts.Endpoint, "/")
 
@@ -87,10 +88,11 @@ func NewPocketID(opts NewPocketIDOptions) (*PocketID, error) {
 		Icon:        "pocketid",
 		Color:       "zinc",
 	}
-	oidc, err := newOpenIDConnectInternal(providerType, metadata, oidcOpts, OAuth2Endpoints{
+	oidc, err := newOpenIDConnectInternal(ctx, providerType, metadata, oidcOpts, OAuth2Endpoints{
 		Authorization: opts.Endpoint + "/authorize",
 		Token:         opts.Endpoint + "/api/oidc/token",
 		UserInfo:      opts.Endpoint + "/api/oidc/userinfo",
+		JWKSUri:       opts.Endpoint + "/.well-known/jwks.json",
 	})
 	if err != nil {
 		return nil, err

@@ -55,6 +55,8 @@ type OAuth2Endpoints struct {
 	Token string `json:"token_endpoint"`
 	// User Info URL
 	UserInfo string `json:"userinfo_endpoint"`
+	// JWKS URL — only required by providers that verify ID tokens (OIDC)
+	JWKSUri string `json:"jwks_uri"`
 }
 
 type clientAssertionProviderFn func(context.Context) (string, error)

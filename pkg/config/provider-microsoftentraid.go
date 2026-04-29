@@ -75,7 +75,7 @@ type ProviderConfig_MicrosoftEntraID struct {
 	config *Config
 }
 
-func (p *ProviderConfig_MicrosoftEntraID) GetAuthProvider(_ context.Context) (auth.Provider, error) {
+func (p *ProviderConfig_MicrosoftEntraID) GetAuthProvider(ctx context.Context) (auth.Provider, error) {
 	// Migrate legacy AzureFederatedIdentity to ClientAssertions
 	if p.AzureFederatedIdentity != "" && p.ClientAssertion == "" {
 		// We need to add the "Azure" prefix
@@ -103,7 +103,7 @@ func (p *ProviderConfig_MicrosoftEntraID) GetAuthProvider(_ context.Context) (au
 		}
 	}
 
-	return auth.NewMicrosoftEntraID(opts)
+	return auth.NewMicrosoftEntraID(ctx, opts)
 }
 
 func (p *ProviderConfig_MicrosoftEntraID) SetConfigObject(c *Config) {

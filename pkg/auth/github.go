@@ -64,6 +64,7 @@ func NewGitHub(opts NewGitHubOptions) (*GitHub, error) {
 		return nil, err
 	}
 
+	// #nosec G101 - No credentials
 	err = oauth2.SetEndpoints(OAuth2Endpoints{
 		Authorization: "https://github.com/login/oauth/authorize",
 		Token:         "https://github.com/login/oauth/access_token",

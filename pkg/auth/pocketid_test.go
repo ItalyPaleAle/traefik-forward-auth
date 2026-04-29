@@ -12,7 +12,7 @@ import (
 )
 
 func TestPocketIDOAuth2Flow(t *testing.T) {
-	provider, err := NewPocketID(NewPocketIDOptions{
+	provider, err := NewPocketID(t.Context(), NewPocketIDOptions{
 		Endpoint:     "https://pocket.example.com/",
 		ClientID:     "cid",
 		ClientSecret: "secret",

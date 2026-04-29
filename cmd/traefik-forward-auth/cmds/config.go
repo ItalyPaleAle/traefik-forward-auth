@@ -80,6 +80,7 @@ func loadConfig() error {
 // Loads the configuration from a file and from the environment.
 // "dst" must be a pointer to a struct.
 func loadConfigFile(dst any, filePath string) error {
+	// #nosec G703 - Path is provided by operator
 	f, err := os.Open(filePath)
 	if err != nil {
 		return fmt.Errorf("failed to open config file '%s': %w", filePath, err)

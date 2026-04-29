@@ -53,7 +53,7 @@ type ProviderConfig_Google struct {
 	config *Config
 }
 
-func (p *ProviderConfig_Google) GetAuthProvider(_ context.Context) (auth.Provider, error) {
+func (p *ProviderConfig_Google) GetAuthProvider(ctx context.Context) (auth.Provider, error) {
 	opts := auth.NewGoogleOptions{
 		ClientID:       p.ClientID,
 		ClientSecret:   p.ClientSecret,
@@ -67,7 +67,7 @@ func (p *ProviderConfig_Google) GetAuthProvider(_ context.Context) (auth.Provide
 		return nil, err
 	}
 
-	return auth.NewGoogle(opts)
+	return auth.NewGoogle(ctx, opts)
 }
 
 func (p *ProviderConfig_Google) SetConfigObject(c *Config) {

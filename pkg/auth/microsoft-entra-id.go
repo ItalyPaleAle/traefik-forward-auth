@@ -1,6 +1,7 @@
 package auth
 
 import (
+	"context"
 	"errors"
 	"time"
 
@@ -111,7 +112,7 @@ func (o NewMicrosoftEntraIDOptions) ToNewOpenIDConnectOptions() NewOpenIDConnect
 }
 
 // NewMicrosoftEntraID returns a new MicrosoftEntraID provider
-func NewMicrosoftEntraID(opts NewMicrosoftEntraIDOptions) (*MicrosoftEntraID, error) {
+func NewMicrosoftEntraID(ctx context.Context, opts NewMicrosoftEntraIDOptions) (*MicrosoftEntraID, error) {
 	if opts.TenantID == "" {
 		return nil, errors.New("value for tenantId is required in config for auth with provider 'microsoft-entra-id'")
 	}
@@ -132,10 +133,11 @@ func NewMicrosoftEntraID(opts NewMicrosoftEntraIDOptions) (*MicrosoftEntraID, er
 		Icon:        "microsoft",
 		Color:       "cyan",
 	}
-	oidc, err := newOpenIDConnectInternal(providerType, metadata, oidcOpts, OAuth2Endpoints{
+	oidc, err := newOpenIDConnectInternal(ctx, providerType, metadata, oidcOpts, OAuth2Endpoints{
 		Authorization: "https://login.microsoftonline.com/" + opts.TenantID + "/oauth2/v2.0/authorize",
 		Token:         "https://login.microsoftonline.com/" + opts.TenantID + "/oauth2/v2.0/token",
 		UserInfo:      "https://graph.microsoft.com/oidc/userinfo",
+		JWKSUri:       "https://login.microsoftonline.com/" + opts.TenantID + "/discovery/v2.0/keys",
 	})
 	if err != nil {
 		return nil, err

@@ -1,6 +1,9 @@
 package auth
 
 import (
+	"crypto/ecdsa"
+	"crypto/elliptic"
+	"crypto/rand"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -15,6 +18,7 @@ import (
 
 func TestOpenIDConnectOAuth2AuthorizeURLIncludesPKCE(t *testing.T) {
 	provider, err := newOpenIDConnectInternal(
+		t.Context(),
 		"openidconnect",
 		ProviderMetadata{Name: "openidconnect"},
 		NewOpenIDConnectOptions{
@@ -22,6 +26,7 @@ func TestOpenIDConnectOAuth2AuthorizeURLIncludesPKCE(t *testing.T) {
 			ClientSecret: "secret",
 			PKCEKey:      []byte("01234567890123456789012345678901"),
 		},
+		// #nosec G101 - No credentials
 		OAuth2Endpoints{
 			Authorization: "https://idp.example.com/authorize",
 			Token:         "https://idp.example.com/token",
@@ -41,12 +46,14 @@ func TestOpenIDConnectOAuth2AuthorizeURLIncludesPKCE(t *testing.T) {
 
 func TestOpenIDConnectExchangeCodeAndRetrieveProfileFromUserInfo(t *testing.T) {
 	provider, err := newOpenIDConnectInternal(
+		t.Context(),
 		"openidconnect",
 		ProviderMetadata{Name: "openidconnect"},
 		NewOpenIDConnectOptions{
 			ClientID:     "cid",
 			ClientSecret: "secret",
 		},
+		// #nosec G101 - No credentials
 		OAuth2Endpoints{
 			Authorization: "https://idp.example.com/authorize",
 			Token:         "https://idp.example.com/token",
@@ -95,7 +102,58 @@ func TestOpenIDConnectExchangeCodeAndRetrieveProfileFromUserInfo(t *testing.T) {
 }
 
 func TestOpenIDConnectRetrieveProfileFromIDToken(t *testing.T) {
-	provider, err := newOpenIDConnectInternal("openidconnect",
+	signer := newTestSigningKey(t)
+
+	provider, err := newOpenIDConnectInternal(t.Context(),
+		"openidconnect",
+		ProviderMetadata{Name: "openidconnect"},
+		// #nosec G101 - No credentials
+		NewOpenIDConnectOptions{
+			ClientID:     "cid",
+			ClientSecret: "secret",
+			TokenIssuer:  "https://issuer.example.com",
+		},
+		// #nosec G101 - No credentials
+		OAuth2Endpoints{
+			Authorization: "https://idp.example.com/authorize",
+			Token:         "https://idp.example.com/token",
+			UserInfo:      "https://idp.example.com/userinfo",
+			JWKSUri:       "https://idp.example.com/jwks",
+		},
+	)
+	require.NoError(t, err)
+
+	provider.httpClient = &http.Client{
+		Transport: roundTripperFunc(func(req *http.Request) (*http.Response, error) {
+			if req.URL.String() == "https://idp.example.com/jwks" {
+				return signer.serveJWKS(), nil
+			}
+			return nil, assert.AnError
+		}),
+	}
+
+	now := time.Now().Unix()
+	idToken := signer.SignClaims(t, map[string]any{
+		"iss":  "https://issuer.example.com",
+		"aud":  "cid",
+		"sub":  "sub-1",
+		"name": "Name",
+		"exp":  now + 600,
+		"iat":  now,
+	})
+
+	profile, err := provider.OAuth2RetrieveProfile(t.Context(), OAuth2AccessToken{AccessToken: "access", IDToken: idToken})
+	require.NoError(t, err)
+	assert.Equal(t, "sub-1", profile.ID)
+}
+
+// TestOpenIDConnectRejectsUnsignedIDToken verifies an `alg=none` ID token is rejected
+func TestOpenIDConnectRejectsUnsignedIDToken(t *testing.T) {
+	signer := newTestSigningKey(t)
+
+	// #nosec G101 - No credentials
+	provider, err := newOpenIDConnectInternal(t.Context(),
+		"openidconnect",
 		ProviderMetadata{Name: "openidconnect"},
 		NewOpenIDConnectOptions{
 			ClientID:     "cid",
@@ -106,15 +164,233 @@ func TestOpenIDConnectRetrieveProfileFromIDToken(t *testing.T) {
 			Authorization: "https://idp.example.com/authorize",
 			Token:         "https://idp.example.com/token",
 			UserInfo:      "https://idp.example.com/userinfo",
+			JWKSUri:       "https://idp.example.com/jwks",
 		},
 	)
 	require.NoError(t, err)
 
-	claims := map[string]any{"iss": "https://issuer.example.com", "aud": "cid", "sub": "sub-1", "name": "Name"}
-	idToken, err := buildUnsignedJWT(claims)
+	provider.httpClient = &http.Client{
+		Transport: roundTripperFunc(func(req *http.Request) (*http.Response, error) {
+			if req.URL.String() == "https://idp.example.com/jwks" {
+				return signer.serveJWKS(), nil
+			}
+			return nil, assert.AnError
+		}),
+	}
+
+	now := time.Now().Unix()
+	idToken, err := buildUnsignedJWT(map[string]any{
+		"iss": "https://issuer.example.com",
+		"aud": "cid",
+		"sub": "attacker",
+		"exp": now + 600,
+		"iat": now,
+	})
 	require.NoError(t, err)
 
-	profile, err := provider.OAuth2RetrieveProfile(t.Context(), OAuth2AccessToken{AccessToken: "access", IDToken: idToken})
+	_, err = provider.OAuth2RetrieveProfile(t.Context(), OAuth2AccessToken{AccessToken: "access", IDToken: idToken})
+	require.Error(t, err, "unsigned (alg=none) ID token must be rejected")
+	assert.Contains(t, err.Error(), "ID token")
+}
+
+// TestOpenIDConnectRejectsIDTokenSignedWithUnknownKey verifies that an ID token whose signature is valid but signed with a key not present in the IdP's JWKS is rejected
+func TestOpenIDConnectRejectsIDTokenSignedWithUnknownKey(t *testing.T) {
+	signer := newTestSigningKey(t) // the IdP's published key set
+	attackerKey, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+	require.NoError(t, err)
+
+	provider, err := newOpenIDConnectInternal(t.Context(),
+		"openidconnect",
+		ProviderMetadata{Name: "openidconnect"},
+		// #nosec G101 - No credentials
+		NewOpenIDConnectOptions{
+			ClientID:     "cid",
+			ClientSecret: "secret",
+			TokenIssuer:  "https://issuer.example.com",
+		},
+		// #nosec G101 - No credentials
+		OAuth2Endpoints{
+			Authorization: "https://idp.example.com/authorize",
+			Token:         "https://idp.example.com/token",
+			UserInfo:      "https://idp.example.com/userinfo",
+			JWKSUri:       "https://idp.example.com/jwks",
+		},
+	)
+	require.NoError(t, err)
+
+	provider.httpClient = &http.Client{
+		Transport: roundTripperFunc(func(req *http.Request) (*http.Response, error) {
+			if req.URL.String() == "https://idp.example.com/jwks" {
+				return signer.serveJWKS(), nil
+			}
+			return nil, assert.AnError
+		}),
+	}
+
+	now := time.Now().Unix()
+	forged := signClaimsWithKey(t, attackerKey, map[string]any{
+		"iss": "https://issuer.example.com",
+		"aud": "cid",
+		"sub": "attacker",
+		"exp": now + 600,
+		"iat": now,
+	})
+
+	_, err = provider.OAuth2RetrieveProfile(t.Context(), OAuth2AccessToken{AccessToken: "access", IDToken: forged})
+	require.Error(t, err, "ID token signed with a key not in the JWKS must be rejected")
+	assert.Contains(t, err.Error(), "ID token")
+}
+
+// TestOpenIDConnectAcceptsValidAtHash verifies that a valid at_hash claim passes verification
+func TestOpenIDConnectAcceptsValidAtHash(t *testing.T) {
+	signer := newTestSigningKey(t)
+
+	provider, err := newOpenIDConnectInternal(t.Context(),
+		"openidconnect",
+		ProviderMetadata{Name: "openidconnect"},
+		// #nosec G101 - No credentials
+		NewOpenIDConnectOptions{
+			ClientID:     "cid",
+			ClientSecret: "secret",
+			TokenIssuer:  "https://issuer.example.com",
+		},
+		// #nosec G101 - No credentials
+		OAuth2Endpoints{
+			Authorization: "https://idp.example.com/authorize",
+			Token:         "https://idp.example.com/token",
+			UserInfo:      "https://idp.example.com/userinfo",
+			JWKSUri:       "https://idp.example.com/jwks",
+		},
+	)
+	require.NoError(t, err)
+
+	provider.httpClient = &http.Client{
+		Transport: roundTripperFunc(func(req *http.Request) (*http.Response, error) {
+			if req.URL.String() == "https://idp.example.com/jwks" {
+				return signer.serveJWKS(), nil
+			}
+			return nil, assert.AnError
+		}),
+	}
+
+	const accessToken = "the-real-access-token"
+	now := time.Now().Unix()
+	idToken := signer.SignClaims(t, map[string]any{
+		"iss":     "https://issuer.example.com",
+		"aud":     "cid",
+		"sub":     "sub-1",
+		"exp":     now + 600,
+		"iat":     now,
+		"at_hash": computeTestAtHashES256(accessToken),
+	})
+
+	profile, err := provider.OAuth2RetrieveProfile(t.Context(), OAuth2AccessToken{
+		AccessToken: accessToken,
+		IDToken:     idToken,
+	})
+	require.NoError(t, err)
+	assert.Equal(t, "sub-1", profile.ID)
+}
+
+// TestOpenIDConnectRejectsAtHashMismatch verifies that an at_hash bound to a DIFFERENT access token is rejected
+// This catches an attacker who swaps either the ID token or the access token for one minted under a different exchange
+func TestOpenIDConnectRejectsAtHashMismatch(t *testing.T) {
+	signer := newTestSigningKey(t)
+
+	provider, err := newOpenIDConnectInternal(t.Context(),
+		"openidconnect",
+		ProviderMetadata{Name: "openidconnect"},
+		// #nosec G101 - No credentials
+		NewOpenIDConnectOptions{
+			ClientID:     "cid",
+			ClientSecret: "secret",
+			TokenIssuer:  "https://issuer.example.com",
+		},
+		// #nosec G101 - No credentials
+		OAuth2Endpoints{
+			Authorization: "https://idp.example.com/authorize",
+			Token:         "https://idp.example.com/token",
+			UserInfo:      "https://idp.example.com/userinfo",
+			JWKSUri:       "https://idp.example.com/jwks",
+		},
+	)
+	require.NoError(t, err)
+
+	provider.httpClient = &http.Client{
+		Transport: roundTripperFunc(func(req *http.Request) (*http.Response, error) {
+			if req.URL.String() == "https://idp.example.com/jwks" {
+				return signer.serveJWKS(), nil
+			}
+			return nil, assert.AnError
+		}),
+	}
+
+	now := time.Now().Unix()
+	// at_hash is bound to "the-victim-access-token", but we present "attacker-supplied-token"
+	idToken := signer.SignClaims(t, map[string]any{
+		"iss":     "https://issuer.example.com",
+		"aud":     "cid",
+		"sub":     "sub-1",
+		"exp":     now + 600,
+		"iat":     now,
+		"at_hash": computeTestAtHashES256("the-victim-access-token"),
+	})
+
+	_, err = provider.OAuth2RetrieveProfile(t.Context(), OAuth2AccessToken{
+		AccessToken: "attacker-supplied-token",
+		IDToken:     idToken,
+	})
+	require.Error(t, err, "ID token whose at_hash does not match the access_token must be rejected")
+	assert.Contains(t, err.Error(), "at_hash")
+}
+
+// TestOpenIDConnectAcceptsMissingAtHash verifies that ID tokens without an at_hash claim are accepted
+// The claim is OPTIONAL in the authorization-code flow per OIDC Core 3.1.3.6
+func TestOpenIDConnectAcceptsMissingAtHash(t *testing.T) {
+	signer := newTestSigningKey(t)
+
+	provider, err := newOpenIDConnectInternal(t.Context(),
+		"openidconnect",
+		ProviderMetadata{Name: "openidconnect"},
+		// #nosec G101 - No credentials
+		NewOpenIDConnectOptions{
+			ClientID:     "cid",
+			ClientSecret: "secret",
+			TokenIssuer:  "https://issuer.example.com",
+		},
+		// #nosec G101 - No credentials
+		OAuth2Endpoints{
+			Authorization: "https://idp.example.com/authorize",
+			Token:         "https://idp.example.com/token",
+			UserInfo:      "https://idp.example.com/userinfo",
+			JWKSUri:       "https://idp.example.com/jwks",
+		},
+	)
+	require.NoError(t, err)
+
+	provider.httpClient = &http.Client{
+		Transport: roundTripperFunc(func(req *http.Request) (*http.Response, error) {
+			if req.URL.String() == "https://idp.example.com/jwks" {
+				return signer.serveJWKS(), nil
+			}
+			return nil, assert.AnError
+		}),
+	}
+
+	now := time.Now().Unix()
+	idToken := signer.SignClaims(t, map[string]any{
+		"iss": "https://issuer.example.com",
+		"aud": "cid",
+		"sub": "sub-1",
+		"exp": now + 600,
+		"iat": now,
+		// no at_hash
+	})
+
+	profile, err := provider.OAuth2RetrieveProfile(t.Context(), OAuth2AccessToken{
+		AccessToken: "any-access-token",
+		IDToken:     idToken,
+	})
 	require.NoError(t, err)
 	assert.Equal(t, "sub-1", profile.ID)
 }

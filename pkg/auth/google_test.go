@@ -6,6 +6,7 @@ import (
 	"net/url"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/lestrrat-go/jwx/v3/jwt"
 	"github.com/stretchr/testify/assert"
@@ -13,7 +14,9 @@ import (
 )
 
 func TestGoogleOAuth2FlowAndClaims(t *testing.T) {
-	provider, err := NewGoogle(NewGoogleOptions{
+	signer := newTestSigningKey(t)
+
+	provider, err := NewGoogle(t.Context(), NewGoogleOptions{
 		ClientID:     "cid",
 		ClientSecret: "secret",
 	})
@@ -28,32 +31,32 @@ func TestGoogleOAuth2FlowAndClaims(t *testing.T) {
 
 	provider.httpClient = &http.Client{
 		Transport: roundTripperFunc(func(req *http.Request) (*http.Response, error) {
-			if req.URL.String() != "https://oauth2.googleapis.com/token" {
+			switch req.URL.String() {
+			case "https://oauth2.googleapis.com/token":
+				body, readErr := io.ReadAll(req.Body)
+				if readErr != nil {
+					return nil, readErr
+				}
+				vals, parseErr := url.ParseQuery(string(body))
+				if parseErr != nil {
+					return nil, parseErr
+				}
+				if vals.Get("code") != "code-1" {
+					return nil, assert.AnError
+				}
+				if vals.Get("client_id") != "cid" {
+					return nil, assert.AnError
+				}
+				return &http.Response{
+					StatusCode: http.StatusOK,
+					Header:     make(http.Header),
+					Body:       io.NopCloser(strings.NewReader(`{"access_token":"access-1","expires_in":3600,"scope":"openid email"}`)),
+				}, nil
+			case "https://www.googleapis.com/oauth2/v3/certs":
+				return signer.serveJWKS(), nil
+			default:
 				return nil, assert.AnError
 			}
-
-			body, readErr := io.ReadAll(req.Body)
-			if readErr != nil {
-				return nil, readErr
-			}
-
-			vals, parseErr := url.ParseQuery(string(body))
-			if parseErr != nil {
-				return nil, parseErr
-			}
-
-			if vals.Get("code") != "code-1" {
-				return nil, assert.AnError
-			}
-			if vals.Get("client_id") != "cid" {
-				return nil, assert.AnError
-			}
-
-			return &http.Response{
-				StatusCode: http.StatusOK,
-				Header:     make(http.Header),
-				Body:       io.NopCloser(strings.NewReader(`{"access_token":"access-1","expires_in":3600,"scope":"openid email"}`)),
-			}, nil
 		}),
 	}
 
@@ -61,16 +64,17 @@ func TestGoogleOAuth2FlowAndClaims(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, "access-1", at.AccessToken)
 
-	idTokenClaims := map[string]any{
+	now := time.Now().Unix()
+	at.IDToken = signer.SignClaims(t, map[string]any{
 		"iss":             "https://accounts.google.com",
 		"aud":             "cid",
 		"sub":             "sub-1",
 		"name":            "Google User",
 		"email":           "user@example.com",
 		googleClaimDomain: "example.com",
-	}
-	at.IDToken, err = buildUnsignedJWT(idTokenClaims)
-	require.NoError(t, err)
+		"exp":             now + 600,
+		"iat":             now,
+	})
 
 	profile, err := provider.OAuth2RetrieveProfile(t.Context(), at)
 	require.NoError(t, err)

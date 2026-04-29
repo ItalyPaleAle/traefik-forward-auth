@@ -56,7 +56,8 @@ func TestBase64URL(t *testing.T) {
 		expect    bool
 	}{
 		{
-			name:      "Valid API key",
+			name: "Valid API key",
+			// #nosec G101 - Test credential
 			apiKey:    "PCa4uxUcKmbKNnTkQg-Os7_LkKsxgYRuTp1_83JhAlh",
 			expectLen: 43,
 			expect:    true,
@@ -68,13 +69,15 @@ func TestBase64URL(t *testing.T) {
 			expect:    false,
 		},
 		{
-			name:      "Invalid API key - contains invalid characters",
+			name: "Invalid API key - contains invalid characters",
+			// #nosec G101 - Test credential
 			apiKey:    "PCa4uxUcKmbKNnTkQg-Os7_LkKsxgYRuTp1_83JhAl@",
 			expectLen: 43,
 			expect:    false,
 		},
 		{
-			name:      "Invalid API key - base64 standard encoding",
+			name: "Invalid API key - base64 standard encoding",
+			// #nosec G101 - Test credential
 			apiKey:    "PCa4uxUcKmbKNnTkQg/Os7+LkKsxgYRuTp1+83JhAlh=",
 			expectLen: 43,
 			expect:    false,

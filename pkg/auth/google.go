@@ -1,6 +1,7 @@
 package auth
 
 import (
+	"context"
 	"time"
 
 	"github.com/lestrrat-go/jwx/v3/jwt"
@@ -36,6 +37,7 @@ type NewGoogleOptions struct {
 }
 
 func (o NewGoogleOptions) ToNewOpenIDConnectOptions() NewOpenIDConnectOptions {
+	// #nosec G101 - No credentials
 	return NewOpenIDConnectOptions{
 		ClientID:       o.ClientID,
 		ClientSecret:   o.ClientSecret,
@@ -68,7 +70,7 @@ func (o NewGoogleOptions) ToNewOpenIDConnectOptions() NewOpenIDConnectOptions {
 }
 
 // NewGoogle returns a new Google provider
-func NewGoogle(opts NewGoogleOptions) (*Google, error) {
+func NewGoogle(ctx context.Context, opts NewGoogleOptions) (*Google, error) {
 	const providerType = "google"
 	metadata := ProviderMetadata{
 		DisplayName: "Google",
@@ -81,10 +83,13 @@ func NewGoogle(opts NewGoogleOptions) (*Google, error) {
 	if oidcOpts.Scopes == "" {
 		oidcOpts.Scopes = "openid profile email"
 	}
-	oidc, err := newOpenIDConnectInternal(providerType, metadata, oidcOpts, OAuth2Endpoints{
+
+	// #nosec G101 - No credentials
+	oidc, err := newOpenIDConnectInternal(ctx, providerType, metadata, oidcOpts, OAuth2Endpoints{
 		Authorization: "https://accounts.google.com/o/oauth2/v2/auth",
 		Token:         "https://oauth2.googleapis.com/token",
 		UserInfo:      "https://www.googleapis.com/oauth2/v1/userinfo",
+		JWKSUri:       "https://www.googleapis.com/oauth2/v3/certs",
 	})
 	if err != nil {
 		return nil, err
