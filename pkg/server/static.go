@@ -2,9 +2,12 @@ package server
 
 import (
 	"bytes"
+	"compress/gzip"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"html/template"
+	"io"
 	"io/fs"
 	"net/http"
 	"net/url"
@@ -19,6 +22,11 @@ import (
 
 	"github.com/gin-gonic/gin"
 )
+
+// clientManifest mirrors client/dist/manifest.json
+type clientManifest struct {
+	Style string `json:"style"`
+}
 
 func (s *Server) addStaticRoutes(basePath string) error {
 	// Static images
@@ -39,7 +47,13 @@ func (s *Server) addStaticRoutes(basePath string) error {
 	}
 	assetsHandler := http.FileServer(newStaticFS(assetsFS))
 
-	// icons.js
+	// Load the manifest produced by client/build.sh so we know the hashed asset names
+	err = s.loadClientManifest(assetsFS)
+	if err != nil {
+		return fmt.Errorf("failed to load client asset manifest: %w", err)
+	}
+
+	// icons.js (runtime gzip because content depends on the ?include query)
 	err = s.addIconsJSRoute(basePath, assetsFS)
 	if err != nil {
 		return fmt.Errorf("failed to add route for icons.js: %w", err)
@@ -54,25 +68,93 @@ func (s *Server) addStaticRoutes(basePath string) error {
 		gin.WrapH(imgHandler),
 	)
 
-	// Add a route for static compiled assets
-	s.addStaticAssetRoute(basePath, "style.css", "text/css", assetsHandler)
+	// Add a route for the hashed style.css; pre-gzipped at build time
+	s.addStaticAssetRoute(basePath, s.styleAsset, "text/css", assetsFS, assetsHandler)
 
 	return nil
 }
 
-func (s *Server) addStaticAssetRoute(basePath string, assetName string, contentType string, assetsHandler http.Handler) {
+func (s *Server) loadClientManifest(assetsFS fs.FS) error {
+	data, err := utils.ReadFileFromFS(assetsFS, "manifest.json")
+	if err != nil {
+		return fmt.Errorf("failed to read manifest.json: %w", err)
+	}
+	var m clientManifest
+	err = json.Unmarshal(data, &m)
+	if err != nil {
+		return fmt.Errorf("failed to parse manifest.json: %w", err)
+	}
+	if m.Style == "" {
+		return errors.New("manifest.json is missing required entries")
+	}
+	s.styleAsset = m.Style
+	return nil
+}
+
+// addStaticAssetRoute registers a GET route for a build-time hashed static asset
+// If a "<assetName>.gz" file is also present in assetsFS, it is served with Content-Encoding: gzip
+// when the client's Accept-Encoding header allows it
+func (s *Server) addStaticAssetRoute(basePath string, assetName string, contentType string, assetsFS fs.FS, assetsHandler http.Handler) {
+	gzAvailable := false
+	_, statErr := fs.Stat(assetsFS, assetName+".gz")
+	if statErr == nil {
+		gzAvailable = true
+	}
+
 	s.appRouter.GET(
 		path.Join(basePath, assetName),
-		// Replace the path in the request with just the file name
-		// This way, assetsHandler can find it in its virtual FS
-		replaceRequestPath(assetName),
-		// Add the content-type header
+		// Pick the on-disk file (.gz vs uncompressed) based on Accept-Encoding and rewrite the request path so assetsHandler serves it
+		s.selectAssetEncoding(assetName, gzAvailable),
+		// Add the content-type header (also overrides the .gz guess from FileServer)
 		s.addContentType(contentType),
 		// Add cache-control header for static assets to cache for 30 days
 		s.addClientCacheHeaders(30*86400),
 		// Serve the asset
 		gin.WrapH(assetsHandler),
 	)
+}
+
+// selectAssetEncoding picks the .gz variant when the client accepts gzip, else the uncompressed file
+// Always emits Vary: Accept-Encoding so caches key on it
+func (s *Server) selectAssetEncoding(assetName string, gzAvailable bool) gin.HandlerFunc {
+	servedName := assetName
+	return func(c *gin.Context) {
+		c.Header("Vary", "Accept-Encoding")
+		target := servedName
+		if gzAvailable && acceptsGzip(c) {
+			target = servedName + ".gz"
+			c.Header("Content-Encoding", "gzip")
+		}
+		replaceRequestPath(target)(c)
+	}
+}
+
+// acceptsGzip reports whether the request's Accept-Encoding header lists "gzip" as a complete token (case-insensitive)
+func acceptsGzip(c *gin.Context) bool {
+	h := c.GetHeader("Accept-Encoding")
+	n := len(h)
+	for i := 0; i+4 <= n; i++ {
+		// Match "gzip" case-insensitively via the ASCII lowercase trick
+		if (h[i]|0x20) != 'g' || (h[i+1]|0x20) != 'z' || (h[i+2]|0x20) != 'i' || (h[i+3]|0x20) != 'p' {
+			continue
+		}
+		// Left boundary must be start-of-string, a comma, or whitespace
+		if i > 0 {
+			prev := h[i-1]
+			if prev != ',' && prev != ' ' && prev != '\t' {
+				continue
+			}
+		}
+		// Right boundary must be end-of-string, a comma, a semicolon (q-value), or whitespace
+		if i+4 < n {
+			next := h[i+4]
+			if next != ',' && next != ';' && next != ' ' && next != '\t' {
+				continue
+			}
+		}
+		return true
+	}
+	return false
 }
 
 func (s *Server) addContentType(contentType string) func(c *gin.Context) {
@@ -123,6 +205,7 @@ func (s *Server) addIconsJSRoute(basePath string, assetsFS fs.FS) error {
 
 	// Path is <base>/icons.js
 	// Optional query parameter ?include contains a comma-separated list of icons to include (by default it includes all)
+	// The body is dynamic (depends on ?include), so we gzip on the fly when the client accepts it
 	s.appRouter.GET(
 		path.Join(basePath, "icons.js"),
 		// Set the content type explicitly
@@ -131,27 +214,38 @@ func (s *Server) addIconsJSRoute(basePath string, assetsFS fs.FS) error {
 		s.addClientCacheHeaders(30*86400),
 		// Serve the JS file
 		func(c *gin.Context) {
+			c.Header("Vary", "Accept-Encoding")
+
+			var w io.Writer = c.Writer
+			if acceptsGzip(c) {
+				c.Header("Content-Encoding", "gzip")
+				gz := gzip.NewWriter(c.Writer)
+				defer gz.Close()
+				w = gz
+			}
+
 			// Write the initial part of the data
-			_, _ = c.Writer.Write(iconsJSStart)
+			_, _ = w.Write(iconsJSStart)
 
 			// Write the JSON-serialized list of icons
-			if q := c.Query("include"); q != "" {
+			q := c.Query("include")
+			if q != "" {
 				for name := range strings.SplitSeq(q, ",") {
 					if s.icons[name] == "" {
 						// Skip icons that don't exist
 						continue
 					}
-					_, _ = c.Writer.WriteString("'" + name + "':`" + s.icons[name] + "`,")
+					_, _ = io.WriteString(w, "'"+name+"':`"+s.icons[name]+"`,")
 				}
 			} else {
 				// No list requested, write all icons
 				for name := range s.icons {
-					_, _ = c.Writer.WriteString("'" + name + "':`" + s.icons[name] + "`,")
+					_, _ = io.WriteString(w, "'"+name+"':`"+s.icons[name]+"`,")
 				}
 			}
 
 			// Write the final part of the data
-			_, _ = c.Writer.Write(iconsJSEnd)
+			_, _ = w.Write(iconsJSEnd)
 		},
 	)
 

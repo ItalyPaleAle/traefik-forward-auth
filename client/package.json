@@ -1,4 +1,8 @@
 {
+  "private": true,
+  "scripts": {
+    "build": "./build.sh"
+  },
   "dependencies": {
     "@tailwindcss/cli": "4.2.4",
     "tailwindcss": "4.2.4",

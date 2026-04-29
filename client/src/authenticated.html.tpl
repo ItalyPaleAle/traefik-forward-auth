@@ -8,7 +8,7 @@
     {{ if .FaviconHref }}
     <link rel="icon" href="{{ .BaseUrl }}/{{ .FaviconHref }}"{{ if .FaviconSizes }} sizes="{{ .FaviconSizes }}"{{ end }}{{ if .FaviconType }} type="{{ .FaviconType }}"{{ end }}>
     {{ end }}
-    <link rel="stylesheet" href="{{ .BaseUrl }}/style.css" nonce="{{ .CspNonce }}">
+    <link rel="stylesheet" href="{{ .BaseUrl }}/{{ .StyleAsset }}" nonce="{{ .CspNonce }}">
 </head>
 
 <style nonce="{{ .CspNonce }}">

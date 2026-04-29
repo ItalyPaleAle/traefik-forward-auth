@@ -83,6 +83,9 @@ type Server struct {
 	icons     map[string]string
 	favicon   *appFavicon
 
+	// Hashed style.css name from the client build manifest
+	styleAsset string
+
 	// Server start time, used for Last-Modified headers
 	startTime time.Time
 

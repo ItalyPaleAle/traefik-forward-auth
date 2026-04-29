@@ -141,6 +141,7 @@ func (s *Server) renderSigninTemplate(c *gin.Context, portal *Portal, stateCooki
 		BackgroundLarge  string
 		BackgroundMedium string
 		UsedIcons        string
+		StyleAsset       string
 		CspNonce         string
 	}
 
@@ -151,6 +152,7 @@ func (s *Server) renderSigninTemplate(c *gin.Context, portal *Portal, stateCooki
 		LogoutBanner:     logoutBanner,
 		BackgroundLarge:  portal.PagesBackgroundLarge,
 		BackgroundMedium: portal.PagesBackgroundMedium,
+		StyleAsset:       s.styleAsset,
 	}
 	if s.favicon != nil {
 		data.FaviconHref = s.favicon.Path
@@ -205,6 +207,7 @@ func (s *Server) renderAuthenticatedTemplate(c *gin.Context, portal *Portal, pro
 		LogoutUrl        string
 		BackgroundLarge  string
 		BackgroundMedium string
+		StyleAsset       string
 		CspNonce         string
 	}
 
@@ -217,6 +220,7 @@ func (s *Server) renderAuthenticatedTemplate(c *gin.Context, portal *Portal, pro
 		LogoutUrl:        getPortalURI(c, portal.Name) + "/logout",
 		BackgroundLarge:  portal.PagesBackgroundLarge,
 		BackgroundMedium: portal.PagesBackgroundMedium,
+		StyleAsset:       s.styleAsset,
 		CspNonce:         nonce,
 	}
 	if s.favicon != nil {
