@@ -21,7 +21,7 @@
 </style>
 
 <body>
-    <div class="layout h-full">
+    <main class="layout h-full">
         <div class="layout-container">
             <div class="layout-content">
                 <div class="layout-content-main">
@@ -36,7 +36,7 @@
                 <div class="layout-content-side"></div>
             </div>
         </div>
-    </div>
+    </main>
 </body>
 
 </html>

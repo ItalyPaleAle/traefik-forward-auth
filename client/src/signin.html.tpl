@@ -28,32 +28,33 @@
                 <svg class="w-5 h-5" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" fill="currentColor" viewBox="0 0 20 20">
                     <path d="M10 .5a9.5 9.5 0 1 0 9.5 9.5A9.51 9.51 0 0 0 10 .5Zm3.707 8.207-4 4a1 1 0 0 1-1.414 0l-2-2a1 1 0 0 1 1.414-1.414L9 10.586l3.293-3.293a1 1 0 0 1 1.414 1.414Z"/>
                 </svg>
-                <span class="sr-only">Checkmark icon</span>
             </div>
             <div class="text-sm font-normal ms-3">You've been logged out. You can sign back in using the form below.</div>
         </div>
     </div>
     {{ end }}
-    <div class="layout grow">
+    <main class="layout grow">
         <div class="layout-container">
             <div class="layout-content">
                 <div class="layout-content-main">
                     <h1 class="pb-2 text-2xl md:text-3xl md:pb-4">{{ .Title }}</h1>
-                    <div class="flex flex-col items-center justify-center space-y-2">
+                    <ul aria-label="Sign-in providers" class="flex flex-col items-center justify-center w-full space-y-2 list-none p-0 m-0">
                         {{ range .Providers }}
-                        <a href="{{ .Href }}" class="provider-button group tfa-{{ .Color }}">
-                            <span class="provider-button-inner" data-svg-icon="{{ .Icon }}">
-                                <svg aria-hidden="true"></svg>
-                                {{ .DisplayName }}
-                            </span>
-                        </a>
+                        <li class="w-full flex">
+                            <a href="{{ .Href }}" class="provider-button group tfa-{{ .Color }}">
+                                <span class="provider-button-inner" data-svg-icon="{{ .Icon }}">
+                                    <svg aria-hidden="true"></svg>
+                                    {{ .DisplayName }}
+                                </span>
+                            </a>
+                        </li>
                         {{ end }}
-                    </div>
+                    </ul>
                 </div>
                 <div class="layout-content-side"></div>
             </div>
         </div>
-    </div>
+    </main>
 </body>
 
 {{ if gt (len .UsedIcons) 0 }}
