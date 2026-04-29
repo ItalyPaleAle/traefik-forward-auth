@@ -36,11 +36,11 @@ body {
   @apply relative w-full flex-1 grow inline-flex items-center justify-center p-0.5 text-sm font-medium rounded-lg hover:text-white focus:ring-3  focus:ring-gray-400 focus:outline-none dark:focus:ring-gray-400 bg-linear-to-br;
 
   & .provider-button-inner {
-    @apply relative text-sm md:text-base w-full inline-flex items-center px-3 py-2 md:px-5 md:py-2.5 transition-all ease-in duration-75 rounded-md bg-white hover:bg-transparent dark:bg-gray-900 group-hover:bg-transparent group-hover:dark:bg-transparent;
+    @apply relative text-sm md:text-base w-full inline-flex items-center px-3 py-2 md:px-6 md:py-3 transition-all ease-in duration-75 rounded-md bg-white hover:bg-transparent dark:bg-gray-900 group-hover:bg-transparent group-hover:dark:bg-transparent;
   }
 
   & svg {
-    @apply w-3 h-3 me-1.5 md:w-4 md:h-4 md:me-2;
+    @apply w-4 h-4 me-2 md:w-6 md:h-6 md:me-3;
   }
 }
 

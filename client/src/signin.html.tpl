@@ -38,14 +38,12 @@
             <div class="layout-content">
                 <div class="layout-content-main">
                     <h1 class="pb-2 text-2xl md:text-3xl md:pb-4">{{ .Title }}</h1>
-                    <ul aria-label="Sign-in providers" class="flex flex-col items-center justify-center w-full space-y-2 list-none p-0 m-0">
+                    <ul aria-label="Sign-in providers" class="flex flex-col items-center justify-center space-y-2 md:space-y-3 list-none p-0 m-0">
                         {{ range .Providers }}
-                        <li class="w-full flex">
-                            <a href="{{ .Href }}" class="provider-button group tfa-{{ .Color }}">
-                                <span class="provider-button-inner" data-svg-icon="{{ .Icon }}">
-                                    <svg aria-hidden="true"></svg>
-                                    {{ .DisplayName }}
-                                </span>
+                        <li class="provider-button group tfa-{{ .Color }}">
+                            <a href="{{ .Href }}" class="provider-button-inner" data-svg-icon="{{ .Icon }}">
+                                <svg aria-hidden="true"></svg>
+                                {{ .DisplayName }}
                             </a>
                         </li>
                         {{ end }}
@@ -58,7 +56,7 @@
 </body>
 
 {{ if gt (len .UsedIcons) 0 }}
-<script defer src="{{ .BaseUrl }}/icons.js?include={{ .UsedIcons }}" crossorigin="anonymous" nonce="{{ .CspNonce }}"></script>
+<script defer src="{{ .BaseUrl }}/icons.js?include={{ .UsedIcons }}" nonce="{{ .CspNonce }}"></script>
 {{ end }}
 
 </html>
