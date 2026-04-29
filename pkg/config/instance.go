@@ -3,7 +3,6 @@ package config
 import (
 	"crypto/rand"
 	"encoding/base64"
-	"errors"
 	"fmt"
 	"io"
 	"net/url"
@@ -67,8 +66,6 @@ func initInstanceID() (string, error) {
 		parsed := parseOtelResourceAttributesEnvVar(val)
 		if parsed["service.instance.id"] != "" {
 			return parsed["service.instance.id"], nil
-		} else {
-			return "", errors.New("failed to parse value of OTEL_RESOURCE_ATTRIBUTES env var")
 		}
 	}
 
