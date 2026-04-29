@@ -58,7 +58,7 @@
 </body>
 
 {{ if gt (len .UsedIcons) 0 }}
-<script src="{{ .BaseUrl }}/icons.js?include={{ .UsedIcons }}" crossorigin="anonymous" nonce="{{ .CspNonce }}"></script>
+<script defer src="{{ .BaseUrl }}/icons.js?include={{ .UsedIcons }}" crossorigin="anonymous" nonce="{{ .CspNonce }}"></script>
 {{ end }}
 
 </html>
