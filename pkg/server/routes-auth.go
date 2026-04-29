@@ -400,9 +400,9 @@ func (s *Server) handleGetAuthProviderSeamlessAuth(c *gin.Context, portal Portal
 	_, _ = c.Writer.WriteString(`Redirecting to application: ` + returnURL)
 }
 
-// RouteGetLogout is the handler for GET /portals/:portal/logout
+// RoutePostLogout is the handler for POST /portals/:portal/logout
 // This removes the session cookie
-func (s *Server) RouteGetLogout(c *gin.Context) {
+func (s *Server) RoutePostLogout(c *gin.Context) {
 	portal, err := s.getPortal(c)
 	if err != nil {
 		AbortWithError(c, err)

@@ -10,7 +10,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestRouteGetLogout(t *testing.T) {
+func TestRoutePostLogout(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 
 	srv := &Server{
@@ -22,7 +22,7 @@ func TestRouteGetLogout(t *testing.T) {
 	newContext := func(path string, portal string) (*gin.Context, *httptest.ResponseRecorder) {
 		rec := httptest.NewRecorder()
 		c, _ := gin.CreateTestContext(rec)
-		c.Request = httptest.NewRequest(http.MethodGet, path, nil)
+		c.Request = httptest.NewRequest(http.MethodPost, path, nil)
 		c.Request.Header.Set("X-Forwarded-Proto", "https")
 		if portal != "" {
 			c.Params = gin.Params{{Key: "portal", Value: portal}}
@@ -33,7 +33,7 @@ func TestRouteGetLogout(t *testing.T) {
 	t.Run("success redirects to portal with logout flag", func(t *testing.T) {
 		c, rec := newContext("/portals/test1/logout", "test1")
 
-		srv.RouteGetLogout(c)
+		srv.RoutePostLogout(c)
 
 		assert.Equal(t, http.StatusSeeOther, rec.Code)
 		assert.Equal(t, "https://tfa.example.com/portals/test1?logout=1", rec.Header().Get("Location"))
@@ -43,7 +43,7 @@ func TestRouteGetLogout(t *testing.T) {
 	t.Run("unknown portal returns not found error", func(t *testing.T) {
 		c, rec := newContext("/portals/unknown/logout", "unknown")
 
-		srv.RouteGetLogout(c)
+		srv.RoutePostLogout(c)
 
 		assert.True(t, c.IsAborted())
 		require.Len(t, c.Errors, 1)

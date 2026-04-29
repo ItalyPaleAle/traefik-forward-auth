@@ -14,6 +14,8 @@ import (
 // This API validates a token and returns the list of claims
 // The token must be passed in the Authorization header
 func (s *Server) RouteGetAPIVerify(c *gin.Context) {
+	const bearerPrefix = "bearer "
+
 	portal, err := s.getPortal(c)
 	if err != nil {
 		AbortWithError(c, err)
@@ -23,11 +25,9 @@ func (s *Server) RouteGetAPIVerify(c *gin.Context) {
 	// First, get the token
 	// Try with the authorization header first
 	val := c.GetHeader("Authorization")
-	if len(val) > 7 {
-		// Trim the "bearer" prefix if found
-		if strings.ToLower(val[0:len("bearer ")]) == "bearer " {
-			val = val[len("bearer "):]
-		}
+	// Trim the "bearer" prefix if found
+	if len(val) > len(bearerPrefix) && strings.ToLower(val[0:len(bearerPrefix)]) == bearerPrefix {
+		val = val[len("bearer "):]
 	}
 	if len(val) == 0 {
 		AbortWithErrorJSON(c, NewResponseError(http.StatusUnauthorized, "Not authenticated"))

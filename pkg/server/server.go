@@ -229,7 +229,7 @@ func (s *Server) initAppServer(log *slog.Logger) (err error) {
 		r.GET("/signin", s.RouteGetAuthSignin)
 		r.GET("/profile", s.MiddlewareLoadAuthCookie, s.RouteGetProfile)
 		r.GET("/profile.json", s.MiddlewareLoadAuthCookie, s.RouteGetProfileJSON)
-		r.GET("/logout", s.RouteGetLogout)
+		r.POST("/logout", s.RoutePostLogout)
 	}
 	registerPortalRoutes(
 		s.appRouter.Group(path.Join(conf.Server.BasePath, "portals/:portal"), s.MiddlewareProxyHeaders),
