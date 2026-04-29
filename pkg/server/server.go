@@ -270,11 +270,12 @@ func (s *Server) Run(ctx context.Context) error {
 	defer s.wg.Wait()
 
 	// App server
-	s.wg.Add(1)
 	err := s.startAppServer(ctx)
 	if err != nil {
 		return fmt.Errorf("failed to start app server: %w", err)
 	}
+
+	s.wg.Add(1)
 	defer func() {
 		// Handle graceful shutdown
 		defer s.wg.Done()
@@ -315,10 +316,10 @@ func (s *Server) Run(ctx context.Context) error {
 }
 
 func (s *Server) predicatesCacheCleanup(ctx context.Context) {
-	for {
-		ticker := time.NewTicker(10 * time.Minute)
-		defer ticker.Stop()
+	ticker := time.NewTicker(10 * time.Minute)
+	defer ticker.Stop()
 
+	for {
 		select {
 		// Exiting
 		case <-ctx.Done():
@@ -385,7 +386,7 @@ func (s *Server) startAppServer(ctx context.Context) error {
 		} else {
 			srvErr = s.appSrv.Serve(s.appListener)
 		}
-		if srvErr != http.ErrServerClosed {
+		if !errors.Is(srvErr, http.ErrServerClosed) {
 			slogkit.FatalError(log, "Error starting app server", srvErr)
 		}
 	}()

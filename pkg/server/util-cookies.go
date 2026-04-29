@@ -425,7 +425,7 @@ func stateCookieName(portalName string, stateCookieID string) string {
 	return stateCookieNamePrefix + "_" + portalName + "_" + stateCookieID
 }
 
-func stateCookieSig(c *gin.Context, portalName string, stateCookieID string, nonce []byte) string {
+func stateCookieSig(c *gin.Context, stateCookieID string, portalName string, nonce []byte) string {
 	h := hmac.New(sha256.New224, nonce)
 	h.Write([]byte("tfa-state-sig"))
 	h.Write([]byte(stateCookieID))
