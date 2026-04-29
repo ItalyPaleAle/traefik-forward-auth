@@ -15,6 +15,7 @@ import (
 	"tailscale.com/tailcfg"
 
 	"github.com/italypaleale/traefik-forward-auth/pkg/user"
+	"github.com/italypaleale/traefik-forward-auth/pkg/utils"
 )
 
 const (
@@ -94,10 +95,13 @@ func (a *TailscaleWhois) SeamlessAuth(r *http.Request) (*user.Profile, error) {
 	// Copyright: Tailscale Inc & AUTHORS
 	// License: BSD-3-Clause
 
-	// Ensure X-Forwarded-For is set and it's an IP
-	sourceIP := net.ParseIP(r.Header.Get(headerXForwardedFor))
+	// Extract the originating client IP from X-Forwarded-For
+	// The header may be a comma-separated chain in multi-proxy setups; we take the leftmost entry
+	rawXFF := r.Header.Get(headerXForwardedFor)
+	clientIP := utils.ClientIPFromXForwardedFor(rawXFF)
+	sourceIP := net.ParseIP(clientIP)
 	if sourceIP == nil {
-		return nil, fmt.Errorf("value of X-Forwarded-For header '%s' is not valid: not an IP", r.Header.Get(headerXForwardedFor))
+		return nil, fmt.Errorf("value of X-Forwarded-For header '%s' is not valid: not an IP", rawXFF)
 	}
 
 	// Use the Tailscale client to authenticate the user
@@ -180,9 +184,11 @@ func (a *TailscaleWhois) SeamlessAuth(r *http.Request) (*user.Profile, error) {
 
 func (a *TailscaleWhois) ValidateRequestClaims(r *http.Request, profile *user.Profile) error {
 	// We need to make sure that the IP of the request matches the value in the "ip" claim in the profile
-	sourceIP := net.ParseIP(r.Header.Get(headerXForwardedFor))
+	rawXFF := r.Header.Get(headerXForwardedFor)
+	clientIP := utils.ClientIPFromXForwardedFor(rawXFF)
+	sourceIP := net.ParseIP(clientIP)
 	if sourceIP == nil {
-		return fmt.Errorf("value of X-Forwarded-For header '%s' is not valid: not an IP", r.Header.Get(headerXForwardedFor))
+		return fmt.Errorf("value of X-Forwarded-For header '%s' is not valid: not an IP", rawXFF)
 	}
 
 	var expectIP string

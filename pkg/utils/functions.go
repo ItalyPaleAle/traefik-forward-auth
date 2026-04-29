@@ -40,6 +40,14 @@ func IsSubDomain(domain, sub string) bool {
 		strings.HasSuffix(sub, "."+domain)
 }
 
+// ClientIPFromXForwardedFor returns the canonical client IP from an X-Forwarded-For header value
+// X-Forwarded-For is a comma-separated chain "client, proxy1, proxy2..."; the leftmost entry is the originating client
+// The returned string is trimmed of surrounding whitespace and is the empty string if the header is empty
+func ClientIPFromXForwardedFor(headerValue string) string {
+	first, _, _ := strings.Cut(headerValue, ",")
+	return strings.TrimSpace(first)
+}
+
 // ReadFileFromFS reads a file from a fs.FS
 func ReadFileFromFS(repo fs.FS, name string) ([]byte, error) {
 	f, err := repo.Open(name)

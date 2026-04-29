@@ -457,9 +457,15 @@ func getReturnURL(c *gin.Context, portal string) string {
 		return getPortalURI(c, portal) + "/profile"
 	}
 
-	// Here we use  X-Forwarded-* headers which have the data of the original request
-	reqURL, _ := url.Parse(forwardedURI)
-	return getForwardedProto(c) + "://" + c.Request.Header.Get(headerXForwardedHost) + reqURL.Path
+	// Parse the forwarded URI and rebuild the return URL using only the path-and-query portion
+	// RequestURI() returns the unmodified request-URI form (path + "?" + raw query) and ignores any scheme/host the client may have included, so an absolute or scheme-relative X-Forwarded-Uri cannot redirect off-host
+	// We deliberately preserve the query string
+	reqURL, err := url.Parse(forwardedURI)
+	if err != nil || reqURL == nil {
+		return getPortalURI(c, portal) + "/profile"
+	}
+
+	return getForwardedProto(c) + "://" + c.Request.Header.Get(headerXForwardedHost) + reqURL.RequestURI()
 }
 
 // Computes the state cookie ID for the given return URL
