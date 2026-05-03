@@ -222,6 +222,14 @@ func TestRouteGetAuthRootAuthenticated(t *testing.T) {
 				Claim: "email",
 			},
 			{
+				Name:     "X-Portal",
+				Property: "portal.name",
+			},
+			{
+				Name:     "X-Provider",
+				Property: "provider.name",
+			},
+			{
 				Name:  "X-Missing-Claim",
 				Claim: "missing",
 			},
@@ -237,6 +245,8 @@ func TestRouteGetAuthRootAuthenticated(t *testing.T) {
 	}, func(t *testing.T, res *http.Response, profile *user.Profile) {
 		require.Equal(t, profile.Email.Value, res.Header.Get("X-Forwarded-Email"))
 		require.Equal(t, profile.Email.Value, res.Header.Get("X-Forwarded-User"))
+		require.Equal(t, "test1", res.Header.Get("X-Portal"))
+		require.Equal(t, profile.Provider, res.Header.Get("X-Provider"))
 		require.Equal(t, "", res.Header.Get("X-Forwarded-Displayname"))
 		require.Equal(t, "", res.Header.Get("X-Authenticated-User"))
 		require.Equal(t, "", res.Header.Get("X-Missing-Claim"))

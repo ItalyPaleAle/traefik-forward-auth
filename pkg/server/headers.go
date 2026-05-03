@@ -28,6 +28,26 @@ func (h authenticatedClaimHeader) GetValue(portal Portal, provider auth.Provider
 	return cast.ToString(profile.Get(h.claim))
 }
 
+type authenticatedPropertyHeader struct {
+	name     string
+	property string
+}
+
+func (h authenticatedPropertyHeader) GetName() string {
+	return h.name
+}
+
+func (h authenticatedPropertyHeader) GetValue(portal Portal, provider auth.Provider, profile *user.Profile) string {
+	switch h.property {
+	case config.PropertyPortalName:
+		return portal.Name
+	case config.PropertyProviderName:
+		return provider.GetProviderName()
+	default:
+		return ""
+	}
+}
+
 type builtinAuthenticatedUserHeader struct{}
 
 func (h builtinAuthenticatedUserHeader) GetName() string {
@@ -51,9 +71,13 @@ func getHeadersConfig(p config.ConfigPortal) []AuthenticatedHeader {
 		}
 	}
 
-	headers := make([]AuthenticatedHeader, len(*p.Headers))
-	for i, h := range *p.Headers {
-		headers[i] = authenticatedClaimHeader{name: h.Name, claim: h.Claim}
+	headers := []AuthenticatedHeader{}
+	for _, h := range *p.Headers {
+		if h.Claim != "" {
+			headers = append(headers, authenticatedClaimHeader{name: h.Name, claim: h.Claim})
+		} else if h.Property != "" {
+			headers = append(headers, authenticatedPropertyHeader{name: h.Name, property: h.Property})
+		}
 	}
 	return headers
 }

@@ -180,7 +180,7 @@ func TestValidateConfig(t *testing.T) {
 			assert.ErrorContains(t, err, "property 'name' is required")
 	})
 
-	t.Run("fails when header has no claim", func(t *testing.T) {
+	t.Run("fails when header has no claim or property", func(t *testing.T) {
 		t.Cleanup(SetTestConfig(func(c *Config) {
 			c.Portals[0].Headers = &[]ConfigPortalHeader{
 				{
@@ -192,7 +192,40 @@ func TestValidateConfig(t *testing.T) {
 		err := config.Validate(log)
 		require.Error(t, err)
 		_ = assert.ErrorContains(t, err, "invalid header 'X-Forwarded-Email'") &&
-			assert.ErrorContains(t, err, "property 'claim' is required")
+			assert.ErrorContains(t, err, "property 'claim' or 'property' is required")
+	})
+
+	t.Run("fails when header has claim and property", func(t *testing.T) {
+		t.Cleanup(SetTestConfig(func(c *Config) {
+			c.Portals[0].Headers = &[]ConfigPortalHeader{
+				{
+					Name:     "X-Forwarded-Email",
+					Claim:    "email",
+					Property: "portal.name",
+				},
+			}
+		}))
+
+		err := config.Validate(log)
+		require.Error(t, err)
+		_ = assert.ErrorContains(t, err, "invalid header 'X-Forwarded-Email'") &&
+			assert.ErrorContains(t, err, "properties 'claim' and 'property' are mutually exclusive")
+	})
+
+	t.Run("fails when header has unknown property", func(t *testing.T) {
+		t.Cleanup(SetTestConfig(func(c *Config) {
+			c.Portals[0].Headers = &[]ConfigPortalHeader{
+				{
+					Name:     "X-Forwarded-Email",
+					Property: "foobar",
+				},
+			}
+		}))
+
+		err := config.Validate(log)
+		require.Error(t, err)
+		_ = assert.ErrorContains(t, err, "invalid header 'X-Forwarded-Email'") &&
+			assert.ErrorContains(t, err, "invalid property 'foobar'")
 	})
 }
 

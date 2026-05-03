@@ -220,8 +220,13 @@ portals:
     #    ## Description:
     #    ##   ID token claim to use as the header's value.
     #    ##   Only scalar values (strings, numbers, and booleans) are supported for the moment.
-    #    ## Required
-    #    claim: "email"
+    #    #claim: "email"
+
+    #    ## portals.$.headers.$.property (string)
+    #    ## Description:
+    #    ##   Property to use as the header's value.
+    #    ##   Supported properties are `portal.name` and `provider.name`.
+    #    #property: "portal.name"
 
     ## providers (list of provider configurations)
     ## Description:

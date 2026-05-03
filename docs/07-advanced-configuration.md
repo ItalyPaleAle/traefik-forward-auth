@@ -85,6 +85,8 @@ portals:
         claim: id
       - name: X-Forwarded-Email
         claim: email
+      - name: X-Authentication-Provider
+        property: provider.name
 ```
 
 Do not forget to include your custom headers in the `forwardAuth` middleware configuration if you want Traefik to add them to the authenticated request.

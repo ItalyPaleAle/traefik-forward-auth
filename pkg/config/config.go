@@ -26,6 +26,11 @@ import (
 	"github.com/italypaleale/traefik-forward-auth/pkg/utils/validators"
 )
 
+const (
+	PropertyPortalName   = "portal.name"
+	PropertyProviderName = "provider.name"
+)
+
 // Config is the struct containing configuration
 type Config struct {
 	// Configuration for the application's server
@@ -242,9 +247,12 @@ type ConfigPortalHeader struct {
 	Name string `yaml:"name"`
 	// ID token claim to use as the header's value.
 	// Only scalar values (strings, numbers, and booleans) are supported for the moment.
-	// +required
 	// +example "email"
 	Claim string `yaml:"claim"`
+	// Property to use as the header's value.
+	// Supported properties are `portal.name` and `provider.name`.
+	// +example "portal.name"
+	Property string `yaml:"property"`
 }
 
 // ConfigDev includes options using during development only
@@ -547,7 +555,16 @@ func (h *ConfigPortalHeader) Parse(c *Config) (err error) {
 		return errors.New("property 'name' is required")
 	}
 	if h.Claim == "" {
-		return errors.New("property 'claim' is required")
+		switch h.Property {
+		case "":
+			return errors.New("property 'claim' or 'property' is required")
+		case PropertyPortalName, PropertyProviderName:
+			break
+		default:
+			return fmt.Errorf("invalid property '%s'", h.Property)
+		}
+	} else if h.Property != "" {
+		return errors.New("properties 'claim' and 'property' are mutually exclusive")
 	}
 	return nil
 }
