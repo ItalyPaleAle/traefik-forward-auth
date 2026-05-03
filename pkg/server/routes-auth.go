@@ -117,7 +117,7 @@ func (s *Server) handleAuthenticatedRoot(c *gin.Context, portal Portal, provider
 	for _, header := range portal.Headers {
 		name := header.GetName()
 		value := header.GetValue(portal, provider, profile)
-		c.Header(name, value)
+		c.Header(name, validateHeaderValue(value))
 	}
 
 	switch {
@@ -512,4 +512,15 @@ func getForwardedProto(c *gin.Context) string {
 		// Fallback to HTTP for unknown protocols
 		return "http"
 	}
+}
+
+// Validates the header value before adding it to the response
+func validateHeaderValue(value string) string {
+	// Limit the value to 1KB
+	const maxLen = 1 << 10
+
+	if len(value) > maxLen {
+		return ""
+	}
+	return value
 }

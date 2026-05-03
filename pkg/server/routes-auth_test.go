@@ -168,6 +168,7 @@ func TestRouteGetAuthRootAuthenticated(t *testing.T) {
 
 			// Create a session token with a full profile
 			profile := createFullTestProfile()
+			profile.Picture = createRandomStringWithPrefix("https://example.com/avatar.jpg?", 1025)
 			token := createTestSessionToken(t, portalName, profile, time.Hour)
 			cookieName := cfg.Cookies.CookieName(portalName)
 
@@ -228,6 +229,10 @@ func TestRouteGetAuthRootAuthenticated(t *testing.T) {
 				Name:  "X-Incompatible-Claim",
 				Claim: "roles",
 			},
+			{
+				Name:  "X-Claim-Too-Long",
+				Claim: "picture",
+			},
 		}
 	}, func(t *testing.T, res *http.Response, profile *user.Profile) {
 		require.Equal(t, profile.Email.Value, res.Header.Get("X-Forwarded-Email"))
@@ -236,6 +241,7 @@ func TestRouteGetAuthRootAuthenticated(t *testing.T) {
 		require.Equal(t, "", res.Header.Get("X-Authenticated-User"))
 		require.Equal(t, "", res.Header.Get("X-Missing-Claim"))
 		require.Equal(t, "", res.Header.Get("X-Incompatible-Claim"))
+		require.Equal(t, "", res.Header.Get("X-Claim-Too-Long"))
 	}))
 }
 

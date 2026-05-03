@@ -7,6 +7,7 @@ import (
 	"errors"
 	"io"
 	"log/slog"
+	"math/rand"
 	"net"
 	"net/http"
 	"net/url"
@@ -203,6 +204,15 @@ func createTestSessionToken(t *testing.T, portalName string, profile *user.Profi
 	require.NoError(t, err)
 
 	return string(tokenBytes)
+}
+
+func createRandomStringWithPrefix(prefix string, length int) string {
+	const charset = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
+	bytes := make([]byte, max(0, length-len(prefix)))
+	for i := range bytes {
+		bytes[i] = charset[rand.Intn(len(charset))]
+	}
+	return prefix + string(bytes)
 }
 
 // Closes a HTTP response body making sure to drain it first
