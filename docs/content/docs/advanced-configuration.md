@@ -1,4 +1,7 @@
-# 🎓 Advanced configuration
+---
+title: "Advanced configuration"
+weight: 27
+---
 
 - [Configure health checks](#configure-health-checks)
 - [Observability: Logs, Traces, Metrics](#observability-logs-traces-metrics)
@@ -11,9 +14,9 @@
 
 Traefik Forward Auth supports health checks on the `/healthz` endpoint, which can be used to configure health checks in your platform. This endpoint returns a response with a `200` status code to indicate the application is healthy.
 
-Calls to the `/healthz` endpoint do not appear in access logs unless the configuration option [`logs.omitHealthChecks`](./03-all-configuration-options.md#config-opt-logs-omithealthchecks) is set to `false` (default is `true`).
+Calls to the `/healthz` endpoint do not appear in access logs unless the configuration option [`logs.omitHealthChecks`](/advanced/all-configuration-options#config-opt-logs-omithealthchecks) is set to `false` (default is `true`).
 
-> The `/healthz` endpoint is unchanged regardless of the value of the [`server.basePath`](./03-all-configuration-options.md#config-opt-server-basepath) configuration.
+> The `/healthz` endpoint is unchanged regardless of the value of the [`server.basePath`](/advanced/all-configuration-options#config-opt-server-basepath) configuration.
 
 ## Observability: Logs, Traces, Metrics
 
@@ -51,9 +54,9 @@ In certain situations, for example when:
 - You auto-scale Traefik Forward Auth, and/or
 - You want tokens to remain valid even after a restart of Traefik Forward Auth
 
-You can set an explicit value for the [`tokens.signingKey`](./03-all-configuration-options.md#config-opt-tokens-signingkey) option. For example, you can generate a random string with `openssl rand -base64 32`.
+You can set an explicit value for the [`tokens.signingKey`](/advanced/all-configuration-options#config-opt-tokens-signingkey) option. For example, you can generate a random string with `openssl rand -base64 32`.
 
-The token signing key can also be written to a file (including a Docker/Kubernetes secret mounted inside the container), whose path is passed using the [`tokens.signingKeyFile`](./03-all-configuration-options.md#config-opt-tokens-signingkeyfile) configuration option.
+The token signing key can also be written to a file (including a Docker/Kubernetes secret mounted inside the container), whose path is passed using the [`tokens.signingKeyFile`](/advanced/all-configuration-options#config-opt-tokens-signingkeyfile) configuration option.
 
 > Note that Traefik Forward Auth does not use the value provided in `tokens.signingKey` as-is to sign JWTs. Instead, the actual token signing key is derived using a key derivation function on the value provided in the configuration option.
 
@@ -63,7 +66,7 @@ When Traefik Forward Auth authenticates a user, it issues a JWT, saved in a cook
 
 By default, sessions are valid for 2 hours.
 
-You can configure the lifetime of a session using the option [`tokens.sessionLifetime`](./03-all-configuration-options.md#config-opt-tokens-sessionlifetime), which accepts a Go duration (such as `2h` for 2 hours, or `30m` for 30 minutes).
+You can configure the lifetime of a session using the option [`tokens.sessionLifetime`](/advanced/all-configuration-options#config-opt-tokens-sessionlifetime), which accepts a Go duration (such as `2h` for 2 hours, or `30m` for 30 minutes).
 
 ## Security hardening
 
@@ -124,8 +127,8 @@ Traefik Forward Auth's root endpoint (`/`) is meant to be invoked by Traefik onl
 
 3. Configure Traefik Forward Auth to use mTLS by setting these options:
 
-   - [`server.tlsPath`](./03-all-configuration-options.md#config-opt-server-tlspath): `/etc/traefik-forward-auth`
-   - [`server.tlsClientAuth`](./03-all-configuration-options.md#config-opt-server-tlsclientauth): `true`
+   - [`server.tlsPath`](/advanced/all-configuration-options#config-opt-server-tlspath): `/etc/traefik-forward-auth`
+   - [`server.tlsClientAuth`](/advanced/all-configuration-options#config-opt-server-tlsclientauth): `true`
 
 4. Configure Traefik to present a client certificate when connecting to Traefik Forward Auth. For example, using this Docker Compose and Traefik Forward Auth configuration (unrelated properties are omitted):
 

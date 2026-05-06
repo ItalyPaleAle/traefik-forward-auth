@@ -1,0 +1,41 @@
+baseURL = "https://traefik-forward-auth.italypaleale.me/"
+locale = "en-us"
+title = "Traefik Forward Auth"
+disableKinds = ["rss"]
+
+[module]
+  [[module.imports]]
+    path = "github.com/italypaleale/hugo-assets"
+
+# Required for render hooks + unsafe HTML in markdown
+[markup]
+  [markup.highlight]
+    # Use CSS classes styled by main.css Chroma rules
+    noClasses = false
+    # Fallback only; noClasses = false overrides this
+    style = "github"
+    lineNos = false
+    lineNumbersInTable = false
+    guessSyntax = true
+    tabWidth = 2
+  [markup.goldmark]
+    [markup.goldmark.renderer]
+      # Allow raw HTML in markdown content
+      unsafe = true
+  [markup.tableOfContents]
+    startLevel = 2
+    endLevel = 3
+    ordered = false
+
+[params]
+  description        = "Authentication and SSO for services behind Traefik"
+  github_url         = "https://github.com/italypaleale/traefik-forward-auth"
+  github_repo        = "https://github.com/italypaleale/traefik-forward-auth"
+  github_branch      = "main"
+  PlausibleAnalytics = true
+
+  [params.theme]
+    scheme = "teal"
+
+# Taxonomy pages aren't needed for a docs site
+[taxonomies]

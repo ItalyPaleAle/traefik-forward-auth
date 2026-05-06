@@ -1,6 +1,9 @@
-# 🛡️ Authentication Portals
+---
+title: "Authentication Portals"
+weight: 24
+---
 
-Authentication portals in Traefik Forward Auth allow users to authenticate with a variety of [identity providers](./05-supported-providers.md).
+Authentication portals in Traefik Forward Auth allow users to authenticate with a variety of [identity providers](/providers).
 
 You can have multiple portals configured in a single instance of Traefik Forward Auth. For example, you could have:
 
@@ -9,7 +12,7 @@ You can have multiple portals configured in a single instance of Traefik Forward
 
 When more than one identity provider is configured for a portal, users will be presented with a page allowing them to choose which one to continue with:
 
-![Screenshot of an Authentication Portal in Traefik Forward Auth, showing the list of configured portals that users can choose](./assets/portal.webp)
+![Screenshot of an Authentication Portal in Traefik Forward Auth, showing the list of configured portals that users can choose](/docs/img/portal.webp)
 
 ## Configuring portals
 

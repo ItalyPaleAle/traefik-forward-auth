@@ -1,8 +1,10 @@
-# 🚀 Quickstart
+---
+title: "Quickstart"
+weight: 21
+---
 
-- [Authenticate with Google](#authenticate-with-google)
-- [Authenticate with Tailscale](#authenticate-with-tailscale)
-
+{{< tabs >}}
+{{< tab title="Authenticate with Google" >}}
 ## Authenticate with Google
 
 This example uses Docker Compose to add Google authentication to an application exposed via Traefik.
@@ -75,6 +77,9 @@ portals:
           clientID: "your-client-id"
           clientSecret: "your-client-secret"
 ```
+
+{{< /tab >}}
+{{< tab title="Authenticate with Tailscale" >}}
 
 ## Authenticate with Tailscale
 
@@ -149,3 +154,6 @@ portals:
           # Optionally restrict to one Tailnet only
           # allowedTailnet: "yourtailnet.ts.net"
 ```
+
+{{< /tab >}}
+{{< /tabs >}}

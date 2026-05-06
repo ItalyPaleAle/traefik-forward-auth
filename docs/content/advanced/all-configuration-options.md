@@ -1,4 +1,7 @@
-# 📖 All configuration options
+---
+title: "All configuration options"
+weight: 23
+---
 
 <!-- BEGIN CONFIG TABLE -->
 ## Root configuration object
