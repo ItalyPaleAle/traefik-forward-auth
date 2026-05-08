@@ -206,6 +206,8 @@ func createTestSessionToken(t *testing.T, portalName string, profile *user.Profi
 	return string(tokenBytes)
 }
 
+// Important: use this FOR TESTS ONLY
+// #nosec G404 -- This is for test only
 func createRandomStringWithPrefix(prefix string, length int) string {
 	const charset = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
 	bytes := make([]byte, max(0, length-len(prefix)))
@@ -220,15 +222,6 @@ func createRandomStringWithPrefix(prefix string, length int) string {
 func closeBody(res *http.Response) {
 	_, _ = io.Copy(io.Discard, res.Body)
 	res.Body.Close()
-}
-
-// Internal function that returns true if the value matches the context.Context interface
-// This can be used as an argument for mock.MatchedBy
-//
-//nolint:unused
-func matchContextInterface(v any) bool {
-	_, ok := v.(context.Context)
-	return ok
 }
 
 func cookiePair(setCookie string) string {

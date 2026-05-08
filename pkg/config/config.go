@@ -26,8 +26,11 @@ import (
 	"github.com/italypaleale/traefik-forward-auth/pkg/utils/validators"
 )
 
+// Allowed properties for custom headers
 const (
-	PropertyPortalName   = "portal.name"
+	// PropertyPortalName is the portal name
+	PropertyPortalName = "portal.name"
+	// PropertyProviderName is the provider name
 	PropertyProviderName = "provider.name"
 )
 
@@ -483,14 +486,17 @@ func (p *ConfigPortal) Parse(c *Config) error {
 	}
 
 	// Parse headers' configuration
+	// If the property is nil, we use the default headers
 	if p.Headers != nil {
-		for i := range *p.Headers {
-			err := (*p.Headers)[i].Parse(c)
+		h := *p.Headers
+		for i := range h {
+			err := h[i].Parse(c)
 			if err != nil {
-				if (*p.Headers)[i].Name == "" {
+				if h[i].Name == "" {
 					return fmt.Errorf("invalid header at index %d: %w", i, err)
 				}
-				return fmt.Errorf("invalid header '%s' (at index %d): %w", (*p.Headers)[i].Name, i, err)
+
+				return fmt.Errorf("invalid header '%s' (at index %d): %w", h[i].Name, i, err)
 			}
 		}
 	}
@@ -554,11 +560,14 @@ func (h *ConfigPortalHeader) Parse(c *Config) (err error) {
 	if h.Name == "" {
 		return errors.New("property 'name' is required")
 	}
+
+	// Either claim or property must be set
 	if h.Claim == "" {
 		switch h.Property {
 		case "":
 			return errors.New("property 'claim' or 'property' is required")
 		case PropertyPortalName, PropertyProviderName:
+			// Allowed properties, all good
 			break
 		default:
 			return fmt.Errorf("invalid property '%s'", h.Property)
@@ -566,6 +575,7 @@ func (h *ConfigPortalHeader) Parse(c *Config) (err error) {
 	} else if h.Property != "" {
 		return errors.New("properties 'claim' and 'property' are mutually exclusive")
 	}
+
 	return nil
 }
 

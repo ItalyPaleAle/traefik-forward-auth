@@ -62,8 +62,9 @@ func (h builtinAuthenticatedUserHeader) GetValue(portal Portal, provider auth.Pr
 }
 
 func getHeadersConfig(p config.ConfigPortal) []AuthenticatedHeader {
+	// When the headers property is unset:
+	// Returns the default X-Forwarded-User, X-Authenticated-User, X-Forwarded-Displayname headers
 	if p.Headers == nil {
-		// Returns the default X-Forwarded-User, X-Authenticated-User, X-Forwarded-Displayname headers
 		return []AuthenticatedHeader{
 			authenticatedClaimHeader{name: headerXForwardedUser, claim: "id"},
 			builtinAuthenticatedUserHeader{},
@@ -71,12 +72,13 @@ func getHeadersConfig(p config.ConfigPortal) []AuthenticatedHeader {
 		}
 	}
 
-	headers := []AuthenticatedHeader{}
-	for _, h := range *p.Headers {
+	// Add the custom headers
+	headers := make([]AuthenticatedHeader, len(*p.Headers))
+	for i, h := range *p.Headers {
 		if h.Claim != "" {
-			headers = append(headers, authenticatedClaimHeader{name: h.Name, claim: h.Claim})
+			headers[i] = authenticatedClaimHeader{name: h.Name, claim: h.Claim}
 		} else if h.Property != "" {
-			headers = append(headers, authenticatedPropertyHeader{name: h.Name, property: h.Property})
+			headers[i] = authenticatedPropertyHeader{name: h.Name, property: h.Property}
 		}
 	}
 	return headers

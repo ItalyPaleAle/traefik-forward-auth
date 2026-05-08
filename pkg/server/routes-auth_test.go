@@ -197,18 +197,19 @@ func TestRouteGetAuthRootAuthenticated(t *testing.T) {
 			`{"provider":"%s","portal":"test1","user":"%s"}`, profile.Provider, profile.ID,
 		)
 		require.Equal(t, http.StatusOK, res.StatusCode)
-		require.Equal(t, profile.ID, res.Header.Get("X-Forwarded-User"))
-		require.Equal(t, profile.Name.FullName, res.Header.Get("X-Forwarded-Displayname"))
-		require.Equal(t, expectedAuthenticatedUser, res.Header.Get("X-Authenticated-User"))
+		assert.Equal(t, profile.ID, res.Header.Get("X-Forwarded-User"))
+		assert.Equal(t, profile.Name.FullName, res.Header.Get("X-Forwarded-Displayname"))
+		assert.Equal(t, expectedAuthenticatedUser, res.Header.Get("X-Authenticated-User"))
 	}))
 
 	t.Run("authenticated with empty headers", testFn(func(c *config.Config) {
+		// Non-nil but empty
 		c.Portals[0].Headers = &[]config.ConfigPortalHeader{}
 	}, func(t *testing.T, res *http.Response, profile *user.Profile) {
 		require.Equal(t, http.StatusOK, res.StatusCode)
-		require.Equal(t, "", res.Header.Get("X-Forwarded-User"))
-		require.Equal(t, "", res.Header.Get("X-Forwarded-Displayname"))
-		require.Equal(t, "", res.Header.Get("X-Authenticated-User"))
+		assert.Empty(t, res.Header.Get("X-Forwarded-User"))
+		assert.Empty(t, res.Header.Get("X-Forwarded-Displayname"))
+		assert.Empty(t, res.Header.Get("X-Authenticated-User"))
 	}))
 
 	t.Run("authenticated with custom headers", testFn(func(c *config.Config) {
@@ -243,15 +244,15 @@ func TestRouteGetAuthRootAuthenticated(t *testing.T) {
 			},
 		}
 	}, func(t *testing.T, res *http.Response, profile *user.Profile) {
-		require.Equal(t, profile.Email.Value, res.Header.Get("X-Forwarded-Email"))
-		require.Equal(t, profile.Email.Value, res.Header.Get("X-Forwarded-User"))
-		require.Equal(t, "test1", res.Header.Get("X-Portal"))
-		require.Equal(t, profile.Provider, res.Header.Get("X-Provider"))
-		require.Equal(t, "", res.Header.Get("X-Forwarded-Displayname"))
-		require.Equal(t, "", res.Header.Get("X-Authenticated-User"))
-		require.Equal(t, "", res.Header.Get("X-Missing-Claim"))
-		require.Equal(t, "", res.Header.Get("X-Incompatible-Claim"))
-		require.Equal(t, "", res.Header.Get("X-Claim-Too-Long"))
+		assert.Equal(t, profile.Email.Value, res.Header.Get("X-Forwarded-Email"))
+		assert.Equal(t, profile.Email.Value, res.Header.Get("X-Forwarded-User"))
+		assert.Equal(t, "test1", res.Header.Get("X-Portal"))
+		assert.Equal(t, profile.Provider, res.Header.Get("X-Provider"))
+		assert.Empty(t, res.Header.Get("X-Forwarded-Displayname"))
+		assert.Empty(t, res.Header.Get("X-Authenticated-User"))
+		assert.Empty(t, res.Header.Get("X-Missing-Claim"))
+		assert.Empty(t, res.Header.Get("X-Incompatible-Claim"))
+		assert.Empty(t, res.Header.Get("X-Claim-Too-Long"))
 	}))
 }
 
