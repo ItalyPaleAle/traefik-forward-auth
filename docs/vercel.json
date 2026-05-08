@@ -4,7 +4,7 @@
     "buildCommand": "sh build.sh",
     "devCommand": "npm run dev -- -p $PORT",
     "cleanUrls": false,
-    "framework": null,
+    "framework": "hugo",
     "redirects": [],
     "headers": [
         {

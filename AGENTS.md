@@ -26,6 +26,9 @@ If you modify `pkg/config.Config` or any struct referenced from it, always run `
 
 - One sentence per line; do not wrap to a max line length
 - No trailing period on single-line comments
+- Prefer comments that explain intent, invariants, or why a branch exists
+- Avoid comments that simply restate the next line of code
+- For multi-step logic, use short section comments to separate the steps and explain why each step exists
 
 ```go
 // Wrong — wrapped mid-sentence
@@ -42,4 +45,15 @@ If you modify `pkg/config.Config` or any struct referenced from it, always run `
 
 // Right
 // Validate the input
+
+// Right
+// Normalize the request host so callers can pass either Host or X-Forwarded-Host values
+
+// Right
+// Browsers do not accept a cookie Domain attribute set to an IP address
+// Returning an empty domain tells the caller to set a host-only cookie instead
+
+// Wrong — restates the code
+// Trim whitespace and lowercase the host
+host = strings.TrimSpace(strings.ToLower(host))
 ```
