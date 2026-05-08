@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net/url"
 	"strconv"
 	"strings"
 	"time"
@@ -85,8 +86,14 @@ func (s *Server) getSessionCookie(c *gin.Context, portalName string) (profile *u
 		cookieValue += combinedValue.String()
 	}
 
+	// Get the cookie domain
+	cookieDomain, ok := cookieDomainForContext(c)
+	if !ok {
+		return nil, nil, errors.New("request host does not match any configured cookie domain")
+	}
+
 	// Parse the JWT in the cookie
-	token, err := s.parseSessionToken(cookieValue, portalName)
+	token, err := s.parseSessionToken(cookieValue, portalName, cookieDomain)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -113,11 +120,12 @@ func (s *Server) getSessionCookie(c *gin.Context, portalName string) (profile *u
 	return profile, provider, nil
 }
 
-func (s *Server) parseSessionToken(val string, portalName string) (openid.Token, error) {
+func (s *Server) parseSessionToken(val string, portalName string, cookieDomain string) (openid.Token, error) {
 	cfg := config.Get()
+	audience := cfg.GetTokenAudienceClaim(cookieDomain)
 
-	// Compute the SHA-256 hash of the token for use as cache key
-	cacheKey := s.tokenCacheKey(val)
+	// Compute the hash of the token and expected audience for use as cache key
+	cacheKey := s.tokenCacheKey(val + "\x00" + audience)
 
 	// Check if the token validation result is in the cache
 	valid, ok := s.tokenCache.Get(cacheKey)
@@ -147,8 +155,8 @@ func (s *Server) parseSessionToken(val string, portalName string) (openid.Token,
 	// Token not in cache, validate it
 	token, err := jwt.Parse([]byte(val),
 		jwt.WithAcceptableSkew(acceptableClockSkew),
-		jwt.WithIssuer(jwtIssuer+":"+cfg.GetTokenAudienceClaim()+":"+portalName),
-		jwt.WithAudience(cfg.GetTokenAudienceClaim()),
+		jwt.WithIssuer(jwtIssuer+":"+audience+":"+portalName),
+		jwt.WithAudience(audience),
 		jwt.WithKey(jwa.HS256(), cfg.GetTokenSigningKey()),
 		jwt.WithToken(openid.New()),
 	)
@@ -180,6 +188,26 @@ func (s *Server) parseSessionToken(val string, portalName string) (openid.Token,
 }
 
 func (s *Server) setSessionCookie(c *gin.Context, portalName string, profile *user.Profile, expiration time.Duration) error {
+	// Get the domain for the cookie
+	cookieDomain, ok := cookieDomainForContext(c)
+	if !ok {
+		return errors.New("request host does not match any configured cookie domain")
+	}
+
+	return s.setSessionCookieForDomain(c, portalName, profile, expiration, cookieDomain)
+}
+
+func (s *Server) setSessionCookieForReturnURL(c *gin.Context, portalName string, profile *user.Profile, expiration time.Duration, returnURL string) error {
+	// Get the domain for the cookie from the return URL
+	cookieDomain, ok := cookieDomainForReturnURL(c, returnURL)
+	if !ok {
+		return errors.New("return URL host does not match any configured cookie domain")
+	}
+
+	return s.setSessionCookieForDomain(c, portalName, profile, expiration, cookieDomain)
+}
+
+func (s *Server) setSessionCookieForDomain(c *gin.Context, portalName string, profile *user.Profile, expiration time.Duration, cookieDomain string) error {
 	if profile == nil {
 		return errors.New("profile is nil")
 	}
@@ -193,11 +221,12 @@ func (s *Server) setSessionCookie(c *gin.Context, portalName string, profile *us
 
 	// Claims for the JWT
 	now := time.Now()
+	audience := cfg.GetTokenAudienceClaim(cookieDomain)
 	builder := jwt.NewBuilder()
 	profile.AppendClaims(builder)
 	token, err := builder.
-		Issuer(jwtIssuer + ":" + cfg.GetTokenAudienceClaim() + ":" + portalName).
-		Audience([]string{cfg.GetTokenAudienceClaim()}).
+		Issuer(jwtIssuer + ":" + audience + ":" + portalName).
+		Audience([]string{audience}).
 		IssuedAt(now).
 		// Add 1 extra second to synchronize with cookie expiry
 		Expiration(now.Add(expiration + time.Second)).
@@ -222,9 +251,9 @@ func (s *Server) setSessionCookie(c *gin.Context, portalName string, profile *us
 	if len(tokenStr) <= maxCookieChunkSize {
 		// Cookie fits in a single chunk, set it normally
 		c.SetSameSite(http.SameSiteLaxMode)
-		c.SetCookie(cookieName, tokenStr, int(expiration.Seconds())-1, "/", cfg.Cookies.Domain, !cfg.Cookies.Insecure, true)
+		c.SetCookie(cookieName, tokenStr, int(expiration.Seconds())-1, "/", cookieDomain, !cfg.Cookies.Insecure, true)
 		// Expire any stale chunked cookies the browser may still hold from a previous, larger session
-		expireStaleSessionChunks(c, cookieName, 1, cfg.Cookies.Domain, !cfg.Cookies.Insecure)
+		expireStaleSessionChunks(c, cookieName, 1, cookieDomain, !cfg.Cookies.Insecure)
 		return nil
 	}
 
@@ -250,11 +279,11 @@ func (s *Server) setSessionCookie(c *gin.Context, portalName string, profile *us
 			chunkName = cookieName + "_" + strconv.Itoa(i)
 		}
 
-		c.SetCookie(chunkName, chunk, int(expiration.Seconds())-1, "/", cfg.Cookies.Domain, !cfg.Cookies.Insecure, true)
+		c.SetCookie(chunkName, chunk, int(expiration.Seconds())-1, "/", cookieDomain, !cfg.Cookies.Insecure, true)
 	}
 
 	// Expire any stale chunks beyond the ones we just wrote
-	expireStaleSessionChunks(c, cookieName, numChunks, cfg.Cookies.Domain, !cfg.Cookies.Insecure)
+	expireStaleSessionChunks(c, cookieName, numChunks, cookieDomain, !cfg.Cookies.Insecure)
 
 	return nil
 }
@@ -262,6 +291,10 @@ func (s *Server) setSessionCookie(c *gin.Context, portalName string, profile *us
 func (s *Server) deleteSessionCookie(c *gin.Context, portalName string) {
 	cfg := config.Get()
 	cookieName := cfg.Cookies.CookieName(portalName)
+	cookieDomain, ok := cookieDomainForContext(c)
+	if !ok {
+		return
+	}
 
 	// Check if the base cookie exists
 	_, err := c.Cookie(cookieName)
@@ -272,11 +305,11 @@ func (s *Server) deleteSessionCookie(c *gin.Context, portalName string) {
 
 	// Delete the base cookie
 	c.SetSameSite(http.SameSiteLaxMode)
-	c.SetCookie(cookieName, "", -1, "/", cfg.Cookies.Domain, !cfg.Cookies.Insecure, true)
+	c.SetCookie(cookieName, "", -1, "/", cookieDomain, !cfg.Cookies.Insecure, true)
 
 	// Delete any chunked cookies present in the request
 	// We iterate over actual request cookies rather than probing names sequentially so a missing chunk in the middle does not stop us early
-	expireStaleSessionChunks(c, cookieName, 1, cfg.Cookies.Domain, !cfg.Cookies.Insecure)
+	expireStaleSessionChunks(c, cookieName, 1, cookieDomain, !cfg.Cookies.Insecure)
 }
 
 // expireStaleSessionChunks emits Max-Age=-1 Set-Cookie headers for any chunked session cookies in the request whose numeric suffix is >= startIdx
@@ -317,11 +350,18 @@ func (s *Server) getStateCookie(c *gin.Context, portal Portal, stateCookieID str
 		return stateCookieContent{}, fmt.Errorf("cookie %s is empty", cfg.Cookies.NamePrefix)
 	}
 
+	// Get the cookie domain and expected audience
+	cookieDomain, ok := cookieDomainForContext(c)
+	if !ok {
+		return stateCookieContent{}, errors.New("request host does not match any configured cookie domain")
+	}
+	audience := cfg.GetTokenAudienceClaim(cookieDomain)
+
 	// Parse the JWT in the cookie
 	token, err := jwt.Parse([]byte(cookieValue),
 		jwt.WithAcceptableSkew(acceptableClockSkew),
-		jwt.WithIssuer(jwtIssuer+":"+cfg.GetTokenAudienceClaim()+":"+portal.Name),
-		jwt.WithAudience(cfg.GetTokenAudienceClaim()),
+		jwt.WithIssuer(jwtIssuer+":"+audience+":"+portal.Name),
+		jwt.WithAudience(audience),
 		jwt.WithKey(jwa.HS256(), cfg.GetTokenSigningKey()),
 	)
 	if err != nil {
@@ -385,11 +425,18 @@ func (s *Server) setStateCookie(c *gin.Context, portal Portal, nonce string, ret
 	}
 	sig := stateCookieSig(c, stateCookieID, portal.Name, nonceBytes)
 
+	// Get the cookie domain and audience
+	cookieDomain, ok := cookieDomainForReturnURL(c, returnURL)
+	if !ok {
+		return errors.New("return URL host does not match any configured cookie domain")
+	}
+	audience := cfg.GetTokenAudienceClaim(cookieDomain)
+
 	// Claims for the JWT
 	now := time.Now()
 	token, err := jwt.NewBuilder().
-		Issuer(jwtIssuer+":"+cfg.GetTokenAudienceClaim()+":"+portal.Name).
-		Audience([]string{cfg.GetTokenAudienceClaim()}).
+		Issuer(jwtIssuer+":"+audience+":"+portal.Name).
+		Audience([]string{audience}).
 		IssuedAt(now).
 		// Add 1 extra second to synchronize with cookie expiry
 		Expiration(now.Add(expiration+time.Second)).
@@ -413,7 +460,7 @@ func (s *Server) setStateCookie(c *gin.Context, portal Portal, nonce string, ret
 
 	// Set the cookie
 	c.SetSameSite(http.SameSiteLaxMode)
-	c.SetCookie(stateCookieName(portal.Name, stateCookieID), string(cookieValue), int(expiration.Seconds())-1, "/", cfg.Cookies.Domain, !cfg.Cookies.Insecure, true)
+	c.SetCookie(stateCookieName(portal.Name, stateCookieID), string(cookieValue), int(expiration.Seconds())-1, "/", cookieDomain, !cfg.Cookies.Insecure, true)
 
 	// Return the nonce
 	return nil
@@ -423,6 +470,12 @@ func (s *Server) deleteStateCookies(c *gin.Context, portalName string) {
 	cfg := config.Get()
 	prefix := stateCookieName(portalName, "")
 
+	// Get the domain for the cookie
+	cookieDomain, ok := cookieDomainForContext(c)
+	if !ok {
+		return
+	}
+
 	// Iterate through all cookies looking for state ones
 	c.SetSameSite(http.SameSiteLaxMode)
 	for _, cookie := range c.Request.Cookies() {
@@ -431,8 +484,58 @@ func (s *Server) deleteStateCookies(c *gin.Context, portalName string) {
 		}
 
 		// We found a state cookie; remove it
-		c.SetCookie(cookie.Name, "", -1, "/", cfg.Cookies.Domain, !cfg.Cookies.Insecure, true)
+		c.SetCookie(cookie.Name, "", -1, "/", cookieDomain, !cfg.Cookies.Insecure, true)
 	}
+}
+
+func cookieDomainForContext(c *gin.Context) (string, bool) {
+	cfg := config.Get()
+
+	// Prefer the request host so the selected cookie domain matches the app being accessed
+	host := requestHost(c)
+	if host != "" {
+		return cfg.Cookies.DomainForHost(host)
+	}
+
+	// If no host is available and domains are not configured, fall back to a host-only cookie
+	if len(cfg.Cookies.Domains) == 0 {
+		return "", true
+	}
+
+	// Without a request host, use the first configured domain so cleanup paths can still expire cookies
+	return cfg.Cookies.Domains[0], true
+}
+
+func cookieDomainForReturnURL(c *gin.Context, returnURL string) (string, bool) {
+	// Return URLs identify the app that will receive the cookie after authentication
+	// Matching against that host prevents setting cookies for an unrelated configured domain
+	u, err := url.Parse(returnURL)
+	if err == nil && u != nil && u.Host != "" {
+		cfg := config.Get()
+		return cfg.Cookies.DomainForHost(u.Host)
+	}
+
+	// Malformed or relative return URLs fall back to the current request context
+	return cookieDomainForContext(c)
+}
+
+func requestHost(c *gin.Context) string {
+	// Traefik sends the original application host in X-Forwarded-Host
+	// That is the host cookies must be scoped to when this service is behind the forward-auth middleware
+	host := c.Request.Header.Get(headerXForwardedHost)
+	if host != "" {
+		return host
+	}
+
+	// Direct requests and tests may not include X-Forwarded-Host, so fall back to the HTTP request host
+	if c.Request != nil {
+		host = c.Request.Host
+		if host != "" {
+			return host
+		}
+	}
+
+	return ""
 }
 
 func stateCookieName(portalName string, stateCookieID string) string {

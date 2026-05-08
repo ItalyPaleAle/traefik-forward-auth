@@ -355,7 +355,7 @@ func (s *Server) RouteGetOAuth2Callback(c *gin.Context) {
 	}
 
 	// Set the profile in the cookie
-	err = s.setSessionCookie(c, portal.Name, profile, portal.SessionLifetime)
+	err = s.setSessionCookieForReturnURL(c, portal.Name, profile, portal.SessionLifetime, content.returnURL)
 	if err != nil {
 		AbortWithError(c, fmt.Errorf("failed to set session cookie: %w", err))
 		return
@@ -386,7 +386,7 @@ func (s *Server) handleGetAuthProviderSeamlessAuth(c *gin.Context, portal Portal
 	s.deleteStateCookies(c, portal.Name)
 
 	// Set the profile in the cookie
-	err = s.setSessionCookie(c, portal.Name, profile, portal.SessionLifetime)
+	err = s.setSessionCookieForReturnURL(c, portal.Name, profile, portal.SessionLifetime, returnURL)
 	if err != nil {
 		AbortWithError(c, fmt.Errorf("failed to set session cookie: %w", err))
 		return
@@ -488,7 +488,7 @@ func getOAuth2RedirectURI(c *gin.Context, portal string) string {
 func getPortalURI(c *gin.Context, portal string) string {
 	cfg := config.Get()
 
-	baseURI := getForwardedProto(c) + "://" + cfg.Server.Hostname + cfg.Server.BasePath
+	baseURI := getForwardedProto(c) + "://" + requestHost(c) + cfg.Server.BasePath
 
 	// If the user is visiting the default portal and they're using the "short" format, we omit the portal name in the URL
 	if c.Param("portal") == "" && cfg.DefaultPortal == portal {
