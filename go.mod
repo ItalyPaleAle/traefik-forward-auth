@@ -1,6 +1,6 @@
 module github.com/italypaleale/traefik-forward-auth
 
-go 1.26.1
+go 1.26.3
 
 require (
 	github.com/Azure/azure-sdk-for-go/sdk/azcore v1.21.1
@@ -13,9 +13,9 @@ require (
 	github.com/h2non/go-is-svg v0.0.0-20160927212452-35e8c4b0612c
 	github.com/italypaleale/go-kit v0.0.0-20260326154118-cba072650bb2
 	github.com/jinzhu/copier v0.4.0
-	github.com/lestrrat-go/jwx/v3 v3.1.0
+	github.com/lestrrat-go/jwx/v3 v3.1.1
 	github.com/lmittmann/tint v1.1.3
-	github.com/mattn/go-isatty v0.0.21
+	github.com/mattn/go-isatty v0.0.22
 	github.com/mitchellh/go-homedir v1.1.0
 	github.com/spf13/cast v1.10.0
 	github.com/spf13/cobra v1.10.2
@@ -35,7 +35,7 @@ require (
 	golang.org/x/sync v0.20.0
 	golang.org/x/text v0.36.0
 	sigs.k8s.io/yaml v1.6.0
-	tailscale.com v1.96.5
+	tailscale.com v1.98.1
 )
 
 require (

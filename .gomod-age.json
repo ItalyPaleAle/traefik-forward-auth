@@ -1,6 +1,8 @@
 {
   "age": "7d",
   "ignore": [
-    "github.com/italypaleale/*"
+    "github.com/italypaleale/*",
+    "github.com/lestrrat-go/jwx/*",
+    "tailscale.com"
   ]
 }
