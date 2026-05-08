@@ -112,6 +112,8 @@ func (p *ProviderConfig_OpenIDConnect) GetAuthProvider(ctx context.Context) (aut
 		PKCEKey:          pkceKey,
 		TLSSkipVerify:    p.TLSInsecureSkipVerify,
 		TLSCACertificate: tlsCACertificate,
+		Hostname:         p.config.Server.Hostname,
+		BasePath:         p.config.Server.BasePath,
 	}
 
 	// Only load client secret from file when not using client assertions and when a client secret has not already been provided directly

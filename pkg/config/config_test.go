@@ -29,6 +29,7 @@ func TestValidateConfig(t *testing.T) {
 				},
 			},
 		}
+		c.Server.Hostname = "localhost"
 	}))
 
 	log := slog.New(slog.DiscardHandler)
@@ -36,53 +37,6 @@ func TestValidateConfig(t *testing.T) {
 	t.Run("succeeds with all required vars", func(t *testing.T) {
 		err := config.Validate(log)
 		require.NoError(t, err)
-	})
-
-	t.Run("uses cookie domains", func(t *testing.T) {
-		t.Cleanup(SetTestConfig(func(c *Config) {
-			c.Cookies.Domain = ""
-			c.Cookies.Domains = []string{"example.com", "example.org"}
-		}))
-
-		err := config.Validate(log)
-		require.NoError(t, err)
-		assert.Empty(t, config.Cookies.Domain)
-		assert.Equal(t, []string{"example.com", "example.org"}, config.Cookies.Domains)
-	})
-
-	t.Run("migrates legacy cookie domain", func(t *testing.T) {
-		t.Cleanup(SetTestConfig(func(c *Config) {
-			c.Cookies.Domain = "Example.Com"
-			c.Cookies.Domains = nil
-		}))
-
-		err := config.Validate(log)
-		require.NoError(t, err)
-		assert.Empty(t, config.Cookies.Domain)
-		assert.Equal(t, []string{"example.com"}, config.Cookies.Domains)
-	})
-
-	t.Run("normalizes cookie domains", func(t *testing.T) {
-		t.Cleanup(SetTestConfig(func(c *Config) {
-			c.Cookies.Domain = ""
-			c.Cookies.Domains = []string{"Example.Com", "Apps.Example.Com."}
-		}))
-
-		err := config.Validate(log)
-		require.NoError(t, err)
-		assert.Empty(t, config.Cookies.Domain)
-		assert.Equal(t, []string{"example.com", "apps.example.com"}, config.Cookies.Domains)
-	})
-
-	t.Run("fails when legacy and new cookie domains are both set", func(t *testing.T) {
-		t.Cleanup(SetTestConfig(func(c *Config) {
-			c.Cookies.Domain = "example.com"
-			c.Cookies.Domains = []string{"example.org"}
-		}))
-
-		err := config.Validate(log)
-		require.Error(t, err)
-		assert.ErrorContains(t, err, "cannot both be set")
 	})
 
 	t.Run("fails without a portal", func(t *testing.T) {
@@ -93,6 +47,16 @@ func TestValidateConfig(t *testing.T) {
 		err := config.Validate(log)
 		require.Error(t, err)
 		assert.ErrorContains(t, err, "at least one portal must be defined")
+	})
+
+	t.Run("fails without hostname", func(t *testing.T) {
+		t.Cleanup(SetTestConfig(func(c *Config) {
+			c.Server.Hostname = ""
+		}))
+
+		err := config.Validate(log)
+		require.Error(t, err)
+		assert.ErrorContains(t, err, "'server.hostname' is required")
 	})
 
 	t.Run("fails when portal has invalid name", func(t *testing.T) {

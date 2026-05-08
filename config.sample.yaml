@@ -1,4 +1,11 @@
 server:
+  ## server.hostname (string)
+  ## Description:
+  ##   The hostname the application is reached at.
+  ##   This is used for setting the "redirect_uri" field for OAuth2 callbacks.
+  ## Required
+  hostname: "auth.example.com"
+
   ## server.port (number)
   ## Description:
   ##   Port to bind to.
@@ -72,12 +79,12 @@ server:
   #favicon: ""
 
 cookies:
-  ## cookies.domains (list of strings)
+  ## cookies.domain (string)
   ## Description:
-  ##   Domain names for setting cookies
-  ##   If set, the cookie domain is selected for each request by matching the request hostname against this list
-  ##   This can be used when one Traefik Forward Auth instance serves multiple unrelated domains
-  #domains: ["auth.example.com"]
+  ##   Domain name for setting cookies.
+  ##   If empty, this is set to the value of the `hostname` property.
+  ##   This value must either be the same as the `hostname` property, or the hostname must be a sub-domain of the cookie domain name.
+  #domain: "auth.example.com"
 
   ## cookies.namePrefix (string)
   ## Description:
@@ -116,7 +123,7 @@ tokens:
   ## tokens.sessionTokenAudience (string)
   ## Description:
   ##   Value for the audience claim to expect in session tokens used by Traefik Forward Auth.
-  ##   Defaults to a value based on the current environment, which is appropriate for the majority of cases. Most users should rely on the default value.
+  ##   Defaults to a value based on `cookies.domain` and `server.basePath` which is appropriate for the majority of cases. Most users should rely on the default value.
   #sessionTokenAudience: ""
 
 logs:

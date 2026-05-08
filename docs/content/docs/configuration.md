@@ -69,7 +69,8 @@ To configure Traefik and Traefik Forward Auth in this scenario:
 1. If using a provider based on OAuth2 (including Google, Microsoft Entra ID, GitHub, and OpenID Connect providers), configure your authentication callback to: `https://auth.example.com/portals/main/oauth2/callback`
 2. Configure Traefik Forward Auth with:
 
-   - [`cookies.domains`](/advanced/all-configuration-options#config-opt-cookies-domains): `example.com`
+   - [`server.hostname`](/advanced/all-configuration-options#config-opt-server-hostname): `auth.example.com`
+   - [`cookies.domain`](/advanced/all-configuration-options#config-opt-cookies-domain): `example.com`
 
 3. Create a Traefik middleware of type `forwardauth` with:
 
@@ -135,10 +136,13 @@ Example of the minimum configuration for Traefik Forward Auth, as `tfa-config.ya
 
 ```yaml
 # tfa-config.yaml
+server:
+  # Hostname where the application can be reached at externally
+  hostname: "auth.example.com"
+
 cookies:
-  # Domain(s) for setting cookies
-  # Should be the domain where the app is reachable at or a parent domain
-  domains: ["example.com"]
+  # Domain for setting cookies
+  domain: "example.com"
 
 portals:
   - name: "main"
@@ -168,7 +172,8 @@ To configure Traefik and Traefik Forward Auth in this scenario:
 1. If using a provider based on OAuth2 (including GitHub, Google, Microsoft Entra ID, and OpenID Connect providers), configure your authentication callback to: `https://example.com/auth/portals/main/oauth2/callback`
 2. Configure Traefik Forward Auth with:
 
-   - [`server.basePath`](/advanced/all-configuration-options#config-opt-server-basepath) (env: `TFA_SERVER_BASEPATH`): `/auth`
+   - [`hostname`](/advanced/all-configuration-options#config-opt-hostname) (env: `TFA_HOSTNAME`): `example.com`
+   - [`basePath`](/advanced/all-configuration-options#config-opt-basepath) (env: `TFA_BASEPATH`): `/auth`
 
 3. Create a Traefik middleware of type `forwardauth` with:
 
@@ -235,13 +240,14 @@ Example of the minimum configuration for Traefik Forward Auth, as `tfa-config.ya
 ```yaml
 # tfa-config.yaml
 server:
+  # Hostname where the application can be reached at externally
+  hostname: "auth.example.com"
   # Base path
   basePath: "/auth"
 
 cookies:
-  # Domain(s) for setting cookies
-  # Should be the domain where the app is reachable at or a parent domain
-  domains: ["example.com"]
+  # Domain for setting cookies
+  domain: "example.com"
 
 portals:
   - name: "main"

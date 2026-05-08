@@ -36,8 +36,8 @@ func TestRoutePostLogout(t *testing.T) {
 		srv.RoutePostLogout(c)
 
 		assert.Equal(t, http.StatusSeeOther, rec.Code)
-		assert.Equal(t, "https://example.com/portals/test1?logout=1", rec.Header().Get("Location"))
-		assert.Contains(t, rec.Body.String(), "You've been logged out. Redirecting to portal: https://example.com/portals/test1?logout=1")
+		assert.Equal(t, "https://tfa.example.com/portals/test1?logout=1", rec.Header().Get("Location"))
+		assert.Contains(t, rec.Body.String(), "You've been logged out. Redirecting to portal: https://tfa.example.com/portals/test1?logout=1")
 	})
 
 	t.Run("unknown portal returns not found error", func(t *testing.T) {

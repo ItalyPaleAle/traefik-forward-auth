@@ -35,6 +35,10 @@ type NewPocketIDOptions struct {
 	TLSSkipVerify bool
 	// Optional, PEM-encoded CA certificate used when connecting to the Identity Provider
 	TLSCACertificate []byte
+	// Server's hostname
+	Hostname string
+	// Server's base path (could be empty)
+	BasePath string
 }
 
 func (o NewPocketIDOptions) ToNewOpenIDConnectOptions() NewOpenIDConnectOptions {
@@ -48,6 +52,8 @@ func (o NewPocketIDOptions) ToNewOpenIDConnectOptions() NewOpenIDConnectOptions 
 		ClientAssertion:  o.ClientAssertion,
 		TLSSkipVerify:    o.TLSSkipVerify,
 		TLSCACertificate: o.TLSCACertificate,
+		Hostname:         o.Hostname,
+		BasePath:         o.BasePath,
 
 		// When there's a client assertion, use the endpoint as audience for the tokens
 		clientAssertionAudience: o.Endpoint,

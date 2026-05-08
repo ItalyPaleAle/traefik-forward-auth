@@ -33,6 +33,8 @@ func TestServerAuthRoutes(t *testing.T) {
 			appClient := clientForListener(srv.appListener)
 
 			t.Run("auth root redirects to signin", func(t *testing.T) {
+				cfg := config.Get()
+
 				reqCtx, reqCancel := context.WithTimeout(t.Context(), 2*time.Second)
 				defer reqCancel()
 				req, err := http.NewRequestWithContext(reqCtx, http.MethodGet,
@@ -48,7 +50,7 @@ func TestServerAuthRoutes(t *testing.T) {
 
 				locUrl := urlMustParse(t, res.Header.Get("Location"))
 				assert.Equal(t, "https", locUrl.Scheme)
-				assert.Equal(t, "example.com", locUrl.Host)
+				assert.Equal(t, cfg.Server.Hostname, locUrl.Host)
 				assert.Equal(t, expectedSigninPath, locUrl.Path)
 				assert.Contains(t, locUrl.Query().Get("state"), "~")
 
@@ -56,6 +58,8 @@ func TestServerAuthRoutes(t *testing.T) {
 			})
 
 			t.Run("auth root logout flag propagated", func(t *testing.T) {
+				cfg := config.Get()
+
 				reqCtx, reqCancel := context.WithTimeout(t.Context(), 2*time.Second)
 				defer reqCancel()
 				req, err := http.NewRequestWithContext(reqCtx, http.MethodGet,
@@ -71,7 +75,7 @@ func TestServerAuthRoutes(t *testing.T) {
 
 				locUrl := urlMustParse(t, res.Header.Get("Location"))
 				assert.Equal(t, "https", locUrl.Scheme)
-				assert.Equal(t, "example.com", locUrl.Host)
+				assert.Equal(t, cfg.Server.Hostname, locUrl.Host)
 				assert.Equal(t, expectedSigninPath, locUrl.Path)
 				assert.Contains(t, locUrl.Query().Get("state"), "~")
 				assert.True(t, utils.IsTruthy(locUrl.Query().Get("logout")))
@@ -300,7 +304,7 @@ func TestRouteGetAuthProvider(t *testing.T) {
 
 		locUrl := urlMustParse(t, res.Header.Get("Location"))
 
-		assert.Equal(t, "https://example.com/portals/test1/oauth2/callback", locUrl.Query().Get("redirect_uri"))
+		assert.Equal(t, "https://tfa.example.com/portals/test1/oauth2/callback", locUrl.Query().Get("redirect_uri"))
 		assert.Contains(t, locUrl.Query().Get("state"), "~")
 
 		logBuf.Reset()

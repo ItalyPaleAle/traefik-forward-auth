@@ -143,6 +143,11 @@ type NewOpenIDConnectOptions struct {
 	TLSSkipVerify bool
 	// Optional, PEM-encoded CA certificate used when connecting to the Identity Provider
 	TLSCACertificate []byte
+	// Server's hostname
+	Hostname string
+	// Server's base path (could be empty)
+	BasePath string
+
 	// Allows providers to modify the user profile
 	profileModifier profileModifierFn
 	// Audience for client assertion tokens

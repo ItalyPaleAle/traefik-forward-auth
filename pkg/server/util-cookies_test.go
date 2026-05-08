@@ -71,39 +71,6 @@ func TestSetSessionCookie(t *testing.T) {
 		require.ErrorContains(t, err, "profile is nil")
 	})
 
-	t.Run("audience is scoped to cookie domain", func(t *testing.T) {
-		t.Cleanup(config.SetTestConfig(func(c *config.Config) {
-			c.Cookies.Domain = ""
-			c.Cookies.Domains = []string{"example.com", "example.org"}
-		}))
-
-		testProfile := &user.Profile{
-			ID: "test-user-domain-audience",
-			Name: user.ProfileName{
-				FullName: "Domain Audience User",
-			},
-			Email: &user.ProfileEmail{
-				Value:    "domain-audience@example.com",
-				Verified: true,
-			},
-			Provider: "testoauth2",
-		}
-
-		w := httptest.NewRecorder()
-		c, _ := gin.CreateTestContext(w)
-		c.Request, _ = http.NewRequest(http.MethodGet, "/", nil)
-		c.Request.Header.Set(headerXForwardedHost, "app.example.com")
-
-		err := srv.setSessionCookie(c, testPortalName, testProfile, time.Hour)
-		require.NoError(t, err)
-
-		cookies := w.Result().Cookies()
-		require.Len(t, cookies, 1)
-
-		_, err = srv.parseSessionToken(cookies[0].Value, testPortalName, "example.org")
-		require.Error(t, err)
-	})
-
 	t.Run("cookie chunking for large profile", func(t *testing.T) {
 		// Create a test profile with large field values that will require chunking
 		// (need to exceed 3500 bytes)
@@ -357,55 +324,6 @@ func TestSetSessionCookie(t *testing.T) {
 	})
 }
 
-func TestCookieDomainForContext(t *testing.T) {
-	t.Run("selects most specific configured domain", func(t *testing.T) {
-		t.Cleanup(config.SetTestConfig(func(c *config.Config) {
-			c.Cookies.Domain = ""
-			c.Cookies.Domains = []string{"example.com", "apps.example.com"}
-		}))
-
-		w := httptest.NewRecorder()
-		c, _ := gin.CreateTestContext(w)
-		c.Request, _ = http.NewRequest(http.MethodGet, "/", nil)
-		c.Request.Header.Set(headerXForwardedHost, "foo.apps.example.com")
-
-		domain, ok := cookieDomainForContext(c)
-		require.True(t, ok)
-		assert.Equal(t, "apps.example.com", domain)
-	})
-
-	t.Run("uses request host when domains are empty", func(t *testing.T) {
-		t.Cleanup(config.SetTestConfig(func(c *config.Config) {
-			c.Cookies.Domain = ""
-			c.Cookies.Domains = nil
-		}))
-
-		w := httptest.NewRecorder()
-		c, _ := gin.CreateTestContext(w)
-		c.Request, _ = http.NewRequest(http.MethodGet, "/", nil)
-		c.Request.Header.Set(headerXForwardedHost, "app.example.org")
-
-		domain, ok := cookieDomainForContext(c)
-		require.True(t, ok)
-		assert.Equal(t, "app.example.org", domain)
-	})
-
-	t.Run("rejects unmatched configured domains", func(t *testing.T) {
-		t.Cleanup(config.SetTestConfig(func(c *config.Config) {
-			c.Cookies.Domain = ""
-			c.Cookies.Domains = []string{"example.com"}
-		}))
-
-		w := httptest.NewRecorder()
-		c, _ := gin.CreateTestContext(w)
-		c.Request, _ = http.NewRequest(http.MethodGet, "/", nil)
-		c.Request.Header.Set(headerXForwardedHost, "app.example.org")
-
-		_, ok := cookieDomainForContext(c)
-		assert.False(t, ok)
-	})
-}
-
 func TestGetSessionCookie(t *testing.T) {
 	srv, logBuf := newTestServer(t)
 	require.NotNil(t, srv)
@@ -650,7 +568,7 @@ func TestSetStateCookie(t *testing.T) {
 		require.NoError(t, err)
 		require.NotEmpty(t, nonce)
 
-		testReturnURL := "https://tfa.example.com/return"
+		testReturnURL := "https://example.com/return"
 		testStateCookieID := "test-state-123"
 
 		// Set state cookie
@@ -673,7 +591,7 @@ func TestSetStateCookie(t *testing.T) {
 		c.Request, _ = http.NewRequest(http.MethodGet, "/", nil)
 		c.Request.Header.Set("User-Agent", "Test Agent")
 
-		testReturnURL := "https://tfa.example.com/return"
+		testReturnURL := "https://example.com/return"
 		testStateCookieID := "test-state-123"
 
 		// Use invalid nonce (not base64 URL encoded)
@@ -682,29 +600,6 @@ func TestSetStateCookie(t *testing.T) {
 		err := srv.setStateCookie(c, portal, invalidNonce, testReturnURL, testStateCookieID)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "invalid nonce")
-	})
-
-	t.Run("uses return URL domain", func(t *testing.T) {
-		t.Cleanup(config.SetTestConfig(func(c *config.Config) {
-			c.Cookies.Domain = ""
-			c.Cookies.Domains = []string{"example.com", "example.org"}
-		}))
-
-		portal := srv.portals[testPortalName]
-		nonce, err := srv.generateNonce()
-		require.NoError(t, err)
-
-		w := httptest.NewRecorder()
-		c, _ := gin.CreateTestContext(w)
-		c.Request, _ = http.NewRequest(http.MethodGet, "/", nil)
-		c.Request.Header.Set(headerXForwardedHost, "auth.example.com")
-
-		err = srv.setStateCookie(c, portal, nonce, "https://app.example.org/return", "state-domain-test")
-		require.NoError(t, err)
-
-		cookies := w.Result().Cookies()
-		require.Len(t, cookies, 1)
-		assert.Equal(t, "example.org", cookies[0].Domain)
 	})
 }
 
@@ -729,7 +624,7 @@ func TestGetStateCookie(t *testing.T) {
 		nonce, err := srv.generateNonce()
 		require.NoError(t, err)
 
-		testReturnURL := "https://tfa.example.com/return"
+		testReturnURL := "https://example.com/return"
 		testStateCookieID := "test-state-123"
 
 		err = srv.setStateCookie(c, portal, nonce, testReturnURL, testStateCookieID)
@@ -742,7 +637,6 @@ func TestGetStateCookie(t *testing.T) {
 		w2 := httptest.NewRecorder()
 		c2, _ := gin.CreateTestContext(w2)
 		c2.Request, _ = http.NewRequest(http.MethodGet, "/", nil)
-		c2.Request.Header.Set(headerXForwardedHost, "tfa.example.com")
 		c2.Request.Header.Set("User-Agent", "Test Agent")
 		c2.Request.Header.Set("Accept-Language", "en-US")
 		c2.Request.AddCookie(cookies[0])
@@ -797,7 +691,7 @@ func TestGetStateCookie(t *testing.T) {
 		nonce, err := srv.generateNonce()
 		require.NoError(t, err)
 
-		testReturnURL := "https://tfa.example.com/return"
+		testReturnURL := "https://example.com/return"
 		testStateCookieID := "test-state-456"
 
 		err = srv.setStateCookie(c, portal, nonce, testReturnURL, testStateCookieID)
@@ -862,9 +756,9 @@ func TestDeleteStateCookies(t *testing.T) {
 		nonce2, err := srv.generateNonce()
 		require.NoError(t, err)
 
-		err = srv.setStateCookie(c, portal, nonce1, "https://tfa.example.com/1", "state1")
+		err = srv.setStateCookie(c, portal, nonce1, "https://example.com/1", "state1")
 		require.NoError(t, err)
-		err = srv.setStateCookie(c, portal, nonce2, "https://tfa.example.com/2", "state2")
+		err = srv.setStateCookie(c, portal, nonce2, "https://example.com/2", "state2")
 		require.NoError(t, err)
 
 		cookies := w.Result().Cookies()
@@ -988,12 +882,12 @@ func TestTokenCaching(t *testing.T) {
 		cookieValue := cookies[0].Value
 
 		// First parse - should validate and cache
-		token1, err := srv.parseSessionToken(cookieValue, testPortalName, "")
+		token1, err := srv.parseSessionToken(cookieValue, testPortalName)
 		require.NoError(t, err)
 		require.NotNil(t, token1)
 
 		// Compute cache key
-		cacheKey := srv.tokenCacheKey(cookieValue + "\x00" + config.Get().GetTokenAudienceClaim(""))
+		cacheKey := srv.tokenCacheKey(cookieValue)
 
 		// Verify validation result is in the cache
 		valid, ok := srv.tokenCache.Get(cacheKey)
@@ -1001,7 +895,7 @@ func TestTokenCaching(t *testing.T) {
 		require.True(t, valid, "cached validation result should be true")
 
 		// Second parse - should use cache
-		token2, err := srv.parseSessionToken(cookieValue, testPortalName, "")
+		token2, err := srv.parseSessionToken(cookieValue, testPortalName)
 		require.NoError(t, err)
 		require.NotNil(t, token2)
 
@@ -1015,12 +909,12 @@ func TestTokenCaching(t *testing.T) {
 		const invalidToken = "invalid.jwt.token.value" //nolint:gosec
 
 		// First parse - should fail and cache the error
-		token1, err := srv.parseSessionToken(invalidToken, testPortalName, "tfa.example.com")
+		token1, err := srv.parseSessionToken(invalidToken, testPortalName)
 		require.Error(t, err)
 		require.Nil(t, token1)
 
 		// Compute cache key
-		cacheKey := srv.tokenCacheKey(invalidToken + "\x00" + config.Get().GetTokenAudienceClaim("tfa.example.com"))
+		cacheKey := srv.tokenCacheKey(invalidToken)
 
 		// Verify the validation failure is in the cache
 		valid, ok := srv.tokenCache.Get(cacheKey)
@@ -1028,7 +922,7 @@ func TestTokenCaching(t *testing.T) {
 		require.False(t, valid, "cached validation result should be false")
 
 		// Second parse - should return cached error
-		token2, err := srv.parseSessionToken(invalidToken, testPortalName, "tfa.example.com")
+		token2, err := srv.parseSessionToken(invalidToken, testPortalName)
 		require.Error(t, err)
 		require.Nil(t, token2)
 	})
@@ -1061,7 +955,7 @@ func TestTokenCaching(t *testing.T) {
 		cookieValue := cookies[0].Value
 
 		// Parse the token
-		token, err := srv.parseSessionToken(cookieValue, testPortalName, "")
+		token, err := srv.parseSessionToken(cookieValue, testPortalName)
 		require.NoError(t, err)
 		require.NotNil(t, token)
 
@@ -1078,7 +972,7 @@ func TestTokenCaching(t *testing.T) {
 		const invalidToken = "another.invalid.token" //nolint:gosec
 
 		// Parse invalid token
-		_, err := srv.parseSessionToken(invalidToken, testPortalName, "tfa.example.com")
+		_, err := srv.parseSessionToken(invalidToken, testPortalName)
 		require.Error(t, err)
 
 		// Check that the TTL for invalid tokens is 5 minutes
@@ -1154,7 +1048,7 @@ func TestGetSessionCookieWithCache(t *testing.T) {
 		require.NotNil(t, provider1)
 
 		// Verify token is in cache
-		cacheKey := srv.tokenCacheKey(cookieValue + "\x00" + config.Get().GetTokenAudienceClaim(""))
+		cacheKey := srv.tokenCacheKey(cookieValue)
 		_, ok := srv.tokenCache.Get(cacheKey)
 		require.True(t, ok, "token should be in cache after first call")
 
