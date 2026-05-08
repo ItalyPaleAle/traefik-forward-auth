@@ -93,9 +93,34 @@ portals:
         property: provider.name
 ```
 
-Do not forget to include your custom headers in the `forwardAuth` middleware configuration if you want Traefik to add them to the authenticated request.
+> Only scalar values (strings, numbers, and booleans) are currently supported.
 
-Note that only scalar values (strings, numbers, and booleans) are supported for the moment.
+Do not forget to include your custom headers in the `forwardAuth` middleware configuration if you want Traefik to add them to the authenticated request, for example:
+
+```yaml
+http:
+  middlewares:
+    # Irrelevant fields have been omitted
+    traefikForwardAuth:
+      forwardauth:
+        authResponseHeaders:
+          - "X-Forwarded-User"
+          - "X-Forwarded-Email"
+          - "X-Authentication-Provider"
+        trustForwardHeader: true
+```
+
+To disable all response headers (i.e. pass no headers to Traefik), set `headers` to an empty list:
+
+```yaml
+portals:
+  - name: "main"
+    providers:
+      - # Configure one provider
+    headers: []
+```
+
+> Note: Omitting the `headers` key entirely (leaving it unset) causes the default headers (`X-Forwarded-User`, `X-Forwarded-Displayname`, `X-Authenticated-User`) to be sent. Setting `headers: []` (an explicit empty list) suppresses all headers.
 
 ## Security hardening
 
