@@ -61,13 +61,10 @@ The configuration file for Traefik Forward Auth `tfa-config.yaml` is:
 
 ```yaml
 # tfa-config.yaml
-server:
-  # Hostname where the application can be reached at externally
-  hostname: "auth.example.com"
-
 cookies:
-  # Domain for setting cookies
-  domain: "example.com"
+  # Domain(s) for setting cookies
+  # Should be the domain where the app is reachable at or a parent domain
+  domains: ["example.com"]
 
 portals:
   - name: "main"
@@ -138,13 +135,10 @@ The configuration file for Traefik Forward Auth `tfa-config.yaml` is:
 
 ```yaml
 # tfa-config.yaml
-server:
-  # Hostname where the application can be reached at externally
-  hostname: "auth.example.com"
-
 cookies:
-  # Domain for setting cookies
-  domain: "example.com"
+  # Domain(s) for setting cookies
+  # Should be the domain where the app is reachable at or a parent domain
+  domains: ["example.com"]
 
 portals:
   - name: "main"
