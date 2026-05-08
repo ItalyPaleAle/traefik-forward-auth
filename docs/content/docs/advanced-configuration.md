@@ -85,12 +85,12 @@ portals:
     providers:
       - # Configure one provider
     headers:
-      - name: X-Forwarded-User
-        claim: id
-      - name: X-Forwarded-Email
-        claim: email
-      - name: X-Authentication-Provider
-        property: provider.name
+      - name: "X-Forwarded-User"
+        claim: "id"
+      - name: "X-Forwarded-Email"
+        claim: "email"
+      - name: "X-Authentication-Provider"
+        property: "provider.name"
 ```
 
 > Only scalar values (strings, numbers, and booleans) are currently supported.
