@@ -7,6 +7,7 @@ weight: 27
 - [Observability: Logs, Traces, Metrics](#observability-logs-traces-metrics)
 - [Token signing keys](#token-signing-keys)
 - [Configure session lifetime](#configure-session-lifetime)
+- [Configure headers](#configure-headers)
 - [Security hardening](#security-hardening)
 - [Container health checks](#container-health-checks)
 
