@@ -3,7 +3,6 @@ package server
 import (
 	"crypto/sha256"
 	"encoding/base64"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"net/http"
@@ -114,11 +113,11 @@ func (s *Server) handleAuthenticatedRoot(c *gin.Context, portal Portal, provider
 	// Include the user name in the response body in case a visitor is hitting the auth server directly
 	s.metrics.RecordAuthentication(true)
 
-	// Set the X-Forwarded-User, X-Authenticated-User, X-Forwarded-Displayname headers
-	c.Header(headerXForwardedUser, profile.ID)
-	c.Header(headerXAuthenticatedUser, authenticatedUserFromProfile(provider, portal.Name, profile))
-	if profile.Name.FullName != "" {
-		c.Header(headerXForwardedDisplayName, profile.Name.FullName)
+	// Add authenticated headers to the response
+	for _, header := range portal.Headers {
+		name := header.GetName()
+		value := header.GetValue(portal, provider, profile)
+		c.Header(name, validateHeaderValue(value))
 	}
 
 	switch {
@@ -498,13 +497,6 @@ func getPortalURI(c *gin.Context, portal string) string {
 	return baseURI + "/portals/" + portal
 }
 
-// Returns the user information to include in the "X-Authenticated-User" header
-func authenticatedUserFromProfile(provider auth.Provider, portal string, profile *user.Profile) string {
-	userID, _ := json.Marshal(profile.ID)
-	// Provider and portal names is already guaranteed to not include characters that must be escaped as JSON
-	return `{"provider":"` + provider.GetProviderName() + `","portal":"` + portal + `","user":` + string(userID) + `}`
-}
-
 // Returns the value from the X-Forwarded-Proto header, handling WebSockets
 func getForwardedProto(c *gin.Context) string {
 	// Map WebSocket protocols to HTTP protocols for OAuth2 redirect URI
@@ -520,4 +512,15 @@ func getForwardedProto(c *gin.Context) string {
 		// Fallback to HTTP for unknown protocols
 		return "http"
 	}
+}
+
+// Validates the header value before adding it to the response
+func validateHeaderValue(value string) string {
+	// Limit the value to 1KB
+	const maxLen = 1 << 10
+
+	if len(value) > maxLen {
+		return ""
+	}
+	return value
 }

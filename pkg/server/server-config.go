@@ -42,6 +42,8 @@ func GetPortalsConfig(ctx context.Context, conf *config.Config) (map[string]Port
 			portal.ProvidersList[i] = name
 		}
 
+		portal.Headers = getHeadersConfig(p)
+
 		portals[p.Name] = portal
 	}
 

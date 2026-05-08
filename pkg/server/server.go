@@ -516,6 +516,7 @@ type Portal struct {
 	PagesBackgroundLarge  string
 	PagesBackgroundMedium string
 	PagesCSPHeader        func(nonce string) string
+	Headers               []AuthenticatedHeader
 }
 
 type cachedPredicate struct {

@@ -7,6 +7,7 @@ import (
 	"errors"
 	"io"
 	"log/slog"
+	"math/rand"
 	"net"
 	"net/http"
 	"net/url"
@@ -209,20 +210,22 @@ func createTestSessionTokenForDomain(t *testing.T, portalName string, profile *u
 	return string(tokenBytes)
 }
 
+// Important: use this FOR TESTS ONLY
+// #nosec G404 -- This is for test only
+func createRandomStringWithPrefix(prefix string, length int) string {
+	const charset = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
+	bytes := make([]byte, max(0, length-len(prefix)))
+	for i := range bytes {
+		bytes[i] = charset[rand.Intn(len(charset))]
+	}
+	return prefix + string(bytes)
+}
+
 // Closes a HTTP response body making sure to drain it first
 // Normally invoked as a defer'd function
 func closeBody(res *http.Response) {
 	_, _ = io.Copy(io.Discard, res.Body)
 	res.Body.Close()
-}
-
-// Internal function that returns true if the value matches the context.Context interface
-// This can be used as an argument for mock.MatchedBy
-//
-//nolint:unused
-func matchContextInterface(v any) bool {
-	_, ok := v.(context.Context)
-	return ok
 }
 
 func cookiePair(setCookie string) string {

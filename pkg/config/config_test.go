@@ -200,6 +200,69 @@ func TestValidateConfig(t *testing.T) {
 		require.Len(t, config.Portals, 1)
 		assert.EqualValues(t, expectProviderConfig, config.Portals[0].Providers[0].configParsed)
 	})
+
+	t.Run("fails when header has no name", func(t *testing.T) {
+		t.Cleanup(SetTestConfig(func(c *Config) {
+			c.Portals[0].Headers = &[]ConfigPortalHeader{
+				{
+					Claim: "email",
+				},
+			}
+		}))
+
+		err := config.Validate(log)
+		require.Error(t, err)
+		_ = assert.ErrorContains(t, err, "invalid header at index 0") &&
+			assert.ErrorContains(t, err, "property 'name' is required")
+	})
+
+	t.Run("fails when header has no claim or property", func(t *testing.T) {
+		t.Cleanup(SetTestConfig(func(c *Config) {
+			c.Portals[0].Headers = &[]ConfigPortalHeader{
+				{
+					Name: "X-Forwarded-Email",
+				},
+			}
+		}))
+
+		err := config.Validate(log)
+		require.Error(t, err)
+		_ = assert.ErrorContains(t, err, "invalid header 'X-Forwarded-Email'") &&
+			assert.ErrorContains(t, err, "property 'claim' or 'property' is required")
+	})
+
+	t.Run("fails when header has claim and property", func(t *testing.T) {
+		t.Cleanup(SetTestConfig(func(c *Config) {
+			c.Portals[0].Headers = &[]ConfigPortalHeader{
+				{
+					Name:     "X-Forwarded-Email",
+					Claim:    "email",
+					Property: "portal.name",
+				},
+			}
+		}))
+
+		err := config.Validate(log)
+		require.Error(t, err)
+		_ = assert.ErrorContains(t, err, "invalid header 'X-Forwarded-Email'") &&
+			assert.ErrorContains(t, err, "properties 'claim' and 'property' are mutually exclusive")
+	})
+
+	t.Run("fails when header has unknown property", func(t *testing.T) {
+		t.Cleanup(SetTestConfig(func(c *Config) {
+			c.Portals[0].Headers = &[]ConfigPortalHeader{
+				{
+					Name:     "X-Forwarded-Email",
+					Property: "foobar",
+				},
+			}
+		}))
+
+		err := config.Validate(log)
+		require.Error(t, err)
+		_ = assert.ErrorContains(t, err, "invalid header 'X-Forwarded-Email'") &&
+			assert.ErrorContains(t, err, "invalid property 'foobar'")
+	})
 }
 
 func TestSetTokenSigningKey(t *testing.T) {

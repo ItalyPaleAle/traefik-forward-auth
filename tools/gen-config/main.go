@@ -155,6 +155,9 @@ func processStruct(structDef structDef, yamlPrefix string, parentYamlPath string
 		printMarkdownHeader("## Portal configuration", outMD)
 	case parentYamlPath == "portals.$.providers.$" && strings.HasPrefix(sectionName, "portals.$.providers.$-"):
 		providerName = strings.TrimPrefix(sectionName, "portals.$.providers.$-")
+	case parentYamlPath == "headers.$" && sectionName == "headers":
+		fmt.Fprint(outMD, "\n")
+		printMarkdownHeader("## Header configuration", outMD)
 	}
 
 	for _, field := range structDef.StructType.Fields.List {
@@ -215,6 +218,10 @@ func processStruct(structDef structDef, yamlPrefix string, parentYamlPath string
 		// Handle the special "providers" field
 		case fullYamlPath == "portals.$.providers" && sectionName == "portals":
 			processProvidersField(outYAML, outMD, yamlPrefix)
+
+		// Handle the special "headers" field
+		case fullYamlPath == "portals.$.headers" && sectionName == "portals":
+			processHeadersField(outYAML, outMD, yamlPrefix)
 
 		// Handle regular (non-struct) fields
 		case !isStructField:
@@ -429,6 +436,24 @@ func processProvidersField(outYAML io.Writer, outMD io.Writer, yamlPrefix string
 
 		printMarkdownProviderExample(def.Name, outMD)
 	}
+}
+
+// processHeadersField handles the special "headers" field
+func processHeadersField(outYAML io.Writer, outMD io.Writer, yamlPrefix string) {
+	y := func(format string, a ...any) { fmt.Fprintf(outYAML, yamlPrefix+format, a...) }
+	y("## headers (list of headers)\n")
+	y("## Description:\n")
+	y("##   List of HTTP headers to add to the response.\n")
+	y("##   When this section is omitted, the following headers are added by default:\n")
+	y("##   - X-Forwarded-User\n")
+	y("##   - X-Forwarded-Displayname\n")
+	y("##   - X-Authenticated-User\n")
+	y("#headers:\n")
+	y("#  -\n")
+
+	fmt.Fprintln(outMD, `| <a id="config-opt-portals-$-headers"></a>`+"`portals.$.headers`"+`| list of headers | List of HTTP headers to add to the response. | |`)
+
+	processStruct(structTypes["ConfigPortalHeader"], "    #    ", "portals.$.headers.$", "portals.$.headers", outYAML, outMD, false)
 }
 
 func printMarkdownHeader(header string, outMD io.Writer) {

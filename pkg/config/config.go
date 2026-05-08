@@ -26,6 +26,14 @@ import (
 	"github.com/italypaleale/traefik-forward-auth/pkg/utils/validators"
 )
 
+// Allowed properties for custom headers
+const (
+	// PropertyPortalName is the portal name
+	PropertyPortalName = "portal.name"
+	// PropertyProviderName is the provider name
+	PropertyProviderName = "provider.name"
+)
+
 // Config is the struct containing configuration
 type Config struct {
 	// Configuration for the application's server
@@ -275,6 +283,9 @@ type ConfigPortal struct {
 	// The recommended size is 940x1410.
 	BackgroundLarge string `yaml:"backgroundLarge"`
 
+	// List of HTTP headers to add to the response.
+	Headers *[]ConfigPortalHeader `yaml:"headers"`
+
 	// List of allowed authentication providers.
 	// At least one provider is required.
 	// +required
@@ -299,6 +310,21 @@ type ConfigPortalProvider struct {
 
 	// Parsed config object - internal
 	configParsed ProviderConfig
+}
+
+type ConfigPortalHeader struct {
+	// Name of the header.
+	// +required
+	// +example "X-Forwarded-User"
+	Name string `yaml:"name"`
+	// ID token claim to use as the header's value.
+	// Only scalar values (strings, numbers, and booleans) are supported for the moment.
+	// +example "email"
+	Claim string `yaml:"claim"`
+	// Property to use as the header's value.
+	// Supported properties are `portal.name` and `provider.name`.
+	// +example "portal.name"
+	Property string `yaml:"property"`
 }
 
 // ConfigDev includes options using during development only
@@ -545,6 +571,22 @@ func (p *ConfigPortal) Parse(c *Config) error {
 		}
 	}
 
+	// Parse headers' configuration
+	// If the property is nil, we use the default headers
+	if p.Headers != nil {
+		h := *p.Headers
+		for i := range h {
+			err := h[i].Parse(c)
+			if err != nil {
+				if h[i].Name == "" {
+					return fmt.Errorf("invalid header at index %d: %w", i, err)
+				}
+
+				return fmt.Errorf("invalid header '%s' (at index %d): %w", h[i].Name, i, err)
+			}
+		}
+	}
+
 	return nil
 }
 
@@ -596,6 +638,29 @@ func (v *ConfigPortalProvider) Parse(c *Config) (err error) {
 	}
 
 	v.configParsed.SetConfigObject(c)
+
+	return nil
+}
+
+func (h *ConfigPortalHeader) Parse(c *Config) (err error) {
+	if h.Name == "" {
+		return errors.New("property 'name' is required")
+	}
+
+	// Either claim or property must be set
+	if h.Claim == "" {
+		switch h.Property {
+		case "":
+			return errors.New("property 'claim' or 'property' is required")
+		case PropertyPortalName, PropertyProviderName:
+			// Allowed properties, all good
+			break
+		default:
+			return fmt.Errorf("invalid property '%s'", h.Property)
+		}
+	} else if h.Property != "" {
+		return errors.New("properties 'claim' and 'property' are mutually exclusive")
+	}
 
 	return nil
 }

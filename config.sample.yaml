@@ -194,6 +194,33 @@ portals:
     ##   The recommended size is 940x1410.
     #backgroundLarge: ""
 
+    ## headers (list of headers)
+    ## Description:
+    ##   List of HTTP headers to add to the response.
+    ##   When this section is omitted, the following headers are added by default:
+    ##   - X-Forwarded-User
+    ##   - X-Forwarded-Displayname
+    ##   - X-Authenticated-User
+    #headers:
+    #  -
+    #    ## portals.$.headers.$.name (string)
+    #    ## Description:
+    #    ##   Name of the header.
+    #    ## Required
+    #    name: "X-Forwarded-User"
+
+    #    ## portals.$.headers.$.claim (string)
+    #    ## Description:
+    #    ##   ID token claim to use as the header's value.
+    #    ##   Only scalar values (strings, numbers, and booleans) are supported for the moment.
+    #    #claim: "email"
+
+    #    ## portals.$.headers.$.property (string)
+    #    ## Description:
+    #    ##   Property to use as the header's value.
+    #    ##   Supported properties are `portal.name` and `provider.name`.
+    #    #property: "portal.name"
+
     ## providers (list of provider configurations)
     ## Description:
     ##   List of allowed authentication providers

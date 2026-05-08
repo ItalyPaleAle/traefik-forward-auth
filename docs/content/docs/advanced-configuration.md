@@ -7,6 +7,7 @@ weight: 27
 - [Observability: Logs, Traces, Metrics](#observability-logs-traces-metrics)
 - [Token signing keys](#token-signing-keys)
 - [Configure session lifetime](#configure-session-lifetime)
+- [Configure headers](#configure-headers)
 - [Security hardening](#security-hardening)
 - [Container health checks](#container-health-checks)
 
@@ -67,6 +68,59 @@ When Traefik Forward Auth authenticates a user, it issues a JWT, saved in a cook
 By default, sessions are valid for 2 hours.
 
 You can configure the lifetime of a session using the option [`tokens.sessionLifetime`](/advanced/all-configuration-options#config-opt-tokens-sessionlifetime), which accepts a Go duration (such as `2h` for 2 hours, or `30m` for 30 minutes).
+
+## Configure headers
+
+By default, Traefik Forward Auth adds the following headers to its response:
+
+- `X-Forwarded-User`: the user identifier
+- `X-Forwarded-Displayname`: the user name
+- `X-Authenticated-User`: a JSON object that includes the user ID, the portal's name, and the provider's name.
+
+You may override those headers by adding a `headers` section to a portal's configuration:
+
+```yaml
+portals:
+  - name: "main"
+    providers:
+      - # Configure one provider
+    headers:
+      - name: "X-Forwarded-User"
+        claim: "id"
+      - name: "X-Forwarded-Email"
+        claim: "email"
+      - name: "X-Authentication-Provider"
+        property: "provider.name"
+```
+
+> Only scalar values (strings, numbers, and booleans) are currently supported.
+
+Do not forget to include your custom headers in the `forwardAuth` middleware configuration if you want Traefik to add them to the authenticated request, for example:
+
+```yaml
+http:
+  middlewares:
+    # Irrelevant fields have been omitted
+    traefikForwardAuth:
+      forwardauth:
+        authResponseHeaders:
+          - "X-Forwarded-User"
+          - "X-Forwarded-Email"
+          - "X-Authentication-Provider"
+        trustForwardHeader: true
+```
+
+To disable all response headers (i.e. pass no headers to Traefik), set `headers` to an empty list:
+
+```yaml
+portals:
+  - name: "main"
+    providers:
+      - # Configure one provider
+    headers: []
+```
+
+> Note: Omitting the `headers` key entirely (leaving it unset) causes the default headers (`X-Forwarded-User`, `X-Forwarded-Displayname`, `X-Authenticated-User`) to be sent. Setting `headers: []` (an explicit empty list) suppresses all headers.
 
 ## Security hardening
 
