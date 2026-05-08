@@ -1,4 +1,7 @@
-# 🔐 Authorization Conditions
+---
+title: "Authorization Conditions"
+weight: 26
+---
 
 Traefik Forward Auth allows defining additional authorization conditions, which can be used to enforce authorization (AuthZ) rules.
 
@@ -200,7 +203,7 @@ Because of the way Traefik Forward Auth manages sessions, it's possible to defin
 
 To explain, we need to clarify some context:
 
-- With Traefik Forward Auth, every time a user authenticates successfully with a supported provider, a session is created, and the user receives a session token (which is saved in a cookie). The session is valid for all Traefik routers that configure forward auth with the same Traefik Forward Auth [authentication portal](./04-authentication-portals.md). Additionally, authenticated users can also visit the [profile endpoint](./08-endpoints.md#profile-routes) to see their own public profile data.  
+- With Traefik Forward Auth, every time a user authenticates successfully with a supported provider, a session is created, and the user receives a session token (which is saved in a cookie). The session is valid for all Traefik routers that configure forward auth with the same Traefik Forward Auth [authentication portal](/docs/authentication-portals). Additionally, authenticated users can also visit the [profile endpoint](/docs/endpoints#profile-routes) to see their own public profile data.  
    To put it in other terms, Traefik Forward Auth creates a session for every authenticated (AuthN) user, without any additional authorization (AuthZ) check.
 - Authorization conditions are evaluated only on calls that Traefik makes to the forward auth endpoint, applied to the current user's session.  
    In fact, when using the forward auth middleware, Traefik makes a call to the configured forward auth endpoint (in this case, an instance of Traefik Forward Auth) on each request, before proxying it to the backend server.  

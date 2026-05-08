@@ -6,6 +6,11 @@ config.md
 client/node_modules
 client/output.css
 
+## Docs
+docs/.hugo_build.lock
+docs/public/
+docs/resources/
+
 # Created by https://www.toptal.com/developers/gitignore/api/go,visualstudiocode,linux,macos,windows
 # Edit at https://www.toptal.com/developers/gitignore?templates=go,visualstudiocode,linux,macos,windows
 

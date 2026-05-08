@@ -1,7 +1,7 @@
-# 📍 Endpoints
-
-- [Profile routes](#profile-routes)
-- [APIs](#apis)
+---
+title: "Endpoints"
+weight: 28
+---
 
 ## Profile routes
 

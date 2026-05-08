@@ -1,7 +1,7 @@
-# ⚙️ Configuration
-
-- [Configuring Traefik Forward Auth](#configuring-traefik-forward-auth)
-- [Exposing Traefik Forward Auth](#exposing-traefik-forward-auth)
+---
+title: "Configuration"
+weight: 22
+---
 
 ## Configuring Traefik Forward Auth
 
@@ -37,20 +37,23 @@ secrets:
      file: tfa-config.yaml
 ```
 
-You can find the list of [all configuration options](./03-all-configuration-options.md).
+You can find the list of [all configuration options](/advanced/all-configuration-options).
 
 ## Exposing Traefik Forward Auth
 
 In order to use Traefik Forward Auth, it needs to be reachable through a Traefik router. You can configure it in 2 ways:
 
-1. [**Using a dedicated sub-domain**](#using-a-dedicated-sub-domain)  
+1. **Using a dedicated sub-domain**  
    This is most commonly used when all the apps you want to protect are served under the same domain (e.g. `example.com`). Traefik Forward Auth is exposed through its own sub-domain (for example, `https://auth.example.com`), while your apps are served through the parent domain (`https://example.com`) or other sub-domains (`https://myapp.example.com`).  
    This scenario is the most convenient one when you need to protect multiple applications at once using the same Traefik Forward Auth instance.
-2. [**Using a sub-path**](#using-a-sub-path)  
+2. **Using a sub-path**  
    In this scenario you do not need a dedicated sub-domain for Traefik Forward Auth, which is instead exposed in a sub-path. For example, if your app is reachable at `https://example.com`, Traefik is configured to route requests to Traefik Forward Auth at `https://example.com/auth`.
 
 > Although Traefik Forward Auth doesn't need to be reachable from the public Internet, your clients must be able to have a route to it (for example, within the LAN or using a VPN)  
 > Additionally, many OAuth2 identity providers (including Google and Microsoft Entra ID) require the callback URL to be served via HTTPS/TLS (even if using a self-signed certificate).
+
+{{< tabs >}}
+{{< tab title="Using a dedicated sub-domain" >}}
 
 ### Using a dedicated sub-domain
 
@@ -66,8 +69,8 @@ To configure Traefik and Traefik Forward Auth in this scenario:
 1. If using a provider based on OAuth2 (including Google, Microsoft Entra ID, GitHub, and OpenID Connect providers), configure your authentication callback to: `https://auth.example.com/portals/main/oauth2/callback`
 2. Configure Traefik Forward Auth with:
 
-   - [`server.hostname`](./03-all-configuration-options.md#config-opt-server-hostname): `auth.example.com`
-   - [`cookies.domain`](./03-all-configuration-options.md#config-opt-cookies-domain): `example.com`
+   - [`server.hostname`](/advanced/all-configuration-options#config-opt-server-hostname): `auth.example.com`
+   - [`cookies.domain`](/advanced/all-configuration-options#config-opt-cookies-domain): `example.com`
 
 3. Create a Traefik middleware of type `forwardauth` with:
 
@@ -152,6 +155,9 @@ portals:
         # tailscaleWhois: {}
 ```
 
+{{< /tab >}}
+{{< tab title="Using a sub-path" >}}
+
 ### Using a sub-path
 
 Using a sub-path does not require the use of sub-domains, but it is generally harder to implement when you want to protect more than one application.
@@ -166,8 +172,8 @@ To configure Traefik and Traefik Forward Auth in this scenario:
 1. If using a provider based on OAuth2 (including GitHub, Google, Microsoft Entra ID, and OpenID Connect providers), configure your authentication callback to: `https://example.com/auth/portals/main/oauth2/callback`
 2. Configure Traefik Forward Auth with:
 
-   - [`hostname`](./03-all-configuration-options.md#config-opt-hostname) (env: `TFA_HOSTNAME`): `example.com`
-   - [`basePath`](./03-all-configuration-options.md#config-opt-basepath) (env: `TFA_BASEPATH`): `/auth`
+   - [`hostname`](/advanced/all-configuration-options#config-opt-hostname) (env: `TFA_HOSTNAME`): `example.com`
+   - [`basePath`](/advanced/all-configuration-options#config-opt-basepath) (env: `TFA_BASEPATH`): `/auth`
 
 3. Create a Traefik middleware of type `forwardauth` with:
 
@@ -253,3 +259,6 @@ portals:
         # openIDConnect: {}
         # tailscaleWhois: {}
 ```
+
+{{< /tab >}}
+{{< /tabs >}}

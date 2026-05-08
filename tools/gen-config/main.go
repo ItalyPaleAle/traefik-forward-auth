@@ -18,7 +18,7 @@ import (
 )
 
 const (
-	docsFileDest = "docs/03-all-configuration-options.md"
+	docsFileDest = "docs/content/advanced/all-configuration-options.md"
 )
 
 type structDef struct {
