@@ -35,7 +35,6 @@ const (
 
 func TestMain(m *testing.M) {
 	_ = config.SetTestConfig(func(c *config.Config) {
-		c.Server.Hostname = "tfa.example.com"
 		c.Server.Port = testServerPort
 		c.Server.Bind = "127.0.0.1"
 		c.Server.BasePath = ""
@@ -179,17 +178,22 @@ func assertResponseNoContent(t *testing.T, res *http.Response) {
 
 // createTestSessionToken creates a valid session token with a specific profile for testing
 func createTestSessionToken(t *testing.T, portalName string, profile *user.Profile, expiration time.Duration) string {
+	return createTestSessionTokenForDomain(t, portalName, profile, expiration, "example.com")
+}
+
+func createTestSessionTokenForDomain(t *testing.T, portalName string, profile *user.Profile, expiration time.Duration, cookieDomain string) string {
 	t.Helper()
 
 	cfg := config.Get()
 	now := time.Now()
+	audience := cfg.GetTokenAudienceClaim(cookieDomain)
 
 	builder := jwt.NewBuilder()
 	profile.AppendClaims(builder)
 
 	token, err := builder.
-		Issuer(jwtIssuer + ":" + cfg.GetTokenAudienceClaim() + ":" + portalName).
-		Audience([]string{cfg.GetTokenAudienceClaim()}).
+		Issuer(jwtIssuer + ":" + audience + ":" + portalName).
+		Audience([]string{audience}).
 		IssuedAt(now).
 		Expiration(now.Add(expiration)).
 		NotBefore(now).

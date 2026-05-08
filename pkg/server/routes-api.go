@@ -34,8 +34,16 @@ func (s *Server) RouteGetAPIVerify(c *gin.Context) {
 		return
 	}
 
+	// Get the cookie domain for the current request host
+	cookieDomain, ok := cookieDomainForContext(c)
+	if !ok {
+		// This is a configuration/routing problem rather than a token problem, so it returns 400 instead of an invalid-token error
+		AbortWithErrorJSON(c, NewResponseError(http.StatusBadRequest, "Request host is not associated with this auth server"))
+		return
+	}
+
 	// Parse the session token
-	token, err := s.parseSessionToken(val, portal.Name)
+	token, err := s.parseSessionToken(val, portal.Name, cookieDomain)
 	if err != nil {
 		AbortWithErrorJSON(c, NewInvalidTokenErrorf("Access token is invalid: %v", err))
 		return

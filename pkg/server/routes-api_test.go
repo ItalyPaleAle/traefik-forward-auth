@@ -43,7 +43,7 @@ func TestRouteGetAPIVerify(t *testing.T) {
 
 	t.Run("valid token with bearer prefix", func(t *testing.T) {
 		// Create a valid session token
-		token := createTestSessionToken(t, portalName, profile, time.Hour)
+		token := createTestSessionTokenForDomain(t, portalName, profile, time.Hour, "example.com")
 
 		// Make a request to the /api/portals/:portal/verify endpoint
 		reqCtx, reqCancel := context.WithTimeout(t.Context(), 10*time.Second)
@@ -51,6 +51,7 @@ func TestRouteGetAPIVerify(t *testing.T) {
 		req, err := http.NewRequestWithContext(reqCtx, http.MethodGet,
 			fmt.Sprintf("http://localhost:%d/api/portals/%s/verify", testServerPort, portalName), nil)
 		require.NoError(t, err)
+		req.Header.Set(headerXForwardedHost, "example.com")
 		req.Header.Set("Authorization", "Bearer "+token)
 
 		res, err := appClient.Do(req)
@@ -74,13 +75,13 @@ func TestRouteGetAPIVerify(t *testing.T) {
 
 		// Verify claims are present
 		assert.Equal(t, "test@example.com", response.Claims["sub"])
-		assert.Equal(t, []any{cfg.GetTokenAudienceClaim()}, response.Claims["aud"])
+		assert.Equal(t, []any{cfg.GetTokenAudienceClaim("example.com")}, response.Claims["aud"])
 		assert.Equal(t, "testoauth2", response.Claims["tf_provider"])
 	})
 
 	t.Run("valid token without bearer prefix", func(t *testing.T) {
 		// Create a valid session token
-		token := createTestSessionToken(t, portalName, profile, time.Hour)
+		token := createTestSessionTokenForDomain(t, portalName, profile, time.Hour, "example.com")
 
 		// Make a request without the "Bearer" prefix
 		reqCtx, reqCancel := context.WithTimeout(t.Context(), 10*time.Second)
@@ -88,6 +89,7 @@ func TestRouteGetAPIVerify(t *testing.T) {
 		req, err := http.NewRequestWithContext(reqCtx, http.MethodGet,
 			fmt.Sprintf("http://localhost:%d/api/portals/%s/verify", testServerPort, portalName), nil)
 		require.NoError(t, err)
+		req.Header.Set(headerXForwardedHost, "example.com")
 		req.Header.Set("Authorization", token)
 
 		res, err := appClient.Do(req)
@@ -115,6 +117,7 @@ func TestRouteGetAPIVerify(t *testing.T) {
 		req, err := http.NewRequestWithContext(reqCtx, http.MethodGet,
 			fmt.Sprintf("http://localhost:%d/api/portals/%s/verify", testServerPort, portalName), nil)
 		require.NoError(t, err)
+		req.Header.Set(headerXForwardedHost, "example.com")
 
 		res, err := appClient.Do(req)
 		require.NoError(t, err)
@@ -131,6 +134,7 @@ func TestRouteGetAPIVerify(t *testing.T) {
 		req, err := http.NewRequestWithContext(reqCtx, http.MethodGet,
 			fmt.Sprintf("http://localhost:%d/api/portals/%s/verify", testServerPort, portalName), nil)
 		require.NoError(t, err)
+		req.Header.Set(headerXForwardedHost, "example.com")
 		req.Header.Set("Authorization", "")
 
 		res, err := appClient.Do(req)
@@ -148,6 +152,7 @@ func TestRouteGetAPIVerify(t *testing.T) {
 		req, err := http.NewRequestWithContext(reqCtx, http.MethodGet,
 			fmt.Sprintf("http://localhost:%d/api/portals/%s/verify", testServerPort, portalName), nil)
 		require.NoError(t, err)
+		req.Header.Set(headerXForwardedHost, "example.com")
 		req.Header.Set("Authorization", "Bearer invalid-token-123")
 
 		res, err := appClient.Do(req)
@@ -169,7 +174,7 @@ func TestRouteGetAPIVerify(t *testing.T) {
 
 	t.Run("expired token", func(t *testing.T) {
 		// Create an expired session token
-		token := createTestSessionToken(t, portalName, profile, -time.Hour)
+		token := createTestSessionTokenForDomain(t, portalName, profile, -time.Hour, "example.com")
 
 		// Make a request with the expired token
 		reqCtx, reqCancel := context.WithTimeout(t.Context(), 10*time.Second)
@@ -177,6 +182,7 @@ func TestRouteGetAPIVerify(t *testing.T) {
 		req, err := http.NewRequestWithContext(reqCtx, http.MethodGet,
 			fmt.Sprintf("http://localhost:%d/api/portals/%s/verify", testServerPort, portalName), nil)
 		require.NoError(t, err)
+		req.Header.Set(headerXForwardedHost, "example.com")
 		req.Header.Set("Authorization", "Bearer "+token)
 
 		res, err := appClient.Do(req)
@@ -199,10 +205,11 @@ func TestRouteGetAPIVerify(t *testing.T) {
 		// Create a token without the provider claim
 		cfg := config.Get()
 		now := time.Now()
+		audience := cfg.GetTokenAudienceClaim("example.com")
 		builder := jwt.NewBuilder()
 		token, err := builder.
-			Issuer(jwtIssuer + ":" + cfg.GetTokenAudienceClaim() + ":" + portalName).
-			Audience([]string{cfg.GetTokenAudienceClaim()}).
+			Issuer(jwtIssuer + ":" + audience + ":" + portalName).
+			Audience([]string{audience}).
 			Subject("test@example.com").
 			IssuedAt(now).
 			Expiration(now.Add(time.Hour)).
@@ -222,6 +229,7 @@ func TestRouteGetAPIVerify(t *testing.T) {
 		req, err := http.NewRequestWithContext(reqCtx, http.MethodGet,
 			fmt.Sprintf("http://localhost:%d/api/portals/%s/verify", testServerPort, portalName), nil)
 		require.NoError(t, err)
+		req.Header.Set(headerXForwardedHost, "example.com")
 		req.Header.Set("Authorization", "Bearer "+string(tokenBytes))
 
 		res, err := appClient.Do(req)
@@ -243,7 +251,7 @@ func TestRouteGetAPIVerify(t *testing.T) {
 	t.Run("token for wrong portal", func(t *testing.T) {
 		// Create a token for a different portal
 		const wrongPortal = "different-portal"
-		token := createTestSessionToken(t, wrongPortal, profile, time.Hour)
+		token := createTestSessionTokenForDomain(t, wrongPortal, profile, time.Hour, "example.com")
 
 		// Make a request to the test1 portal with a token for a different portal
 		reqCtx, reqCancel := context.WithTimeout(t.Context(), 10*time.Second)
@@ -251,6 +259,7 @@ func TestRouteGetAPIVerify(t *testing.T) {
 		req, err := http.NewRequestWithContext(reqCtx, http.MethodGet,
 			fmt.Sprintf("http://localhost:%d/api/portals/%s/verify", testServerPort, portalName), nil)
 		require.NoError(t, err)
+		req.Header.Set(headerXForwardedHost, "example.com")
 		req.Header.Set("Authorization", "Bearer "+token)
 
 		res, err := appClient.Do(req)
@@ -271,7 +280,7 @@ func TestRouteGetAPIVerify(t *testing.T) {
 
 	t.Run("invalid portal name", func(t *testing.T) {
 		// Create a valid token
-		token := createTestSessionToken(t, portalName, profile, time.Hour)
+		token := createTestSessionTokenForDomain(t, portalName, profile, time.Hour, "example.com")
 
 		// Make a request to a non-existent portal
 		reqCtx, reqCancel := context.WithTimeout(t.Context(), 10*time.Second)
@@ -279,6 +288,7 @@ func TestRouteGetAPIVerify(t *testing.T) {
 		req, err := http.NewRequestWithContext(reqCtx, http.MethodGet,
 			fmt.Sprintf("http://localhost:%d/api/portals/%s/verify", testServerPort, "nonexistent"), nil)
 		require.NoError(t, err)
+		req.Header.Set(headerXForwardedHost, "example.com")
 		req.Header.Set("Authorization", "Bearer "+token)
 
 		res, err := appClient.Do(req)
@@ -291,7 +301,7 @@ func TestRouteGetAPIVerify(t *testing.T) {
 
 	t.Run("bearer prefix case insensitive", func(t *testing.T) {
 		// Create a valid session token
-		token := createTestSessionToken(t, portalName, profile, time.Hour)
+		token := createTestSessionTokenForDomain(t, portalName, profile, time.Hour, "example.com")
 
 		testCases := []string{
 			"BEARER " + token,
@@ -306,6 +316,7 @@ func TestRouteGetAPIVerify(t *testing.T) {
 				req, err := http.NewRequestWithContext(reqCtx, http.MethodGet,
 					fmt.Sprintf("http://localhost:%d/api/portals/%s/verify", testServerPort, portalName), nil)
 				require.NoError(t, err)
+				req.Header.Set(headerXForwardedHost, "example.com")
 				req.Header.Set("Authorization", authHeader)
 
 				res, err := appClient.Do(req)

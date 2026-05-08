@@ -59,8 +59,6 @@ func (p *ProviderConfig_Google) GetAuthProvider(ctx context.Context) (auth.Provi
 		ClientSecret:   p.ClientSecret,
 		RequestTimeout: p.RequestTimeout,
 		Scopes:         p.Scopes,
-		Hostname:       p.config.Server.Hostname,
-		BasePath:       p.config.Server.BasePath,
 	}
 	err := populateSecretFromFile(&opts.ClientSecret, p.ClientSecretFile)
 	if err != nil {
