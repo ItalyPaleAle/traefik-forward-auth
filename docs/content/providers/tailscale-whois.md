@@ -35,4 +35,31 @@ For example, you can assign app capabilities to a node by listing them in your A
 
 The session tokens issued by Traefik Forward Auth will then include a claim `{"italypaleale.me/traefik-forward-auth": [ { ... }, { ... } ]}`.
 
+## Full configuration example
+
+The following is a complete `tfa-config.yaml` example using Tailscale Whois as the authentication provider.
+
+The `tailscaleWhois` provider has no required options, so an empty object like `tailscaleWhois: {}` is sufficient in many cases.
+
+```yaml
+# tfa-config.yaml
+server:
+  # Domain(s) served by Traefik Forward Auth
+  # `domain` is the cookie domain (the domain where the app is reachable, or a parent domain)
+  # `authHost` is the public hostname of Traefik Forward Auth itself (omit it when using "sub-path" mode)
+  domains:
+    - domain: "example.com"
+      authHost: "auth.example.com"
+
+portals:
+  - name: "main"
+    providers:
+      # Configure authentication with Tailscale Whois
+      -  tailscaleWhois:
+          # Optional: restrict to a specific Tailnet only
+          # allowedTailnet: "yourtailnet.ts.net"
+          # Optional: customize the names of the capabilities to read from Tailscale peer capabilities
+          # capabilityNames: ["italypaleale.me/traefik-forward-auth"]
+```
+
 [Full list of configuration options for Tailscale Whois and example](/advanced/all-configuration-options#using-tailscale-whois)

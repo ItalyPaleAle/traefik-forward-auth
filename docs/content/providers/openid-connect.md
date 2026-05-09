@@ -20,4 +20,33 @@ The OpenID Connect provider supports additional configuration options that can b
 - [`tlsCACertificatePEM`](/advanced/all-configuration-options#config-opt-portals.$.providers.$-openidconnect-portals-$-providers-$-openidconnect-tlscacertificatepem): PEM-encoded CA certificate used when communicating with the Identity Provider.
 - [`tlsCACertificatepath`](/advanced/all-configuration-options#config-opt-portals.$.providers.$-openidconnect-portals-$-providers-$-openidconnect-tlscacertificatepath): Path to a file containing the PEM-encoded CA certificate used when communicating with the Identity Provider.
 
-[Full list of configuration options for OpenID Connect and example](/advanced/all-configuration-options#using-openid-connect)
+## Full configuration example
+
+The following is a complete `tfa-config.yaml` example using a generic OpenID Connect provider.
+
+```yaml
+# tfa-config.yaml
+server:
+  # Domain(s) served by Traefik Forward Auth
+  # `domain` is the cookie domain (the domain where the app is reachable, or a parent domain)
+  # `authHost` is the public hostname of Traefik Forward Auth itself (omit it when using "sub-path" mode)
+  domains:
+    - domain: "example.com"
+      authHost: "auth.example.com"
+
+portals:
+  - name: "main"
+    providers:
+      # Configure authentication with OpenID Connect
+      - openIDConnect:
+          tokenIssuer: "https://tenant.identityprovider.com"
+          clientID: "your-client-id"
+          clientSecret: "your-client-secret"
+
+          # Optional: TLS configuration for communicating with the Identity Provider
+          #tlsInsecureSkipVerify: false
+          #tlsCACertificatePEM: ""
+          #tlsCACertificatePath: ""
+```
+
+[Full list of configuration options for OpenID Connect](/advanced/all-configuration-options#using-openid-connect)
