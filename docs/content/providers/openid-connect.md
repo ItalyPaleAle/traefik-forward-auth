@@ -22,7 +22,7 @@ The OpenID Connect provider supports additional configuration options that can b
 
 ## Full configuration example
 
-The following is a complete `tfa-config.yaml` example using a generic OpenID Connect provider. Required options are populated, while optional ones (including the additional TLS configuration options) are commented out.
+The following is a complete `tfa-config.yaml` example using a generic OpenID Connect provider.
 
 ```yaml
 # tfa-config.yaml
@@ -37,17 +37,16 @@ server:
 portals:
   - name: "main"
     providers:
-      - # Configure authentication with OpenID Connect
-        openIDConnect:
+      # Configure authentication with OpenID Connect
+      - openIDConnect:
           tokenIssuer: "https://tenant.identityprovider.com"
           clientID: "your-client-id"
           clientSecret: "your-client-secret"
-          # Alternative to `clientSecret`: load the secret from a file
-          # clientSecretFile: "/var/run/secrets/traefik-forward-auth/openidconnect/client-secret"
+
           # Optional: TLS configuration for communicating with the Identity Provider
-          # tlsInsecureSkipVerify: false
-          # tlsCACertificatePEM: ""
-          # tlsCACertificatePath: ""
+          #tlsInsecureSkipVerify: false
+          #tlsCACertificatePEM: ""
+          #tlsCACertificatePath: ""
 ```
 
-[Full list of configuration options for OpenID Connect and example](/advanced/all-configuration-options#using-openid-connect)
+[Full list of configuration options for OpenID Connect](/advanced/all-configuration-options#using-openid-connect)

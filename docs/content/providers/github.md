@@ -11,7 +11,7 @@ Configure a provider with these options in the `github` property:
 
 ## Full configuration example
 
-The following is a complete `tfa-config.yaml` example using GitHub as the authentication provider. Required options are populated, while optional ones are commented out.
+The following is a complete `tfa-config.yaml` example using GitHub as the authentication provider.
 
 ```yaml
 # tfa-config.yaml
@@ -26,12 +26,10 @@ server:
 portals:
   - name: "main"
     providers:
-      - # Configure authentication with GitHub
-        github:
+      # Configure authentication with GitHub
+      - github:
           clientID: "your-client-id"
           clientSecret: "your-client-secret"
-          # Alternative to `clientSecret`: load the secret from a file
-          # clientSecretFile: "/var/run/secrets/traefik-forward-auth/github/client-secret"
 ```
 
-[Full list of configuration options for GitHub and example](/advanced/all-configuration-options#using-github)
+[Full list of configuration options for GitHub](/advanced/all-configuration-options#using-github)

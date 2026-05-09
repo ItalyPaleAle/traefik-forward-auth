@@ -11,8 +11,7 @@ Configure a provider with these options in the `google` property:
 
 ## Full configuration example
 
-The following is a complete `tfa-config.yaml` example using Google as the authentication provider. Required options are populated, while optional ones are commented out.
-
+The following is a complete `tfa-config.yaml` example using Google as the authentication provider.
 ```yaml
 # tfa-config.yaml
 server:
@@ -26,12 +25,10 @@ server:
 portals:
   - name: "main"
     providers:
-      - # Configure authentication with Google
-        google:
+      # Configure authentication with Google
+      - google:
           clientID: "your-google-client-id.apps.googleusercontent.com"
           clientSecret: "your-client-secret"
-          # Alternative to `clientSecret`: load the secret from a file
-          # clientSecretFile: "/var/run/secrets/traefik-forward-auth/google/client-secret"
 ```
 
-[Full list of configuration options for Google and example](/advanced/all-configuration-options#using-google)
+[Full list of configuration options for Google](/advanced/all-configuration-options#using-google)

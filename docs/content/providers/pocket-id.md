@@ -19,7 +19,7 @@ The Pocket ID provider supports additional configuration options that can be hel
 
 ## Full configuration example
 
-The following is a complete `tfa-config.yaml` example using Pocket ID as the authentication provider. Required options are populated, while optional ones (including the recommended `clientAssertion` for Federated Client Credentials and the additional TLS configuration options) are commented out.
+The following is a complete `tfa-config.yaml` example using Pocket ID as the authentication provider.
 
 ```yaml
 # tfa-config.yaml
@@ -34,23 +34,23 @@ server:
 portals:
   - name: "main"
     providers:
-      - # Configure authentication with Pocket ID
-        pocketID:
+      # Configure authentication with Pocket ID
+      - pocketID:
           endpoint: "https://pocketidid.example.com"
           clientID: "your-client-id"
           clientSecret: "your-client-secret"
-          # Alternative to `clientSecret`: load the secret from a file
-          # clientSecretFile: "/var/run/secrets/traefik-forward-auth/pocketid/client-secret"
+
           # Recommended on supported platforms: use a Federated Client Credential instead of `clientSecret`
           # See "Using Federated Client Credentials" below for details
-          # clientAssertion: "AzureManagedIdentity"
+          #clientAssertion: "AzureManagedIdentity"
+
           # Optional: TLS configuration for communicating with Pocket ID
-          # tlsInsecureSkipVerify: false
-          # tlsCACertificatePEM: ""
-          # tlsCACertificatePath: ""
+          #tlsInsecureSkipVerify: false
+          #tlsCACertificatePEM: ""
+          #tlsCACertificatePath: ""
 ```
 
-[Full list of configuration options for Pocket ID and example](/advanced/all-configuration-options#using-pocketID)
+[Full list of configuration options for Pocket ID](/advanced/all-configuration-options#using-pocketID)
 
 ## Using Federated Client Credentials
 

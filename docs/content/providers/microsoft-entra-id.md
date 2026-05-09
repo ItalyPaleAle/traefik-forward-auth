@@ -12,7 +12,7 @@ Configure a provider with these options in the `microsoftEntraID` property:
 
 ## Full configuration example
 
-The following is a complete `tfa-config.yaml` example using Microsoft Entra ID as the authentication provider. Required options are populated, while optional ones (including the recommended `clientAssertion` for Federated Identity Credentials) are commented out.
+The following is a complete `tfa-config.yaml` example using Microsoft Entra ID as the authentication provider.
 
 ```yaml
 # tfa-config.yaml
@@ -27,19 +27,18 @@ server:
 portals:
   - name: "main"
     providers:
-      - # Configure authentication with Microsoft Entra ID
-        microsoftEntraID:
+      # Configure authentication with Microsoft Entra ID
+      - microsoftEntraID:
           tenantID: "your-tenant-id"
           clientID: "your-client-id"
           clientSecret: "your-client-secret"
-          # Alternative to `clientSecret`: load the secret from a file
-          # clientSecretFile: "/var/run/secrets/traefik-forward-auth/microsoft-entra-id/client-secret"
+
           # Recommended on supported platforms: use a Federated Identity Credential instead of `clientSecret`
           # See "Using Federated Identity Credentials" below for details
-          # clientAssertion: "AzureManagedIdentity"
+          #clientAssertion: "AzureManagedIdentity"
 ```
 
-[Full list of configuration options for Microsoft Entra ID and example](/advanced/all-configuration-options#using-microsoftentraid)
+[Full list of configuration options for Microsoft Entra ID](/advanced/all-configuration-options#using-microsoftentraid)
 
 ## Using Federated Identity Credentials
 
