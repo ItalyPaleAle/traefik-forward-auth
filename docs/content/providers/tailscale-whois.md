@@ -37,7 +37,9 @@ The session tokens issued by Traefik Forward Auth will then include a claim `{"i
 
 ## Full configuration example
 
-The following is a complete `tfa-config.yaml` example using Tailscale Whois as the authentication provider. The `tailscaleWhois` provider has no required options, so an empty object like `tailscaleWhois: {}` can be sufficient.
+The following is a complete `tfa-config.yaml` example using Tailscale Whois as the authentication provider.
+
+The `tailscaleWhois` provider has no required options, so an empty object like `tailscaleWhois: {}` is sufficient in many cases.
 
 ```yaml
 # tfa-config.yaml
