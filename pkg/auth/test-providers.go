@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
+	"strings"
 	"time"
 
 	"github.com/italypaleale/traefik-forward-auth/pkg/user"
@@ -53,6 +54,7 @@ func (a *TestProviderOAuth2) OAuth2AuthorizeURL(state string, redirectURL string
 }
 
 // OAuth2ExchangeCode uses as "state" the name of a user template, as supported by getTestUserProfile
+// When called from the live route handler the state is in the runtime format "provider~stateCookieID~nonce" (three ~-separated parts); in that case we fall back to a default profile so end-to-end callback tests can drive the full flow without controlling the state value
 func (a *TestProviderOAuth2) OAuth2ExchangeCode(ctx context.Context, state string, code string, redirectURL string) (OAuth2AccessToken, error) {
 	if code == "" {
 		return OAuth2AccessToken{}, errors.New("parameter code is required")
@@ -62,9 +64,14 @@ func (a *TestProviderOAuth2) OAuth2ExchangeCode(ctx context.Context, state strin
 		return OAuth2AccessToken{}, errors.New("unauthorized")
 	}
 
+	idToken := state
+	if strings.Count(state, "~") == 2 {
+		idToken = "test-user-1"
+	}
+
 	return OAuth2AccessToken{
 		Provider: a.GetProviderType(),
-		IDToken:  state, // Name of the user template
+		IDToken:  idToken, // Name of the user template
 		Expires:  time.Now().Add(time.Hour),
 		Scopes:   []string{"test"},
 	}, nil

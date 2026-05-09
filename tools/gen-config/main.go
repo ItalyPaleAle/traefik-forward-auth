@@ -223,6 +223,10 @@ func processStruct(structDef structDef, yamlPrefix string, parentYamlPath string
 		case fullYamlPath == "portals.$.headers" && sectionName == "portals":
 			processHeadersField(outYAML, outMD, yamlPrefix)
 
+		// Handle the special "server.domains" field
+		case fullYamlPath == "server.domains" && sectionName == "":
+			processServerDomainsField(outYAML, outMD, yamlPrefix)
+
 		// Handle regular (non-struct) fields
 		case !isStructField:
 			processField(field, fullYamlPath, sectionName, outYAML, outMD, yamlPrefix, skipComments)
@@ -436,6 +440,25 @@ func processProvidersField(outYAML io.Writer, outMD io.Writer, yamlPrefix string
 
 		printMarkdownProviderExample(def.Name, outMD)
 	}
+}
+
+// processServerDomainsField handles the special "server.domains" field
+func processServerDomainsField(outYAML io.Writer, outMD io.Writer, yamlPrefix string) {
+	y := func(format string, a ...any) { fmt.Fprintf(outYAML, yamlPrefix+format, a...) }
+	y("## server.domains (list of domain configurations)\n")
+	y("## Description:\n")
+	y("##   Domains served by Traefik Forward Auth\n")
+	y("##   Each entry sets the cookie domain for matching requests, and optionally the public hostname where Traefik Forward Auth is reachable for that domain (`authHost`)\n")
+	y("##   `authHost` is only required when running in \"dedicated sub-domain\" mode (where Traefik Forward Auth is served on a different host than the apps); in \"sub-path\" mode the request host is used and `authHost` can be omitted\n")
+	y("##   `authHost` must be the same as, or a sub-domain of, `domain``\n")
+	y("##   If omitted, it defaults to `domain`\n")
+	y("## Recommended\n")
+	y("#domains:\n")
+	y("#  -\n")
+
+	fmt.Fprintln(outMD, `| <a id="config-opt-server-domains"></a>`+"`server.domains`"+`| list of domain configurations | Domains served by Traefik Forward Auth<br>Each entry sets the cookie domain for matching requests, and optionally the public hostname where Traefik Forward Auth is reachable for that domain (`+"`authHost`"+`)<br>`+"`authHost`"+` is only required when running in "dedicated sub-domain" mode; in "sub-path" mode the request host is used and `+"`authHost`"+` can be omitted<br>`+"`authHost`"+` must be the same as, or a sub-domain of, `+"`domain`"+`.<br>If omitted, it defaults to `+"`domain`"+` | Recommended |`)
+
+	processStruct(structTypes["ConfigServerDomain"], yamlPrefix+"#    ", "server.domains.$", "server.domains", outYAML, outMD, false)
 }
 
 // processHeadersField handles the special "headers" field

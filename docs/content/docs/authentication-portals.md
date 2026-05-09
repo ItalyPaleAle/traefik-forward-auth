@@ -20,10 +20,6 @@ In Traefik Forward Auth's configuration file (`tfa-config.yaml`), you need to sp
 
 ```yaml
 # tfa-config.yaml
-server:
-  # Hostname where the application can be reached at externally
-  hostname: "auth.example.com"
-
 portals:
   - name: "main"
     providers:

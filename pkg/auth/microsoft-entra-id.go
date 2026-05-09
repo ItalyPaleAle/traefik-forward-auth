@@ -42,10 +42,6 @@ type NewMicrosoftEntraIDOptions struct {
 	// Key for generating PKCE code verifiers
 	// Enables the use of PKCE if non-empty
 	PKCEKey []byte
-	// Server's hostname
-	Hostname string
-	// Server's base path (could be empty)
-	BasePath string
 }
 
 func (o NewMicrosoftEntraIDOptions) ToNewOpenIDConnectOptions() NewOpenIDConnectOptions {
@@ -57,8 +53,6 @@ func (o NewMicrosoftEntraIDOptions) ToNewOpenIDConnectOptions() NewOpenIDConnect
 		Scopes:          o.Scopes,
 		TokenIssuer:     "https://login.microsoftonline.com/" + o.TenantID + "/v2.0",
 		PKCEKey:         o.PKCEKey,
-		Hostname:        o.Hostname,
-		BasePath:        o.BasePath,
 
 		// Profile modifier functions that add these claims:
 		// - id: uses "oid" instead of "sub"

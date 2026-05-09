@@ -91,8 +91,6 @@ func (p *ProviderConfig_MicrosoftEntraID) GetAuthProvider(ctx context.Context) (
 		RequestTimeout:  p.RequestTimeout,
 		Scopes:          p.Scopes,
 		PKCEKey:         p.config.internal.pkceKey,
-		Hostname:        p.config.Server.Hostname,
-		BasePath:        p.config.Server.BasePath,
 	}
 
 	// Only load client secret from file when not using client assertions and when a client secret has not already been provided directly
