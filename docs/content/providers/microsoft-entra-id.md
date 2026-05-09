@@ -10,6 +10,35 @@ Configure a provider with these options in the `microsoftEntraID` property:
 - [`clientID`](/advanced/all-configuration-options#config-opt-portals.$.providers.$-microsoftentraid-portals-$-providers-$-microsoftentraid-clientid): Client ID of your application
 - [`clientSecret`](/advanced/all-configuration-options#config-opt-portals.$.providers.$-microsoftentraid-portals-$-providers-$-microsoftentraid-clientsecret): Client secret of your application
 
+## Full configuration example
+
+The following is a complete `tfa-config.yaml` example using Microsoft Entra ID as the authentication provider. Required options are populated, while optional ones (including the recommended `clientAssertion` for Federated Identity Credentials) are commented out.
+
+```yaml
+# tfa-config.yaml
+server:
+  # Domain(s) served by Traefik Forward Auth
+  # `domain` is the cookie domain (the domain where the app is reachable, or a parent domain)
+  # `authHost` is the public hostname of Traefik Forward Auth itself (omit it when using "sub-path" mode)
+  domains:
+    - domain: "example.com"
+      authHost: "auth.example.com"
+
+portals:
+  - name: "main"
+    providers:
+      - # Configure authentication with Microsoft Entra ID
+        microsoftEntraID:
+          tenantID: "your-tenant-id"
+          clientID: "your-client-id"
+          clientSecret: "your-client-secret"
+          # Alternative to `clientSecret`: load the secret from a file
+          # clientSecretFile: "/var/run/secrets/traefik-forward-auth/microsoft-entra-id/client-secret"
+          # Recommended on supported platforms: use a Federated Identity Credential instead of `clientSecret`
+          # See "Using Federated Identity Credentials" below for details
+          # clientAssertion: "AzureManagedIdentity"
+```
+
 [Full list of configuration options for Microsoft Entra ID and example](/advanced/all-configuration-options#using-microsoftentraid)
 
 ## Using Federated Identity Credentials
