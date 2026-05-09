@@ -29,7 +29,6 @@ func TestValidateConfig(t *testing.T) {
 				},
 			},
 		}
-		c.Server.Hostname = "localhost"
 	}))
 
 	log := slog.New(slog.DiscardHandler)
@@ -39,6 +38,151 @@ func TestValidateConfig(t *testing.T) {
 		require.NoError(t, err)
 	})
 
+	t.Run("uses server domains", func(t *testing.T) {
+		t.Cleanup(SetTestConfig(func(c *Config) {
+			c.Cookies.Domain = ""
+			c.Server.Hostname = ""
+			c.Server.Domains = []ConfigServerDomain{
+				{Domain: "example.com", AuthHost: "auth.example.com"},
+				{Domain: "example.org"},
+			}
+		}))
+
+		err := config.Validate(log)
+		require.NoError(t, err)
+		assert.Empty(t, config.Cookies.Domain)
+		assert.Empty(t, config.Server.Hostname)
+		assert.Equal(t, []ConfigServerDomain{
+			{Domain: "example.com", AuthHost: "auth.example.com"},
+			{Domain: "example.org", AuthHost: "example.org"},
+		}, config.Server.Domains)
+	})
+
+	t.Run("migrates legacy cookie domain and emits a deprecation warning", func(t *testing.T) {
+		t.Cleanup(SetTestConfig(func(c *Config) {
+			c.Cookies.Domain = "Example.Com"
+			c.Server.Hostname = ""
+			c.Server.Domains = nil
+		}))
+
+		buf := &bytes.Buffer{}
+		warnLog := slog.New(slog.NewTextHandler(buf, &slog.HandlerOptions{Level: slog.LevelWarn}))
+		err := config.Validate(warnLog)
+		require.NoError(t, err)
+		assert.Empty(t, config.Cookies.Domain)
+		assert.Equal(t, []ConfigServerDomain{
+			{Domain: "example.com", AuthHost: "example.com"},
+		}, config.Server.Domains)
+		out := buf.String()
+		assert.Contains(t, out, "level=WARN")
+		assert.Contains(t, out, "'cookies.domain' is deprecated")
+		assert.Contains(t, out, "server.domains")
+	})
+
+	t.Run("migrates legacy cookie domain with hostname as auth host", func(t *testing.T) {
+		t.Cleanup(SetTestConfig(func(c *Config) {
+			c.Cookies.Domain = "example.com"
+			c.Server.Hostname = "Auth.Example.Com"
+			c.Server.Domains = nil
+		}))
+
+		err := config.Validate(log)
+		require.NoError(t, err)
+		assert.Empty(t, config.Cookies.Domain)
+		assert.Empty(t, config.Server.Hostname)
+		assert.Equal(t, []ConfigServerDomain{
+			{Domain: "example.com", AuthHost: "auth.example.com"},
+		}, config.Server.Domains)
+	})
+
+	t.Run("ignores hostname without legacy cookie domain", func(t *testing.T) {
+		t.Cleanup(SetTestConfig(func(c *Config) {
+			c.Cookies.Domain = ""
+			c.Server.Hostname = "auth.example.com"
+			c.Server.Domains = []ConfigServerDomain{{Domain: "example.com"}}
+		}))
+
+		err := config.Validate(log)
+		require.NoError(t, err)
+		assert.Empty(t, config.Server.Hostname)
+		assert.Equal(t, []ConfigServerDomain{
+			{Domain: "example.com", AuthHost: "example.com"},
+		}, config.Server.Domains)
+	})
+
+	t.Run("normalizes server domains", func(t *testing.T) {
+		t.Cleanup(SetTestConfig(func(c *Config) {
+			c.Cookies.Domain = ""
+			c.Server.Hostname = ""
+			c.Server.Domains = []ConfigServerDomain{
+				{Domain: "Example.Com", AuthHost: "Auth.Example.Com."},
+				{Domain: "Apps.Example.Com."},
+			}
+		}))
+
+		err := config.Validate(log)
+		require.NoError(t, err)
+		assert.Equal(t, []ConfigServerDomain{
+			{Domain: "example.com", AuthHost: "auth.example.com"},
+			{Domain: "apps.example.com", AuthHost: "apps.example.com"},
+		}, config.Server.Domains)
+	})
+
+	t.Run("dedupes server domains by domain", func(t *testing.T) {
+		t.Cleanup(SetTestConfig(func(c *Config) {
+			c.Cookies.Domain = ""
+			c.Server.Hostname = ""
+			c.Server.Domains = []ConfigServerDomain{
+				{Domain: "example.com", AuthHost: "auth.example.com"},
+				{Domain: "Example.Com"},
+			}
+		}))
+
+		err := config.Validate(log)
+		require.NoError(t, err)
+		assert.Equal(t, []ConfigServerDomain{
+			{Domain: "example.com", AuthHost: "auth.example.com"},
+		}, config.Server.Domains)
+	})
+
+	t.Run("fails when authHost is not a sub-domain of domain", func(t *testing.T) {
+		t.Cleanup(SetTestConfig(func(c *Config) {
+			c.Cookies.Domain = ""
+			c.Server.Hostname = ""
+			c.Server.Domains = []ConfigServerDomain{
+				{Domain: "example.com", AuthHost: "auth.example.org"},
+			}
+		}))
+
+		err := config.Validate(log)
+		require.Error(t, err)
+		require.ErrorContains(t, err, "authHost")
+		require.ErrorContains(t, err, "sub-domain")
+	})
+
+	t.Run("fails when legacy and new domains are both set", func(t *testing.T) {
+		t.Cleanup(SetTestConfig(func(c *Config) {
+			c.Cookies.Domain = "example.com"
+			c.Server.Domains = []ConfigServerDomain{{Domain: "example.org"}}
+		}))
+
+		err := config.Validate(log)
+		require.Error(t, err)
+		require.ErrorContains(t, err, "cookies.domain")
+		require.ErrorContains(t, err, "server.domains")
+	})
+
+	t.Run("fails when domain entry is missing domain", func(t *testing.T) {
+		t.Cleanup(SetTestConfig(func(c *Config) {
+			c.Cookies.Domain = ""
+			c.Server.Domains = []ConfigServerDomain{{AuthHost: "auth.example.com"}}
+		}))
+
+		err := config.Validate(log)
+		require.Error(t, err)
+		require.ErrorContains(t, err, "server.domains[0].domain")
+	})
+
 	t.Run("fails without a portal", func(t *testing.T) {
 		t.Cleanup(SetTestConfig(func(c *Config) {
 			c.Portals = []ConfigPortal{}
@@ -46,17 +190,7 @@ func TestValidateConfig(t *testing.T) {
 
 		err := config.Validate(log)
 		require.Error(t, err)
-		assert.ErrorContains(t, err, "at least one portal must be defined")
-	})
-
-	t.Run("fails without hostname", func(t *testing.T) {
-		t.Cleanup(SetTestConfig(func(c *Config) {
-			c.Server.Hostname = ""
-		}))
-
-		err := config.Validate(log)
-		require.Error(t, err)
-		assert.ErrorContains(t, err, "'server.hostname' is required")
+		require.ErrorContains(t, err, "at least one portal must be defined")
 	})
 
 	t.Run("fails when portal has invalid name", func(t *testing.T) {

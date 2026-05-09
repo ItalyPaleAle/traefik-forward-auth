@@ -50,7 +50,7 @@ In order to use Traefik Forward Auth, it needs to be reachable through a Traefik
    In this scenario you do not need a dedicated sub-domain for Traefik Forward Auth, which is instead exposed in a sub-path. For example, if your app is reachable at `https://example.com`, Traefik is configured to route requests to Traefik Forward Auth at `https://example.com/auth`.
 
 > Although Traefik Forward Auth doesn't need to be reachable from the public Internet, your clients must be able to have a route to it (for example, within the LAN or using a VPN)  
-> Additionally, many OAuth2 identity providers (including Google and Microsoft Entra ID) require the callback URL to be served via HTTPS/TLS (even if using a self-signed certificate).
+> Additionally, most OAuth2 identity providers (including Google and Microsoft Entra ID) require the callback URL to be served via HTTPS/TLS (even if using a self-signed certificate).
 
 {{< tabs >}}
 {{< tab title="Using a dedicated sub-domain" >}}
@@ -67,10 +67,10 @@ In this example:
 To configure Traefik and Traefik Forward Auth in this scenario:
 
 1. If using a provider based on OAuth2 (including Google, Microsoft Entra ID, GitHub, and OpenID Connect providers), configure your authentication callback to: `https://auth.example.com/portals/main/oauth2/callback`
-2. Configure Traefik Forward Auth with:
+2. Configure Traefik Forward Auth with one entry under [`server.domains`](/advanced/all-configuration-options#config-opt-server-domains), where:
 
-   - [`server.hostname`](/advanced/all-configuration-options#config-opt-server-hostname): `auth.example.com`
-   - [`cookies.domain`](/advanced/all-configuration-options#config-opt-cookies-domain): `example.com`
+   - `domain` is the cookie domain, e.g. `example.com` (or whatever parent domain covers all your apps)
+   - `authHost` is the public hostname of Traefik Forward Auth itself (`auth.example.com` in this example). This is required in "dedicated sub-domain" mode so redirects and OAuth2 callbacks target the correct host.
 
 3. Create a Traefik middleware of type `forwardauth` with:
 
@@ -137,12 +137,12 @@ Example of the minimum configuration for Traefik Forward Auth, as `tfa-config.ya
 ```yaml
 # tfa-config.yaml
 server:
-  # Hostname where the application can be reached at externally
-  hostname: "auth.example.com"
-
-cookies:
-  # Domain for setting cookies
-  domain: "example.com"
+  # Domain(s) served by Traefik Forward Auth
+  # `domain` is the cookie domain (the domain where the app is reachable, or a parent domain)
+  # `authHost` is the public hostname of Traefik Forward Auth itself
+  domains:
+    - domain: "example.com"
+      authHost: "auth.example.com"
 
 portals:
   - name: "main"
@@ -172,8 +172,7 @@ To configure Traefik and Traefik Forward Auth in this scenario:
 1. If using a provider based on OAuth2 (including GitHub, Google, Microsoft Entra ID, and OpenID Connect providers), configure your authentication callback to: `https://example.com/auth/portals/main/oauth2/callback`
 2. Configure Traefik Forward Auth with:
 
-   - [`hostname`](/advanced/all-configuration-options#config-opt-hostname) (env: `TFA_HOSTNAME`): `example.com`
-   - [`basePath`](/advanced/all-configuration-options#config-opt-basepath) (env: `TFA_BASEPATH`): `/auth`
+   - [`server.basePath`](/advanced/all-configuration-options#config-opt-server-basepath) (env: `TFA_SERVER_BASEPATH`): `/auth`
 
 3. Create a Traefik middleware of type `forwardauth` with:
 
@@ -240,14 +239,14 @@ Example of the minimum configuration for Traefik Forward Auth, as `tfa-config.ya
 ```yaml
 # tfa-config.yaml
 server:
-  # Hostname where the application can be reached at externally
-  hostname: "auth.example.com"
   # Base path
   basePath: "/auth"
 
-cookies:
-  # Domain for setting cookies
-  domain: "example.com"
+  # Domain(s) served by Traefik Forward Auth
+  # `domain` is the cookie domain (the domain where the app is reachable, or a parent domain)
+  # `authHost` is generally omitted in "sub-path" mode, since Traefik Forward Auth shares each app's host
+  domains:
+    - domain: "example.com"
 
 portals:
   - name: "main"

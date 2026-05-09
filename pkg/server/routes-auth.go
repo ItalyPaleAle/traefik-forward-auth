@@ -354,7 +354,7 @@ func (s *Server) RouteGetOAuth2Callback(c *gin.Context) {
 	}
 
 	// Set the profile in the cookie
-	err = s.setSessionCookie(c, portal.Name, profile, portal.SessionLifetime)
+	err = s.setSessionCookieForReturnURL(c, portal.Name, profile, portal.SessionLifetime, content.returnURL)
 	if err != nil {
 		AbortWithError(c, fmt.Errorf("failed to set session cookie: %w", err))
 		return
@@ -385,7 +385,7 @@ func (s *Server) handleGetAuthProviderSeamlessAuth(c *gin.Context, portal Portal
 	s.deleteStateCookies(c, portal.Name)
 
 	// Set the profile in the cookie
-	err = s.setSessionCookie(c, portal.Name, profile, portal.SessionLifetime)
+	err = s.setSessionCookieForReturnURL(c, portal.Name, profile, portal.SessionLifetime, returnURL)
 	if err != nil {
 		AbortWithError(c, fmt.Errorf("failed to set session cookie: %w", err))
 		return
@@ -484,10 +484,17 @@ func getOAuth2RedirectURI(c *gin.Context, portal string) string {
 }
 
 // Get the URI for a portal
+// In "dedicated sub-domain" mode the matched domain has a configured `authHost` that differs from the request host (Traefik Forward Auth lives at e.g. auth.example.com while apps live at app.example.com); in "sub-path" mode the auth host equals the request host
 func getPortalURI(c *gin.Context, portal string) string {
 	cfg := config.Get()
 
-	baseURI := getForwardedProto(c) + "://" + cfg.Server.Hostname + cfg.Server.BasePath
+	host := requestHost(c)
+	_, authHost, ok := cfg.Server.DomainForHost(host)
+	if ok && authHost != "" {
+		host = authHost
+	}
+
+	baseURI := getForwardedProto(c) + "://" + host + cfg.Server.BasePath
 
 	// If the user is visiting the default portal and they're using the "short" format, we omit the portal name in the URL
 	if c.Param("portal") == "" && cfg.DefaultPortal == portal {

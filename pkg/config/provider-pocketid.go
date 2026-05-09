@@ -110,8 +110,6 @@ func (p *ProviderConfig_PocketID) GetAuthProvider(ctx context.Context) (auth.Pro
 		ClientAssertion:  p.ClientAssertion,
 		TLSSkipVerify:    p.TLSInsecureSkipVerify,
 		TLSCACertificate: tlsCACertificate,
-		Hostname:         p.config.Server.Hostname,
-		BasePath:         p.config.Server.BasePath,
 	}
 
 	// Only load client secret from file when not using client assertions and when a client secret has not already been provided directly

@@ -65,11 +65,17 @@ type Config struct {
 }
 
 type ConfigServer struct {
-	// The hostname the application is reached at.
-	// This is used for setting the "redirect_uri" field for OAuth2 callbacks.
-	// +required
-	// +example "auth.example.com"
-	Hostname string `yaml:"hostname"`
+	// Hostname for Traefik Forward Auth itself
+	// This is deprecated: it is only honored as a fallback `authHost` when migrating from the legacy `cookies.domain` option, and is ignored otherwise
+	// Use `server.domains[].authHost` instead to indicate the public hostname of Traefik Forward Auth for a given domain
+	Hostname string `yaml:"hostname" deprecated:"true"`
+
+	// Domains served by Traefik Forward Auth
+	// Each entry sets the cookie domain for matching requests, and optionally the public hostname where Traefik Forward Auth is reachable for that domain (`authHost`)
+	// `authHost` is only required when running in "dedicated sub-domain" mode (where Traefik Forward Auth is served on a different host than the apps); in "sub-path" mode the request host is used and `authHost` can be omitted
+	// `authHost` must be the same as, or a sub-domain of, `domain`. If omitted, it defaults to `domain`
+	// +recommended
+	Domains []ConfigServerDomain `yaml:"domains"`
 
 	// Port to bind to.
 	// +default 4181
@@ -126,13 +132,26 @@ type ConfigServer struct {
 	Favicon string `yaml:"favicon"`
 }
 
-type ConfigCookies struct {
-	// Domain name for setting cookies.
-	// If empty, this is set to the value of the `hostname` property.
-	// This value must either be the same as the `hostname` property, or the hostname must be a sub-domain of the cookie domain name.
-	// +recommended
-	// +example "auth.example.com"
+// ConfigServerDomain configures a domain served by Traefik Forward Auth
+type ConfigServerDomain struct {
+	// Domain name used when setting cookies, and matched against the request hostname
+	// +required
+	// +example "example.com"
 	Domain string `yaml:"domain"`
+
+	// Public hostname where Traefik Forward Auth is reachable for this domain
+	// Used for OAuth2 callback URLs and redirects to the sign-in page when running in "dedicated sub-domain" mode
+	// Must be the same as, or a sub-domain of, `domain`
+	// If omitted, defaults to the value of `domain` (which is appropriate when running in "sub-path" mode)
+	// +example "auth.example.com"
+	AuthHost string `yaml:"authHost"`
+}
+
+type ConfigCookies struct {
+	// Domain name for setting cookies
+	// This is deprecated: use `server.domains` instead
+	// +example "auth.example.com"
+	Domain string `yaml:"domain" deprecated:"true"`
 
 	// Prefix for the cookies used to store the sessions.
 	// +default "tf_sess"
@@ -146,6 +165,76 @@ type ConfigCookies struct {
 
 func (c ConfigCookies) CookieName(portalName string) string {
 	return c.NamePrefix + "_" + portalName
+}
+
+// DomainForHost returns the cookie domain and the public auth host that best match `host`
+// `cookieDomain` is the value to use for the Set-Cookie Domain attribute (empty for a host-only cookie when host is an IP)
+// `authHost` is the public hostname of Traefik Forward Auth for that domain, used when building OAuth2 callbacks and sign-in redirects
+// `ok` is false when none of the configured domains match the request host
+func (s ConfigServer) DomainForHost(host string) (cookieDomain string, authHost string, ok bool) {
+	// Normalize the request host so callers can pass either Host or X-Forwarded-Host values
+	host = NormalizeHostname(host)
+	if host == "" {
+		return "", "", false
+	}
+
+	// Browsers do not accept a cookie Domain attribute set to an IP address
+	// Returning an empty cookie domain tells the caller to set a host-only cookie instead
+	// The auth host falls back to the request host so redirects target the same address
+	if validators.IsIP(host) {
+		return "", host, true
+	}
+
+	// With no configured domains, trust the request host and set a host-scoped cookie
+	// This is the "sub-path" mode where Traefik Forward Auth shares each app's host
+	if len(s.Domains) == 0 {
+		return host, host, true
+	}
+
+	// Multiple configured domains can overlap, so prefer the longest match
+	// This makes apps.example.com win over example.com for foo.apps.example.com
+	bestIdx := -1
+	for i, d := range s.Domains {
+		if !utils.IsSubDomain(d.Domain, host) {
+			continue
+		}
+
+		if bestIdx < 0 || len(d.Domain) > len(s.Domains[bestIdx].Domain) {
+			bestIdx = i
+		}
+	}
+
+	// If none of the configured domains match, the request should not receive auth cookies
+	if bestIdx < 0 {
+		return "", "", false
+	}
+
+	return s.Domains[bestIdx].Domain, s.Domains[bestIdx].AuthHost, true
+}
+
+// NormalizeHostname normalizes a hostname or host:port value for comparisons
+func NormalizeHostname(host string) string {
+	// Remove incidental whitespace and casing differences before comparing hostnames
+	host = strings.TrimSpace(strings.ToLower(host))
+	if host == "" {
+		return ""
+	}
+
+	// Accept Host header style values that include a port
+	// SplitHostPort returns the host without IPv6 brackets
+	splitHost, splitPort, err := net.SplitHostPort(host)
+	switch {
+	case err == nil && splitHost != "" && splitPort != "":
+		host = splitHost
+	case len(host) >= 2 && host[0] == '[' && host[len(host)-1] == ']':
+		// Bracketed IPv6 literal without a port: strip both brackets only when balanced
+		host = host[1 : len(host)-1]
+	}
+
+	// Treat fully-qualified DNS names and ordinary hostnames as equivalent for matching
+	host = strings.TrimSuffix(host, ".")
+
+	return host
 }
 
 type ConfigLogs struct {
@@ -178,7 +267,7 @@ type ConfigTokens struct {
 	SigningKeyFile string `yaml:"signingKeyFile"`
 
 	// Value for the audience claim to expect in session tokens used by Traefik Forward Auth.
-	// Defaults to a value based on `cookies.domain` and `server.basePath` which is appropriate for the majority of cases. Most users should rely on the default value.
+	// Defaults to a value based on the current environment, which is appropriate for the majority of cases. Most users should rely on the default value.
 	SessionTokenAudience string `yaml:"sessionTokenAudience"`
 }
 
@@ -299,11 +388,17 @@ func (c *Config) GetInstanceID() string {
 }
 
 // GetTokenAudienceClaim returns the value of the "aud" claim for the session token
-func (c *Config) GetTokenAudienceClaim() string {
+func (c *Config) GetTokenAudienceClaim(cookieDomain string) string {
 	if c.Tokens.SessionTokenAudience != "" {
 		return c.Tokens.SessionTokenAudience
 	}
-	return c.Server.Hostname + c.Server.BasePath
+
+	if cookieDomain == "" {
+		// Could be empty in some test cases
+		return "traefik-forward-auth" + c.Server.BasePath
+	}
+
+	return cookieDomain + c.Server.BasePath
 }
 
 // Process the configuration
@@ -325,44 +420,17 @@ func (c *Config) Process(log *slog.Logger) (err error) {
 
 // Validate the configuration and performs some sanitization
 func (c *Config) Validate(logger *slog.Logger) error {
-	// Hostname can have an optional port
-	if c.Server.Hostname == "" {
-		return errors.New("property 'server.hostname' is required and must be a valid hostname or IP")
+	// Migrate the deprecated cookies.domain into the new server.domains structure
+	// server.hostname is also deprecated and only honored as the auth host when migrating from cookies.domain
+	err := c.migrateLegacyDomainConfig(logger)
+	if err != nil {
+		return err
 	}
 
-	host, port, err := net.SplitHostPort(c.Server.Hostname)
-	if err == nil && host != "" && port != "" {
-		isIP := validators.IsIP(c.Cookies.Domain)
-		switch {
-		case c.Cookies.Domain == "":
-			c.Cookies.Domain = host
-			if validators.IsIP(host) {
-				// If Cookies.Domain is an IP, we must make it empty
-				c.Cookies.Domain = ""
-			}
-		case !validators.IsHostname(c.Cookies.Domain) && !isIP:
-			return errors.New("property 'cookies.domain' is invalid: must be a valid hostname or IP")
-		case !isIP && !utils.IsSubDomain(c.Cookies.Domain, host):
-			return errors.New("property 'server.hostname' must be a sub-domain of, or equal to, 'cookies.domain'")
-		}
-	} else {
-		if !validators.IsHostname(c.Server.Hostname) && !validators.IsIP(c.Server.Hostname) {
-			return errors.New("property 'server.hostname' is required and must be a valid hostname or IP")
-		}
-
-		isIP := validators.IsIP(c.Cookies.Domain)
-		switch {
-		case c.Cookies.Domain == "":
-			c.Cookies.Domain = c.Server.Hostname
-			if validators.IsIP(c.Server.Hostname) {
-				// If the Cookies.Domain is an IP, we must make it empty
-				c.Cookies.Domain = ""
-			}
-		case !validators.IsHostname(c.Cookies.Domain) && !isIP:
-			return errors.New("property 'cookies.domain' is invalid: must be a valid hostname or IP")
-		case !isIP && !utils.IsSubDomain(c.Cookies.Domain, c.Server.Hostname):
-			return errors.New("property 'server.hostname' must be a sub-domain of, or equal to, 'cookies.domain'")
-		}
+	// Validate, normalize and dedupe server.domains
+	err = c.validateServerDomains()
+	if err != nil {
+		return err
 	}
 
 	// Base path
@@ -384,7 +452,7 @@ func (c *Config) Validate(logger *slog.Logger) error {
 	}
 	names := make(map[string]struct{}, len(c.Portals))
 	for i := range c.Portals {
-		err = c.Portals[i].Parse(c)
+		err := c.Portals[i].Parse(c)
 		if err != nil {
 			if c.Portals[i].Name == "" {
 				return fmt.Errorf("invalid portal at index %d: %w", i, err)
@@ -407,6 +475,101 @@ func (c *Config) Validate(logger *slog.Logger) error {
 		}
 	}
 
+	return nil
+}
+
+// migrateLegacyDomainConfig handles the deprecated `cookies.domain` and `server.hostname` options
+// `cookies.domain` is migrated into a single-element `server.domains` (using `server.hostname` as the auth host when set)
+// `server.hostname` outside of the legacy migration path is ignored with a warning
+func (c *Config) migrateLegacyDomainConfig(logger *slog.Logger) error {
+	c.Cookies.Domain = NormalizeHostname(c.Cookies.Domain)
+	c.Server.Hostname = NormalizeHostname(c.Server.Hostname)
+
+	switch {
+	case c.Cookies.Domain == "":
+		// Without legacy cookies.domain, server.hostname has no use and is ignored
+		if c.Server.Hostname != "" && logger != nil {
+			logger.Warn("Configuration property 'server.hostname' is deprecated and ignored unless 'cookies.domain' is also set; use 'server.domains' instead")
+		}
+		c.Server.Hostname = ""
+
+	case validators.IsIP(c.Cookies.Domain):
+		return errors.New("property 'cookies.domain' is invalid: must be a valid hostname")
+
+	case !validators.IsHostname(c.Cookies.Domain):
+		return errors.New("property 'cookies.domain' is invalid: must be a valid hostname")
+
+	case len(c.Server.Domains) > 0:
+		return errors.New("legacy property 'cookies.domain' cannot be combined with 'server.domains'; use 'server.domains' only")
+
+	default:
+		// Migrate cookies.domain (and optionally server.hostname) into a single server.domains entry
+		authHost := c.Server.Hostname
+		if authHost == "" {
+			authHost = c.Cookies.Domain
+		}
+
+		if logger != nil {
+			logger.Warn(
+				"Configuration property 'cookies.domain' is deprecated; migrate to 'server.domains' (and remove 'server.hostname' if set)",
+				slog.String("migrated_domain", c.Cookies.Domain),
+				slog.String("migrated_authHost", authHost),
+			)
+		}
+
+		c.Server.Domains = []ConfigServerDomain{{
+			Domain:   c.Cookies.Domain,
+			AuthHost: authHost,
+		}}
+		c.Cookies.Domain = ""
+		c.Server.Hostname = ""
+	}
+
+	return nil
+}
+
+// validateServerDomains validates each entry in `server.domains`, fills in default authHost values, and dedupes by domain
+func (c *Config) validateServerDomains() error {
+	if len(c.Server.Domains) == 0 {
+		return nil
+	}
+
+	seen := make(map[string]struct{}, len(c.Server.Domains))
+	out := make([]ConfigServerDomain, 0, len(c.Server.Domains))
+	for i, d := range c.Server.Domains {
+		domain := NormalizeHostname(d.Domain)
+		if domain == "" {
+			return fmt.Errorf("property 'server.domains[%d].domain' is required", i)
+		}
+		if !validators.IsHostname(domain) {
+			return fmt.Errorf("property 'server.domains[%d].domain' is invalid: must be a valid hostname", i)
+		}
+
+		// authHost defaults to the cookie domain when omitted (suitable for "sub-path" mode)
+		authHost := NormalizeHostname(d.AuthHost)
+		if authHost == "" {
+			authHost = domain
+		} else if !validators.IsHostname(authHost) {
+			return fmt.Errorf("property 'server.domains[%d].authHost' is invalid: must be a valid hostname", i)
+		}
+
+		// authHost must be the same as, or a sub-domain of, the cookie domain
+		// Otherwise the browser would not accept the cookie set on the auth host for requests to the app
+		if !utils.IsSubDomain(domain, authHost) {
+			return fmt.Errorf("property 'server.domains[%d].authHost' is invalid: must be the same as, or a sub-domain of, 'domain'", i)
+		}
+
+		// Dedupe values
+		_, dup := seen[domain]
+		if dup {
+			continue
+		}
+		seen[domain] = struct{}{}
+
+		out = append(out, ConfigServerDomain{Domain: domain, AuthHost: authHost})
+	}
+
+	c.Server.Domains = out
 	return nil
 }
 

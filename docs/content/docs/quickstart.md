@@ -62,12 +62,12 @@ The configuration file for Traefik Forward Auth `tfa-config.yaml` is:
 ```yaml
 # tfa-config.yaml
 server:
-  # Hostname where the application can be reached at externally
-  hostname: "auth.example.com"
-
-cookies:
-  # Domain for setting cookies
-  domain: "example.com"
+  # Domain(s) served by Traefik Forward Auth
+  # `domain` is the cookie domain (the domain where the app is reachable, or a parent domain)
+  # `authHost` is the public hostname of Traefik Forward Auth itself (omit it when using "sub-path" mode)
+  domains:
+    - domain: "example.com"
+      authHost: "auth.example.com"
 
 portals:
   - name: "main"
@@ -139,12 +139,12 @@ The configuration file for Traefik Forward Auth `tfa-config.yaml` is:
 ```yaml
 # tfa-config.yaml
 server:
-  # Hostname where the application can be reached at externally
-  hostname: "auth.example.com"
-
-cookies:
-  # Domain for setting cookies
-  domain: "example.com"
+  # Domain(s) served by Traefik Forward Auth
+  # `domain` is the cookie domain (the domain where the app is reachable, or a parent domain)
+  # `authHost` is the public hostname of Traefik Forward Auth itself (omit it when using "sub-path" mode)
+  domains:
+    - domain: "example.com"
+      authHost: "auth.example.com"
 
 portals:
   - name: "main"

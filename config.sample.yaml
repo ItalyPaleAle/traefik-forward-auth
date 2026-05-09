@@ -1,10 +1,27 @@
 server:
-  ## server.hostname (string)
+  ## server.domains (list of domain configurations)
   ## Description:
-  ##   The hostname the application is reached at.
-  ##   This is used for setting the "redirect_uri" field for OAuth2 callbacks.
-  ## Required
-  hostname: "auth.example.com"
+  ##   Domains served by Traefik Forward Auth
+  ##   Each entry sets the cookie domain for matching requests, and optionally the public hostname where Traefik Forward Auth is reachable for that domain (`authHost`)
+  ##   `authHost` is only required when running in "dedicated sub-domain" mode (where Traefik Forward Auth is served on a different host than the apps); in "sub-path" mode the request host is used and `authHost` can be omitted
+  ##   `authHost` must be the same as, or a sub-domain of, `domain``
+  ##   If omitted, it defaults to `domain`
+  ## Recommended
+  #domains:
+  #  -
+  #    ## server.domains.$.domain (string)
+  #    ## Description:
+  #    ##   Domain name used when setting cookies, and matched against the request hostname
+  #    ## Required
+  #    domain: "example.com"
+
+  #    ## server.domains.$.authHost (string)
+  #    ## Description:
+  #    ##   Public hostname where Traefik Forward Auth is reachable for this domain
+  #    ##   Used for OAuth2 callback URLs and redirects to the sign-in page when running in "dedicated sub-domain" mode
+  #    ##   Must be the same as, or a sub-domain of, `domain`
+  #    ##   If omitted, defaults to the value of `domain` (which is appropriate when running in "sub-path" mode)
+  #    #authHost: "auth.example.com"
 
   ## server.port (number)
   ## Description:
@@ -79,13 +96,6 @@ server:
   #favicon: ""
 
 cookies:
-  ## cookies.domain (string)
-  ## Description:
-  ##   Domain name for setting cookies.
-  ##   If empty, this is set to the value of the `hostname` property.
-  ##   This value must either be the same as the `hostname` property, or the hostname must be a sub-domain of the cookie domain name.
-  #domain: "auth.example.com"
-
   ## cookies.namePrefix (string)
   ## Description:
   ##   Prefix for the cookies used to store the sessions.
@@ -123,7 +133,7 @@ tokens:
   ## tokens.sessionTokenAudience (string)
   ## Description:
   ##   Value for the audience claim to expect in session tokens used by Traefik Forward Auth.
-  ##   Defaults to a value based on `cookies.domain` and `server.basePath` which is appropriate for the majority of cases. Most users should rely on the default value.
+  ##   Defaults to a value based on the current environment, which is appropriate for the majority of cases. Most users should rely on the default value.
   #sessionTokenAudience: ""
 
 logs:
