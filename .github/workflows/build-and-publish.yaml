@@ -24,14 +24,21 @@ jobs:
         uses: actions/setup-go@v6
         with:
           go-version-file: 'go.mod'
+          # Do not cache in release workflows
+          cache: false
 
       - name: Set up Node.js
         uses: actions/setup-node@v6
         with:
           node-version: latest
+          # Do not cache in release workflows
+          package-manager-cache: false
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v4
+        with:
+          # Do not cache in release workflows
+          cache-binary: false
 
       - name: Check Go dependency minimum age
         run: |

@@ -57,3 +57,7 @@ If you modify `pkg/config.Config` or any struct referenced from it, always run `
 // Trim whitespace and lowercase the host
 host = strings.TrimSpace(strings.ToLower(host))
 ```
+
+## Git
+
+Do not stage or unstage changes unless the user explicitly asks you to.
