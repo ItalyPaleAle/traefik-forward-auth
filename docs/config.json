@@ -1,0 +1,15 @@
+{
+  "baseURL": "https://traefik-forward-auth.italypaleale.me/",
+  "title": "Traefik Forward Auth",
+  "locale": "en-us",
+  "description": "Authentication and SSO for services behind Traefik",
+  "plausibleAnalytics": true,
+  "github": {
+    "url": "https://github.com/italypaleale/traefik-forward-auth",
+    "repo": "https://github.com/italypaleale/traefik-forward-auth",
+    "branch": "main"
+  },
+  "theme": {
+    "scheme": "teal"
+  }
+}
