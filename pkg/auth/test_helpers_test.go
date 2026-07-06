@@ -12,9 +12,9 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/lestrrat-go/jwx/v3/jwa"
-	"github.com/lestrrat-go/jwx/v3/jwk"
-	"github.com/lestrrat-go/jwx/v3/jwt"
+	"github.com/lestrrat-go/jwx/v4/jwa"
+	"github.com/lestrrat-go/jwx/v4/jwk"
+	"github.com/lestrrat-go/jwx/v4/jwt"
 	"github.com/stretchr/testify/require"
 )
 
@@ -53,7 +53,7 @@ func newTestSigningKey(t *testing.T) *signingKey {
 	priv, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
 	require.NoError(t, err)
 
-	pub, err := jwk.Import(priv.Public())
+	pub, err := jwk.Import[jwk.Key](priv.Public())
 	require.NoError(t, err)
 	require.NoError(t, pub.Set(jwk.KeyIDKey, "test-key-1"))
 	require.NoError(t, pub.Set(jwk.AlgorithmKey, "ES256"))
@@ -74,7 +74,7 @@ func (s *signingKey) SignClaims(t *testing.T, claims map[string]any) string {
 	for k, v := range claims {
 		require.NoError(t, tok.Set(k, v))
 	}
-	priv, err := jwk.Import(s.priv)
+	priv, err := jwk.Import[jwk.Key](s.priv)
 	require.NoError(t, err)
 	require.NoError(t, priv.Set(jwk.KeyIDKey, "test-key-1"))
 	signed, err := jwt.Sign(tok, jwt.WithKey(jwa.ES256(), priv))
@@ -90,7 +90,7 @@ func signClaimsWithKey(t *testing.T, priv *ecdsa.PrivateKey, claims map[string]a
 	for k, v := range claims {
 		require.NoError(t, tok.Set(k, v))
 	}
-	jwkPriv, err := jwk.Import(priv)
+	jwkPriv, err := jwk.Import[jwk.Key](priv)
 	require.NoError(t, err)
 	require.NoError(t, jwkPriv.Set(jwk.KeyIDKey, "wrong-key"))
 	signed, err := jwt.Sign(tok, jwt.WithKey(jwa.ES256(), jwkPriv))

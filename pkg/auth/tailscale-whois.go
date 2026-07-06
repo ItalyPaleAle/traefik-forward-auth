@@ -8,7 +8,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/lestrrat-go/jwx/v3/jwt"
+	"github.com/lestrrat-go/jwx/v4/jwt"
 	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
 	tailscale "tailscale.com/client/local"
 	"tailscale.com/client/tailscale/apitype"
@@ -203,23 +203,24 @@ func (a *TailscaleWhois) ValidateRequestClaims(r *http.Request, profile *user.Pr
 }
 
 func (a *TailscaleWhois) PopulateAdditionalClaims(token jwt.Token, setClaimFn func(key string, val any)) {
-	var (
-		val string
-		ok  bool
-	)
+	hostname, err := jwt.Get[string](token, tailscaleWhoisClaimHostname)
+	if err == nil && hostname != "" {
+		setClaimFn(tailscaleWhoisClaimHostname, hostname)
+	}
 
-	if token.Get(tailscaleWhoisClaimHostname, &val) == nil && val != "" {
-		setClaimFn(tailscaleWhoisClaimHostname, val)
+	ip, err := jwt.Get[string](token, tailscaleWhoisClaimIP)
+	if err == nil && ip != "" {
+		setClaimFn(tailscaleWhoisClaimIP, ip)
 	}
-	if token.Get(tailscaleWhoisClaimIP, &val) == nil && val != "" {
-		setClaimFn(tailscaleWhoisClaimIP, val)
-	}
-	if token.Get(tailscaleWhoisClaimTailnet, &val) == nil && val != "" {
-		setClaimFn(tailscaleWhoisClaimTailnet, val)
+
+	tailnet, err := jwt.Get[string](token, tailscaleWhoisClaimTailnet)
+	if err == nil && tailnet != "" {
+		setClaimFn(tailscaleWhoisClaimTailnet, tailnet)
 	}
 
 	// Only include the taggedDevice claim if it's true
-	if token.Get(tailscaleWhoisClaimTaggedDevice, &ok) == nil && ok {
+	tagged, err := jwt.Get[bool](token, tailscaleWhoisClaimTaggedDevice)
+	if err == nil && tagged {
 		setClaimFn(tailscaleWhoisClaimTaggedDevice, true)
 	}
 
@@ -228,8 +229,8 @@ func (a *TailscaleWhois) PopulateAdditionalClaims(token jwt.Token, setClaimFn fu
 	if len(a.capabilityNames) > 0 {
 		for _, capName := range a.capabilityNames {
 			claimKey := "https://" + capName
-			var capValues any
-			if token.Get(claimKey, &capValues) == nil {
+			capValues, ok := token.Field(claimKey)
+			if ok {
 				setClaimFn(claimKey, capValues)
 			}
 		}

@@ -16,6 +16,9 @@ permissions:
 jobs:
   build:
     runs-on: ubuntu-latest
+    env:
+      # Required by github.com/lestrrat-go/jwx/v4, which uses encoding/json/v2
+      GOEXPERIMENT: jsonv2
     steps:
       - name: Checkout code
         uses: actions/checkout@v6

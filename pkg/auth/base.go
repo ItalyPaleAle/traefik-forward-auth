@@ -3,8 +3,9 @@ package auth
 import (
 	"net/http"
 
+	"github.com/lestrrat-go/jwx/v4/jwt"
+
 	"github.com/italypaleale/traefik-forward-auth/pkg/user"
-	"github.com/lestrrat-go/jwx/v3/jwt"
 )
 
 type baseProvider struct {

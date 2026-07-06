@@ -18,10 +18,10 @@ import (
 	"time"
 
 	"github.com/cenkalti/backoff/v5"
-	"github.com/lestrrat-go/jwx/v3/jwk"
-	"github.com/lestrrat-go/jwx/v3/jws"
-	"github.com/lestrrat-go/jwx/v3/jwt"
-	"github.com/lestrrat-go/jwx/v3/jwt/openid"
+	"github.com/lestrrat-go/jwx/v4/jwk"
+	"github.com/lestrrat-go/jwx/v4/jws"
+	"github.com/lestrrat-go/jwx/v4/jwt"
+	"github.com/lestrrat-go/jwx/v4/jwt/openid"
 
 	"github.com/italypaleale/traefik-forward-auth/pkg/user"
 )
@@ -94,9 +94,7 @@ func (f *jwksFetcher) refresh(ctx context.Context) (jwk.Set, error) {
 	fetchCtx, cancel := context.WithTimeout(ctx, f.timeout)
 	defer cancel()
 
-	set, err := jwk.Fetch(fetchCtx, f.uri,
-		jwk.WithHTTPClient(f.httpClientFn()),
-	)
+	set, err := fetchJWKS(fetchCtx, f.httpClientFn(), f.uri)
 	if err != nil {
 		f.lastErr = fmt.Errorf("failed to fetch JWKS from %q: %w", f.uri, err)
 		f.lastErrAt = time.Now()
@@ -112,6 +110,42 @@ func (f *jwksFetcher) refresh(ctx context.Context) (jwk.Set, error) {
 	f.set = set
 	f.fetchedAt = time.Now()
 	f.lastErr = nil
+
+	return set, nil
+}
+
+// fetchJWKS retrieves and parses a JWKS from the given URI
+func fetchJWKS(parentCtx context.Context, client *http.Client, uri string) (jwk.Set, error) {
+	ctx, cancel := context.WithTimeout(parentCtx, 10*time.Second)
+	defer cancel()
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, uri, nil)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create HTTP request: %w", err)
+	}
+	req.Header.Set("Accept", "application/json")
+
+	res, err := client.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("failed to perform request: %w", err)
+	}
+	defer func() {
+		_, _ = io.Copy(io.Discard, res.Body)
+		res.Body.Close()
+	}()
+
+	if res.StatusCode < 200 || res.StatusCode > 299 {
+		return nil, fmt.Errorf("invalid response status code: %d", res.StatusCode)
+	}
+
+	body, err := io.ReadAll(res.Body)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read response body: %w", err)
+	}
+
+	set, err := jwk.Parse(body)
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse JWKS: %w", err)
+	}
 
 	return set, nil
 }
@@ -478,8 +512,7 @@ func newJWKSFetcher(jwksURI string, httpClientFn func() *http.Client, requestTim
 // It is a no-op when the ID token does not include an `at_hash` claim
 // When present, it recomputes the expected hash from the access_token using the hash family implied by the JWS algorithm header and compares it against the claim in constant time
 func validateAccessTokenHash(idTokenRaw []byte, idToken openid.Token, accessToken string) error {
-	var atHash string
-	err := idToken.Get("at_hash", &atHash)
+	atHash, err := jwt.Get[string](idToken, "at_hash")
 	if err != nil || atHash == "" {
 		// Claim absent — nothing to validate (allowed in authorization-code flow)
 		//nolint:nilerr

@@ -7,7 +7,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/lestrrat-go/jwx/v3/jwk"
+	"github.com/lestrrat-go/jwx/v4/jwk"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -378,8 +378,7 @@ func TestSetTokenSigningKey(t *testing.T) {
 		require.NoError(t, err)
 
 		tsk := config.GetTokenSigningKey()
-		var tskRaw []byte
-		err = jwk.Export(tsk, &tskRaw)
+		tskRaw, err := jwk.Export[[]byte](tsk)
 		require.NoError(t, err)
 		assert.Equal(t, "ab5150d6fd45693503c863ff3fb6e5c51890efbc094bef810d8ae79f5139aa81", hex.EncodeToString(tskRaw))
 	})
@@ -392,8 +391,7 @@ func TestSetTokenSigningKey(t *testing.T) {
 		err := config.SetTokenSigningKey(logger)
 		require.NoError(t, err)
 		tsk1 := config.GetTokenSigningKey()
-		var tsk1Raw []byte
-		err = jwk.Export(tsk1, &tsk1Raw)
+		tsk1Raw, err := jwk.Export[[]byte](tsk1)
 		require.NoError(t, err)
 		require.Len(t, tsk1Raw, 32)
 
@@ -405,8 +403,7 @@ func TestSetTokenSigningKey(t *testing.T) {
 		require.NoError(t, err)
 
 		tsk2 := config.GetTokenSigningKey()
-		var tsk2Raw []byte
-		err = jwk.Export(tsk2, &tsk2Raw)
+		tsk2Raw, err := jwk.Export[[]byte](tsk2)
 		require.NoError(t, err)
 		assert.NotEqual(t, tsk1Raw, tsk2Raw)
 	})

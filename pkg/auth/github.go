@@ -10,7 +10,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/lestrrat-go/jwx/v3/jwt"
+	"github.com/lestrrat-go/jwx/v4/jwt"
 
 	"github.com/italypaleale/traefik-forward-auth/pkg/user"
 )
@@ -148,9 +148,8 @@ func (a *GitHub) OAuth2RetrieveProfile(ctx context.Context, at OAuth2AccessToken
 }
 
 func (a *GitHub) PopulateAdditionalClaims(token jwt.Token, setClaimFn func(key string, val any)) {
-	var val string
-
-	if token.Get(githubClaimGitHubUserID, &val) == nil && val != "" {
+	val, err := jwt.Get[string](token, githubClaimGitHubUserID)
+	if err == nil && val != "" {
 		setClaimFn(githubClaimGitHubUserID, val)
 	}
 }

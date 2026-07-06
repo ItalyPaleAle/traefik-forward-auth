@@ -5,8 +5,8 @@ import (
 	"errors"
 	"time"
 
-	"github.com/lestrrat-go/jwx/v3/jwt"
-	"github.com/lestrrat-go/jwx/v3/jwt/openid"
+	"github.com/lestrrat-go/jwx/v4/jwt"
+	"github.com/lestrrat-go/jwx/v4/jwt/openid"
 	"github.com/spf13/cast"
 
 	"github.com/italypaleale/traefik-forward-auth/pkg/user"
@@ -61,16 +61,17 @@ func (o NewMicrosoftEntraIDOptions) ToNewOpenIDConnectOptions() NewOpenIDConnect
 		// https://learn.microsoft.com/en-us/entra/identity-platform/id-token-claims-reference
 		profileModifier: profileModifierFn{
 			Token: func(token openid.Token, profile *user.Profile) error {
-				var str string
-				if token.Get(microsoftEntraIDClaimOid, &str) == nil && str != "" {
-					profile.ID = str
+				oid, err := jwt.Get[string](token, microsoftEntraIDClaimOid)
+				if err == nil && oid != "" {
+					profile.ID = oid
 				}
-				if token.Get(microsoftEntraIDClaimTid, &str) == nil && str != "" {
-					profile.SetAdditionalClaim(microsoftEntraIDClaimTid, str)
+				tid, err := jwt.Get[string](token, microsoftEntraIDClaimTid)
+				if err == nil && tid != "" {
+					profile.SetAdditionalClaim(microsoftEntraIDClaimTid, tid)
 				}
 
-				var v any
-				if token.Get(microsoftEntraIDClaimWids, &v) == nil {
+				v, ok := token.Field(microsoftEntraIDClaimWids)
+				if ok {
 					wids := cast.ToStringSlice(v)
 					if len(wids) > 0 {
 						profile.SetAdditionalClaim(microsoftEntraIDClaimWids, wids)
@@ -145,12 +146,13 @@ func NewMicrosoftEntraID(ctx context.Context, opts NewMicrosoftEntraIDOptions) (
 }
 
 func (a *MicrosoftEntraID) PopulateAdditionalClaims(token jwt.Token, setClaimFn func(key string, val any)) {
-	var val any
-	if token.Get(microsoftEntraIDClaimTid, &val) == nil {
-		setClaimFn(microsoftEntraIDClaimTid, val)
+	tid, ok := token.Field(microsoftEntraIDClaimTid)
+	if ok {
+		setClaimFn(microsoftEntraIDClaimTid, tid)
 	}
-	if token.Get(microsoftEntraIDClaimWids, &val) == nil {
-		setClaimFn(microsoftEntraIDClaimWids, val)
+	wids, ok := token.Field(microsoftEntraIDClaimWids)
+	if ok {
+		setClaimFn(microsoftEntraIDClaimWids, wids)
 	}
 }
 
