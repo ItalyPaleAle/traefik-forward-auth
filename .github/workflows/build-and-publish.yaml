@@ -42,8 +42,7 @@ jobs:
 
       - name: Check Go dependency minimum age
         run: |
-          go install github.com/fchimpan/gomod-age@09005169a4792ad1a4824e1fc6d85785d91cea36
-          gomod-age
+          go tool gomod-age
 
       # Lowercase REPO_OWNER which is required for containers
       - name: Set lowercase REPO_OWNER
