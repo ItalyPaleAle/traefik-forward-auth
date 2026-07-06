@@ -256,6 +256,7 @@ func TestSetSessionCookie(t *testing.T) {
 		wRead := httptest.NewRecorder()
 		cRead, _ := gin.CreateTestContext(wRead)
 		cRead.Request, _ = http.NewRequest(http.MethodGet, "/", nil)
+		//#nolint G124
 		cRead.Request.AddCookie(&http.Cookie{Name: baseCookieName, Value: freshBase.Value})
 
 		profile, provider, err := srv.getSessionCookie(cRead, testPortalName)
@@ -289,6 +290,7 @@ func TestSetSessionCookie(t *testing.T) {
 		cfg := config.Get()
 		baseCookieName := cfg.Cookies.CookieName(testPortalName)
 		for i := 1; i <= 5; i++ {
+			//#nolint G124
 			c.Request.AddCookie(&http.Cookie{Name: fmt.Sprintf("%s_%d", baseCookieName, i), Value: "stale"})
 		}
 
@@ -488,7 +490,7 @@ func TestGetSessionCookie(t *testing.T) {
 			Name:  cookieName,
 			Value: "invalid.jwt.token",
 		}
-		c.Request.AddCookie(invalidCookie)
+		c.Request.AddCookie(invalidCookie) //#nolint G124
 
 		profile, provider, err := srv.getSessionCookie(c, testPortalName)
 		require.Error(t, err)
@@ -510,6 +512,7 @@ func TestGetSessionCookie(t *testing.T) {
 			Name:  cookieName,
 			Value: "",
 		}
+		//#nolint G124
 		c.Request.AddCookie(emptyCookie)
 
 		profile, provider, err := srv.getSessionCookie(c, testPortalName)
@@ -786,6 +789,7 @@ func TestGetStateCookie(t *testing.T) {
 		cookieName := stateCookieName(testPortalName, stateCookieID)
 
 		// Add an invalid JWT cookie
+		//#nolint G124
 		invalidCookie := &http.Cookie{
 			Name:  cookieName,
 			Value: "invalid.jwt.token",
@@ -840,6 +844,7 @@ func TestGetStateCookie(t *testing.T) {
 		cookieName := stateCookieName(testPortalName, stateCookieID)
 
 		// Add a malformed cookie (not even JWT format)
+		//#nolint G124
 		malformedCookie := &http.Cookie{
 			Name:  cookieName,
 			Value: "not-a-jwt",
@@ -922,10 +927,12 @@ func TestDeleteStateCookies(t *testing.T) {
 		c.Request, _ = http.NewRequest(http.MethodGet, "/", nil)
 
 		// Add both state cookies and non-state cookies
+		//#nolint G124
 		stateCookie := &http.Cookie{
 			Name:  "tf_state_" + testPortalName + "_test123",
 			Value: "some-value",
 		}
+		//#nolint G124
 		regularCookie := &http.Cookie{
 			Name:  "regular_cookie",
 			Value: "regular-value",
@@ -1154,6 +1161,7 @@ func TestGetSessionCookieWithCache(t *testing.T) {
 		w2 := httptest.NewRecorder()
 		c2, _ := gin.CreateTestContext(w2)
 		c2.Request, _ = http.NewRequest(http.MethodGet, "/", nil)
+		//#nolint G124
 		c2.Request.AddCookie(&http.Cookie{
 			Name:  cookieName,
 			Value: cookieValue,

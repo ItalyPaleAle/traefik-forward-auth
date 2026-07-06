@@ -39,7 +39,7 @@ func TestRouteGetProfile(t *testing.T) {
 		req, err := http.NewRequestWithContext(reqCtx, http.MethodGet,
 			fmt.Sprintf("http://localhost:%d/portals/%s/profile", testServerPort, portalName), nil)
 		require.NoError(t, err)
-		req.AddCookie(&http.Cookie{Name: cookieName, Value: token})
+		req.AddCookie(&http.Cookie{Name: cookieName, Value: token}) //#nosec G124
 		populateRequiredProxyHeaders(t, req)
 
 		res, err := appClient.Do(req)
@@ -100,7 +100,7 @@ Roles:
 		req, err := http.NewRequestWithContext(reqCtx, http.MethodGet,
 			fmt.Sprintf("http://localhost:%d/portals/%s/profile", testServerPort, portalName), nil)
 		require.NoError(t, err)
-		req.AddCookie(&http.Cookie{Name: cookieName, Value: token})
+		req.AddCookie(&http.Cookie{Name: cookieName, Value: token}) //#nosec G124
 		populateRequiredProxyHeaders(t, req)
 
 		res, err := appClient.Do(req)
@@ -169,7 +169,7 @@ Name:
 		req, err := http.NewRequestWithContext(reqCtx, http.MethodGet,
 			fmt.Sprintf("http://localhost:%d/portals/%s/profile", testServerPort, portalName), nil)
 		require.NoError(t, err)
-		req.AddCookie(&http.Cookie{Name: cookieName, Value: token})
+		req.AddCookie(&http.Cookie{Name: cookieName, Value: token}) //#nosec G124
 		populateRequiredProxyHeaders(t, req)
 
 		res, err := appClient.Do(req)
@@ -200,7 +200,7 @@ Name:
 		req, err := http.NewRequestWithContext(reqCtx, http.MethodGet,
 			fmt.Sprintf("http://localhost:%d/portals/%s/profile", testServerPort, portalName), nil)
 		require.NoError(t, err)
-		req.AddCookie(&http.Cookie{Name: cookieName, Value: token})
+		req.AddCookie(&http.Cookie{Name: cookieName, Value: token}) //#nosec G124
 		populateRequiredProxyHeaders(t, req)
 
 		res, err := appClient.Do(req)
@@ -252,7 +252,7 @@ func TestRouteGetProfileJSON(t *testing.T) {
 		req, err := http.NewRequestWithContext(reqCtx, http.MethodGet,
 			fmt.Sprintf("http://localhost:%d/portals/%s/profile.json", testServerPort, portalName), nil)
 		require.NoError(t, err)
-		req.AddCookie(&http.Cookie{Name: cookieName, Value: token})
+		req.AddCookie(&http.Cookie{Name: cookieName, Value: token}) //#nosec G124
 		populateRequiredProxyHeaders(t, req)
 
 		res, err := appClient.Do(req)
@@ -327,7 +327,7 @@ func TestRouteGetProfileJSON(t *testing.T) {
 		req, err := http.NewRequestWithContext(reqCtx, http.MethodGet,
 			fmt.Sprintf("http://localhost:%d/portals/%s/profile.json", testServerPort, portalName), nil)
 		require.NoError(t, err)
-		req.AddCookie(&http.Cookie{Name: cookieName, Value: token})
+		req.AddCookie(&http.Cookie{Name: cookieName, Value: token}) //#nosec G124
 		populateRequiredProxyHeaders(t, req)
 
 		res, err := appClient.Do(req)
@@ -399,7 +399,7 @@ func TestRouteGetProfileJSON(t *testing.T) {
 		req, err := http.NewRequestWithContext(reqCtx, http.MethodGet,
 			fmt.Sprintf("http://localhost:%d/portals/%s/profile.json", testServerPort, portalName), nil)
 		require.NoError(t, err)
-		req.AddCookie(&http.Cookie{Name: cookieName, Value: token})
+		req.AddCookie(&http.Cookie{Name: cookieName, Value: token}) //#nosec G124
 		populateRequiredProxyHeaders(t, req)
 
 		res, err := appClient.Do(req)
@@ -432,7 +432,7 @@ func TestRouteGetProfileJSON(t *testing.T) {
 		req, err := http.NewRequestWithContext(reqCtx, http.MethodGet,
 			fmt.Sprintf("http://localhost:%d/portals/%s/profile.json", testServerPort, portalName), nil)
 		require.NoError(t, err)
-		req.AddCookie(&http.Cookie{Name: cookieName, Value: token})
+		req.AddCookie(&http.Cookie{Name: cookieName, Value: token}) //#nosec G124
 		populateRequiredProxyHeaders(t, req)
 
 		res, err := appClient.Do(req)

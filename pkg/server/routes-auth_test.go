@@ -175,7 +175,7 @@ func TestRouteGetAuthRootAuthenticated(t *testing.T) {
 			req, err := http.NewRequestWithContext(reqCtx, http.MethodGet,
 				fmt.Sprintf("http://localhost:%d/portals/%s", testServerPort, portalName), nil)
 			require.NoError(t, err)
-			req.AddCookie(&http.Cookie{Name: cookieName, Value: token})
+			req.AddCookie(&http.Cookie{Name: cookieName, Value: token}) //#nolint G124
 			populateRequiredProxyHeaders(t, req)
 
 			res, err := appClient.Do(req)
