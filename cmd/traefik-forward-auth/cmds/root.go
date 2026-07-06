@@ -135,11 +135,12 @@ func runService(ctx context.Context) {
 
 	// Invoke all shutdown functions
 	// We give these a timeout of 5s
-	shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), 5*time.Second)
+	// Cleanup functions are one-shot and must each run to completion independently, so we set WaitAll to true
+	shutdownCtx, shutdownCancel := context.WithTimeout(context.WithoutCancel(ctx), 5*time.Second)
 	defer shutdownCancel()
-	err = servicerunner.
-		NewServiceRunner(shutdownFns...).
-		Run(shutdownCtx)
+	sr := servicerunner.NewServiceRunner(shutdownFns...)
+	sr.WaitAll = true
+	err = sr.Run(shutdownCtx)
 	if err != nil {
 		log.Error("Error shutting down services", slog.Any("error", err))
 	}
