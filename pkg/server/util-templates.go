@@ -15,8 +15,8 @@ import (
 )
 
 const (
-	defaultPagesBackgroundMedium = "img/greta-farnedi-EAt30ojfzOI-unsplash-md.webp"
-	defaultPagesBackgroundLarge  = "img/greta-farnedi-EAt30ojfzOI-unsplash-lg.webp"
+	defaultPagesBackgroundMedium = "img/jonas-degener-Q8nIioObbas-unsplash-md.webp"
+	defaultPagesBackgroundLarge  = "img/jonas-degener-Q8nIioObbas-unsplash-lg.webp"
 
 	// Format string for the Content-Security-Policy header for templated pages
 	pagesContentSecurityHeaderFmt = `default-src 'none'; script-src 'nonce-NONCE'; style-src 'self' 'nonce-NONCE'; img-src 'self'%s; font-src 'self'; frame-ancestors 'none'; form-action 'self'`
