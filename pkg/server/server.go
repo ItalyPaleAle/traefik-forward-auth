@@ -27,8 +27,6 @@ import (
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/propagation"
 	sdkTrace "go.opentelemetry.io/otel/sdk/trace"
-	"golang.org/x/net/http2"
-	"golang.org/x/net/http2/h2c"
 
 	"github.com/italypaleale/traefik-forward-auth/pkg/auth"
 	"github.com/italypaleale/traefik-forward-auth/pkg/buildinfo"
@@ -359,9 +357,12 @@ func (s *Server) startAppServer(ctx context.Context) error {
 		s.appSrv.TLSConfig = s.tlsConfig
 	} else {
 		// Not using TLS
-		// Here we also need to enable HTTP/2 Cleartext
-		h2s := &http2.Server{}
-		s.appSrv.Handler = h2c.NewHandler(s.appRouter, h2s)
+		// Here we also need to enable HTTP/2 Cleartext (h2c)
+		protocols := &http.Protocols{}
+		protocols.SetHTTP1(true)
+		protocols.SetUnencryptedHTTP2(true)
+		s.appSrv.Protocols = protocols
+		s.appSrv.Handler = s.appRouter
 	}
 
 	// Create the listener if we don't have one already

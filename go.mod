@@ -33,7 +33,6 @@ require (
 	go.opentelemetry.io/otel/sdk v1.44.0
 	go.opentelemetry.io/otel/sdk/log v0.20.0
 	go.opentelemetry.io/otel/sdk/metric v1.44.0
-	golang.org/x/net v0.56.0
 	golang.org/x/sync v0.21.0
 	golang.org/x/text v0.38.0
 	sigs.k8s.io/yaml v1.6.0
@@ -130,6 +129,7 @@ require (
 	golang.org/x/arch v0.26.0 // indirect
 	golang.org/x/crypto v0.53.0 // indirect
 	golang.org/x/exp v0.0.0-20260611194520-c48552f49976 // indirect
+	golang.org/x/net v0.56.0 // indirect
 	golang.org/x/sys v0.46.0 // indirect
 	golang.zx2c4.com/wireguard/windows v0.5.3 // indirect
 	google.golang.org/genproto/googleapis/api v0.0.0-20260630182238-925bb5da69e7 // indirect
