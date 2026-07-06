@@ -20,8 +20,10 @@ jobs:
     permissions:
       contents: read
     env:
-      CGO_ENABLED: "0"
       GOLANGCI_LINT_VERSION: "v2.12.2"
+      CGO_ENABLED: "0"
+      # Required by github.com/lestrrat-go/jwx/v4, which uses encoding/json/v2
+      GOEXPERIMENT: jsonv2
     steps:
 
     - name: Check out code

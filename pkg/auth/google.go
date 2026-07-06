@@ -4,8 +4,8 @@ import (
 	"context"
 	"time"
 
-	"github.com/lestrrat-go/jwx/v3/jwt"
-	"github.com/lestrrat-go/jwx/v3/jwt/openid"
+	"github.com/lestrrat-go/jwx/v4/jwt"
+	"github.com/lestrrat-go/jwx/v4/jwt/openid"
 	"github.com/spf13/cast"
 
 	"github.com/italypaleale/traefik-forward-auth/pkg/user"
@@ -46,8 +46,8 @@ func (o NewGoogleOptions) ToNewOpenIDConnectOptions() NewOpenIDConnectOptions {
 		// https://developers.google.com/identity/openid-connect/openid-connect
 		profileModifier: profileModifierFn{
 			Token: func(token openid.Token, profile *user.Profile) error {
-				var v string
-				if token.Get(googleClaimDomain, &v) == nil && v != "" {
+				v, err := jwt.Get[string](token, googleClaimDomain)
+				if err == nil && v != "" {
 					profile.SetAdditionalClaim(googleClaimDomain, v)
 				}
 				return nil
@@ -95,9 +95,8 @@ func NewGoogle(ctx context.Context, opts NewGoogleOptions) (*Google, error) {
 }
 
 func (a *Google) PopulateAdditionalClaims(token jwt.Token, setClaimFn func(key string, val any)) {
-	var val string
-
-	if token.Get(googleClaimDomain, &val) == nil && val != "" {
+	val, err := jwt.Get[string](token, googleClaimDomain)
+	if err == nil && val != "" {
 		setClaimFn(googleClaimDomain, val)
 	}
 }

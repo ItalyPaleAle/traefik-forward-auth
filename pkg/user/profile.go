@@ -4,8 +4,8 @@ import (
 	"errors"
 	"strings"
 
-	"github.com/lestrrat-go/jwx/v3/jwt"
-	"github.com/lestrrat-go/jwx/v3/jwt/openid"
+	"github.com/lestrrat-go/jwx/v4/jwt"
+	"github.com/lestrrat-go/jwx/v4/jwt/openid"
 	"github.com/spf13/cast"
 )
 
@@ -72,7 +72,10 @@ func NewProfileFromOpenIDToken(token openid.Token, provider string) (*Profile, e
 	// At least one of sub or id are required
 	profile.ID, _ = token.Subject()
 	if profile.ID == "" {
-		_ = token.Get("id", &profile.ID)
+		id, err := jwt.Get[string](token, "id")
+		if err == nil {
+			profile.ID = id
+		}
 	}
 	if profile.ID == "" {
 		return nil, errors.New("at least one of sub or id must be present")
@@ -95,8 +98,8 @@ func NewProfileFromOpenIDToken(token openid.Token, provider string) (*Profile, e
 		verified, _ := token.EmailVerified()
 		if !verified {
 			// Non-standard verified_email claim
-			var v bool
-			if token.Get("verified_email", &v) == nil && v {
+			v, err := jwt.Get[bool](token, "verified_email")
+			if err == nil && v {
 				verified = true
 			}
 		}
@@ -165,10 +168,9 @@ func NewProfileFromClaims(claims map[string]any, provider string) (*Profile, err
 }
 
 func getGroupsClaimFromToken(token jwt.Token, claim string) (res []string) {
-	var v any
-
 	// Try the claim with plural name
-	if token.Get(claim+"s", &v) == nil {
+	v, ok := token.Field(claim + "s")
+	if ok {
 		res = cast.ToStringSlice(v)
 		if len(res) > 0 {
 			return res
@@ -176,7 +178,8 @@ func getGroupsClaimFromToken(token jwt.Token, claim string) (res []string) {
 	}
 
 	// Try the claim with singular name
-	if token.Get(claim, &v) == nil {
+	v, ok = token.Field(claim)
+	if ok {
 		res = cast.ToStringSlice(v)
 		if len(res) > 0 {
 			return res

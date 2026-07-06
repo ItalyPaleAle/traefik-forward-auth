@@ -3,7 +3,7 @@ package user
 import (
 	"testing"
 
-	"github.com/lestrrat-go/jwx/v3/jwt/openid"
+	"github.com/lestrrat-go/jwx/v4/jwt/openid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )

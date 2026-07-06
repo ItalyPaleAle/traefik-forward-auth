@@ -19,7 +19,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/lestrrat-go/jwx/v3/jwk"
+	"github.com/lestrrat-go/jwx/v4/jwk"
 
 	"github.com/italypaleale/traefik-forward-auth/pkg/auth"
 	"github.com/italypaleale/traefik-forward-auth/pkg/utils"
@@ -805,7 +805,7 @@ func (c *Config) SetTokenSigningKey(logger *slog.Logger) (err error) {
 	}
 
 	// Import the token signing key as a jwk.Key
-	c.internal.tokenSigningKey, err = jwk.Import(tokenSigningKeyRaw)
+	c.internal.tokenSigningKey, err = jwk.Import[jwk.Key](tokenSigningKeyRaw)
 	if err != nil {
 		return fmt.Errorf("failed to import token signing key as jwk.Key: %w", err)
 	}

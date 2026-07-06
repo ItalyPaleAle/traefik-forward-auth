@@ -16,9 +16,9 @@ import (
 
 	"github.com/cespare/xxhash/v2"
 	"github.com/gin-gonic/gin"
-	"github.com/lestrrat-go/jwx/v3/jwa"
-	"github.com/lestrrat-go/jwx/v3/jwt"
-	"github.com/lestrrat-go/jwx/v3/jwt/openid"
+	"github.com/lestrrat-go/jwx/v4/jwa"
+	"github.com/lestrrat-go/jwx/v4/jwt"
+	"github.com/lestrrat-go/jwx/v4/jwt/openid"
 	"golang.org/x/text/unicode/norm"
 
 	"github.com/italypaleale/traefik-forward-auth/pkg/auth"
@@ -102,8 +102,7 @@ func (s *Server) getSessionCookie(c *gin.Context, portalName string) (profile *u
 	}
 
 	// Get the user profile from the claim
-	var providerName string
-	_ = token.Get(user.ProviderNameClaim, &providerName)
+	providerName, _ := jwt.Get[string](token, user.ProviderNameClaim)
 	if providerName == "" {
 		return nil, nil, fmt.Errorf("claim %s is missing or empty", user.ProviderNameClaim)
 	}
@@ -128,7 +127,7 @@ func (s *Server) getSessionCookie(c *gin.Context, portalName string) (profile *u
 // A cached negative validation result also returns false, so that repeatedly presenting the same invalid cookie doesn't flood the logs (the first, uncached attempt is what gets logged).
 // Anything else (a bad signature, a malformed JWT, a wrong issuer/audience, etc) may indicate a tampered cookie and returns true.
 func invalidSessionCookieIsSuspicious(err error) bool {
-	return !errors.Is(err, jwt.TokenExpiredError()) && !errors.Is(err, errCachedTokenValidationFailed)
+	return !errors.Is(err, jwt.TokenExpiredError{}) && !errors.Is(err, errCachedTokenValidationFailed)
 }
 
 func (s *Server) parseSessionToken(val string, portalName string, cookieDomain string) (openid.Token, error) {
@@ -380,7 +379,7 @@ func (s *Server) getStateCookie(c *gin.Context, portal Portal, stateCookieID str
 	}
 
 	// Get the portal name
-	_ = token.Get(portalNameClaim, &content.portal)
+	content.portal, _ = jwt.Get[string](token, portalNameClaim)
 	if content.portal == "" {
 		return stateCookieContent{}, fmt.Errorf("claim '%s' not found in JWT", portalNameClaim)
 	} else if content.portal != portal.Name {
@@ -388,7 +387,7 @@ func (s *Server) getStateCookie(c *gin.Context, portal Portal, stateCookieID str
 	}
 
 	// Get the nonce
-	_ = token.Get(nonceClaim, &content.nonce)
+	content.nonce, _ = jwt.Get[string](token, nonceClaim)
 	if content.nonce == "" {
 		return stateCookieContent{}, fmt.Errorf("claim '%s' not found in JWT", nonceClaim)
 	}
@@ -398,15 +397,14 @@ func (s *Server) getStateCookie(c *gin.Context, portal Portal, stateCookieID str
 	}
 
 	// Get the return URL
-	_ = token.Get(returnURLClaim, &content.returnURL)
+	content.returnURL, _ = jwt.Get[string](token, returnURLClaim)
 	if content.returnURL == "" {
 		return stateCookieContent{}, fmt.Errorf("claim '%s' not found in JWT", returnURLClaim)
 	}
 
 	// Validate the signature inside the token
-	var sig string
 	expectSig := stateCookieSig(c, stateCookieID, content.portal, nonceBytes)
-	_ = token.Get(sigClaim, &sig)
+	sig, _ := jwt.Get[string](token, sigClaim)
 	if sig == "" {
 		return stateCookieContent{}, fmt.Errorf("claim '%s' not found in JWT", sigClaim)
 	} else if sig != expectSig {

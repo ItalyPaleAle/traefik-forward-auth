@@ -5,7 +5,7 @@ import (
 	"strings"
 
 	"github.com/gin-gonic/gin"
-	"github.com/lestrrat-go/jwx/v3/jwt"
+	"github.com/lestrrat-go/jwx/v4/jwt"
 
 	"github.com/italypaleale/traefik-forward-auth/pkg/user"
 )
@@ -49,8 +49,7 @@ func (s *Server) RouteGetAPIVerify(c *gin.Context) {
 		return
 	}
 
-	var provider string
-	err = token.Get(user.ProviderNameClaim, &provider)
+	provider, err := jwt.Get[string](token, user.ProviderNameClaim)
 	if err != nil {
 		AbortWithErrorJSON(c, NewInvalidTokenErrorf("failed to get '%s' claim from token: %v", user.ProviderNameClaim, err))
 		return
