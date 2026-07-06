@@ -48,6 +48,9 @@ const (
 	maxCookieChunks = 200
 )
 
+// errCachedTokenValidationFailed indicates that the session token failed validation on a previous request and the negative result was served from the cache
+var errCachedTokenValidationFailed = errors.New("session token validation failed (cached result)")
+
 func (s *Server) getSessionCookie(c *gin.Context, portalName string) (profile *user.Profile, provider auth.Provider, err error) {
 	cfg := config.Get()
 	cookieName := cfg.Cookies.CookieName(portalName)
@@ -120,6 +123,14 @@ func (s *Server) getSessionCookie(c *gin.Context, portalName string) (profile *u
 	return profile, provider, nil
 }
 
+// invalidSessionCookieIsSuspicious reports whether an error returned by getSessionCookie is "suspicious" (worth a security warning).
+// An expired token is a normal, expected event and returns false.
+// A cached negative validation result also returns false, so that repeatedly presenting the same invalid cookie doesn't flood the logs (the first, uncached attempt is what gets logged).
+// Anything else (a bad signature, a malformed JWT, a wrong issuer/audience, etc) may indicate a tampered cookie and returns true.
+func invalidSessionCookieIsSuspicious(err error) bool {
+	return !errors.Is(err, jwt.TokenExpiredError()) && !errors.Is(err, errCachedTokenValidationFailed)
+}
+
 func (s *Server) parseSessionToken(val string, portalName string, cookieDomain string) (openid.Token, error) {
 	cfg := config.Get()
 	audience := cfg.GetTokenAudienceClaim(cookieDomain)
@@ -132,7 +143,7 @@ func (s *Server) parseSessionToken(val string, portalName string, cookieDomain s
 	if ok {
 		if !valid {
 			// Token failed validation (cached result)
-			return nil, errors.New("failed to parse session token JWT: token validation failed (cached)")
+			return nil, errCachedTokenValidationFailed
 		}
 
 		// Token was valid (cached result), now parse without validation to extract claims

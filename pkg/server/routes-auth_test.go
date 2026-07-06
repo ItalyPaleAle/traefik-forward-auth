@@ -253,6 +253,64 @@ func TestRouteGetAuthRootAuthenticated(t *testing.T) {
 	}))
 }
 
+func TestRouteGetAuthRootInvalidCookie(t *testing.T) {
+	const portalName = "test1"
+	const suspiciousLogLine = "may be malformed or tampered with"
+
+	testFn := func(cookieValue func(t *testing.T) string, expectSuspiciousLog bool) func(t *testing.T) {
+		return func(t *testing.T) {
+			srv, logBuf := newTestServer(t)
+			require.NotNil(t, srv)
+			stopServerFn := startTestServer(t, srv)
+			defer stopServerFn(t)
+			appClient := clientForListener(srv.appListener)
+
+			cookieName := config.Get().Cookies.CookieName(portalName)
+
+			logBuf.Reset()
+
+			reqCtx, reqCancel := context.WithTimeout(t.Context(), 2*time.Second)
+			defer reqCancel()
+			req, err := http.NewRequestWithContext(reqCtx, http.MethodGet,
+				fmt.Sprintf("http://localhost:%d/portals/%s", testServerPort, portalName), nil)
+			require.NoError(t, err)
+			req.AddCookie(&http.Cookie{Name: cookieName, Value: cookieValue(t)}) //nolint:gosec
+			populateRequiredProxyHeaders(t, req)
+
+			res, err := appClient.Do(req)
+			require.NoError(t, err)
+			defer closeBody(res)
+
+			// The invalid cookie must lead to a redirect to sign-in, not a 401
+			require.Equal(t, http.StatusSeeOther, res.StatusCode)
+			locURL := urlMustParse(t, res.Header.Get("Location"))
+			assert.Equal(t, "example.com", locURL.Host)
+			assert.Equal(t, "/portals/"+portalName+"/signin", locURL.Path)
+			assert.Contains(t, locURL.Query().Get("state"), "~")
+
+			// The bad session cookie must be cleared
+			assert.Contains(t, strings.Join(res.Header.Values("Set-Cookie"), "\n"), cookieName+"=")
+
+			// A suspicious (malformed/tampered) cookie is logged as a warning; an expired one is not
+			if expectSuspiciousLog {
+				assert.Contains(t, logBuf.String(), suspiciousLogLine)
+			} else {
+				assert.NotContains(t, logBuf.String(), suspiciousLogLine)
+			}
+		}
+	}
+
+	// An expired token is well-formed and correctly signed, so it must not be logged as suspicious
+	t.Run("expired token redirects to signin without warning", testFn(func(t *testing.T) string {
+		return createTestSessionToken(t, portalName, createFullTestProfile(), -time.Hour)
+	}, false))
+
+	// A cookie that isn't a valid JWT may indicate tampering and must be logged as a warning
+	t.Run("malformed token redirects to signin with warning", testFn(func(t *testing.T) string {
+		return "not-a-valid-jwt-token"
+	}, true))
+}
+
 func TestRouteGetAuthProvider(t *testing.T) {
 	// Create the server
 	srv, logBuf := newTestServer(t)

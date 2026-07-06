@@ -102,8 +102,19 @@ func (s *Server) MiddlewareLoadAuthCookie(c *gin.Context) {
 	// Get the cookie and parse it
 	profile, provider, err := s.getSessionCookie(c, portal.Name)
 	if err != nil {
+		// The session cookie is present but couldn't be validated (e.g. it's expired or tampered with)
+		// We treat this the same as an unauthenticated request
+		// We drop the bad cookie then continue, so that interactive routes redirect the user to sign in again instead of returning a 401 dead-end that breaks browser navigation (e.g. the back button)
 		s.deleteSessionCookie(c, portal.Name)
-		AbortWithError(c, NewInvalidTokenErrorf("Session cookie is invalid: %v", err))
+
+		// Log a warning for cookies that look malformed or tampered with
+		if invalidSessionCookieIsSuspicious(err) {
+			log := utils.LogFromContext(c.Request.Context())
+			log.WarnContext(c.Request.Context(),
+				"Rejected a session cookie that failed validation; it may be malformed or tampered with",
+				slog.Any("error", err),
+			)
+		}
 		return
 	}
 
