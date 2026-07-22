@@ -1,6 +1,6 @@
 ---
 title: "Migrating from v3"
-weight: 40
+weight: 42
 ---
 
 Traefik Forward Auth v4 is a major release that includes a number of breaking changes. At minimum, the way you configure Traefik Forward Auth needs to be updated significantly.

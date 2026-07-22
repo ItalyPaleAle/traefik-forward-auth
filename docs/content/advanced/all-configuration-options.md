@@ -1,6 +1,6 @@
 ---
 title: "All configuration options"
-weight: 23
+weight: 41
 ---
 
 <!-- BEGIN CONFIG TABLE -->
