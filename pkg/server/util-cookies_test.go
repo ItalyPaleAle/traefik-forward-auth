@@ -1,11 +1,11 @@
 package server
 
 import (
+	"errors"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"strings"
-	"sync"
 	"testing"
 	"time"
 
@@ -1008,9 +1008,10 @@ func TestTokenCaching(t *testing.T) {
 		cacheKey := srv.tokenCacheKey(cookieValue, config.Get().GetTokenAudienceClaim(""), testPortalName)
 
 		// Verify the parsed token is in the cache
-		cachedToken, ok := srv.tokenCache.Get(cacheKey)
+		cached, ok := srv.tokenCache.Get(cacheKey)
 		require.True(t, ok, "token validation result should be in cache")
-		require.NotNil(t, cachedToken, "cached result should be the parsed token")
+		require.True(t, cached.valid, "cached result should be marked valid")
+		require.NotNil(t, cached.token, "cached result should hold the parsed token")
 
 		// Second parse - should use cache
 		token2, err := srv.parseSessionToken(cookieValue, testPortalName, "")
@@ -1035,9 +1036,9 @@ func TestTokenCaching(t *testing.T) {
 		cacheKey := srv.tokenCacheKey(invalidToken, config.Get().GetTokenAudienceClaim("tfa.example.com"), testPortalName)
 
 		// Verify the validation failure is in the cache
-		cachedToken, ok := srv.tokenCache.Get(cacheKey)
+		cached, ok := srv.tokenCache.Get(cacheKey)
 		require.True(t, ok, "validation result should be in cache")
-		require.Nil(t, cachedToken, "cached negative result should be a nil token")
+		require.False(t, cached.valid, "cached negative result should be marked invalid")
 
 		// Second parse - should return cached error
 		token2, err := srv.parseSessionToken(invalidToken, testPortalName, "tfa.example.com")
@@ -1227,23 +1228,31 @@ func TestGetSessionCookieWithCache(t *testing.T) {
 		_, _, err = srv.getSessionCookie(cWarm, testPortalName)
 		require.NoError(t, err)
 
+		// Read the shared cached token concurrently
+		// Assertions must never run inside goroutines, so each goroutine reports its outcome over a channel that the main goroutine checks
 		const goroutines = 32
-		var wg sync.WaitGroup
-		wg.Add(goroutines)
+		errCh := make(chan error, goroutines)
 		for range goroutines {
 			go func() {
-				defer wg.Done()
-				cReq := newContextWithSessionCookie(cookieName, cookieValue)
-				profile, provider, gErr := srv.getSessionCookie(cReq, testPortalName)
-				assert.NoError(t, gErr)
-				if assert.NotNil(t, profile) {
-					assert.Equal(t, testProfile.ID, profile.ID)
-					assert.Equal(t, testProfile.Groups, profile.Groups)
+				profile, provider, gErr := srv.getSessionCookie(newContextWithSessionCookie(cookieName, cookieValue), testPortalName)
+				switch {
+				case gErr != nil:
+					errCh <- gErr
+				case profile == nil:
+					errCh <- errors.New("profile is nil")
+				case profile.ID != testProfile.ID:
+					errCh <- fmt.Errorf("unexpected profile ID: got %q, want %q", profile.ID, testProfile.ID)
+				case provider == nil:
+					errCh <- errors.New("provider is nil")
+				default:
+					errCh <- nil
 				}
-				assert.NotNil(t, provider)
 			}()
 		}
-		wg.Wait()
+
+		for range goroutines {
+			require.NoError(t, <-errCh)
+		}
 	})
 }
 

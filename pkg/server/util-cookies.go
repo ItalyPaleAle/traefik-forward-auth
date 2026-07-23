@@ -56,7 +56,7 @@ func (s *Server) getSessionCookie(c *gin.Context, portalName string) (profile *u
 	cookieName := cfg.Cookies.CookieName(portalName)
 
 	// Read the session cookie, reassembling it from chunk cookies (suffixes _1, _2, ...) if needed
-	// This parses the request's Cookie header only once, unlike repeated c.Cookie calls
+	// This parses the request's Cookie header only once
 	cookieValue, err := readSessionCookieValue(c, cookieName)
 	if errors.Is(err, http.ErrNoCookie) {
 		return nil, nil, nil
@@ -98,7 +98,6 @@ func (s *Server) getSessionCookie(c *gin.Context, portalName string) (profile *u
 }
 
 // readSessionCookieValue returns the session cookie value, reassembling it from the base cookie plus any chunk cookies ("<cookieName>_1", "<cookieName>_2", ...)
-// It parses the request's Cookie header a single time, rather than once per c.Cookie call
 // It returns http.ErrNoCookie when the base cookie is not present
 func readSessionCookieValue(c *gin.Context, cookieName string) (string, error) {
 	// Parse the Cookie header once
@@ -165,7 +164,7 @@ func readSessionCookieValue(c *gin.Context, cookieName string) (string, error) {
 }
 
 // cookieValueUnescape decodes a cookie value the same way gin's c.Cookie does
-// url.QueryUnescape returns the input unchanged (and allocation-free) when there is nothing to decode, which is the case for our base64url JWT values
+// url.QueryUnescape returns the input unchanged when there is nothing to decode (the regular case for our base64url JWT values)
 func cookieValueUnescape(v string) string {
 	unescaped, _ := url.QueryUnescape(v)
 	return unescaped
@@ -179,22 +178,27 @@ func invalidSessionCookieIsSuspicious(err error) bool {
 	return !errors.Is(err, jwt.TokenExpiredError{}) && !errors.Is(err, errCachedTokenValidationFailed)
 }
 
+// tokenCacheEntry is the result of a session token validation, stored in the token cache
+// valid reports whether the token passed validation; token holds the parsed token when valid, so subsequent requests can reuse it without re-parsing
+type tokenCacheEntry struct {
+	token openid.Token
+	valid bool
+}
+
 func (s *Server) parseSessionToken(val string, portalName string, cookieDomain string) (openid.Token, error) {
 	cfg := config.Get()
 	audience := cfg.GetTokenAudienceClaim(cookieDomain)
 
 	// Compute the cache key from the token, expected audience, and portal
-	// Including the audience and portal means a cached result is only ever reused for a request that would validate identically, so a token issued for one portal or audience can never be served from the cache for another
 	cacheKey := s.tokenCacheKey(val, audience, portalName)
 
-	// Check if we have a cached result for this token
-	// A non-nil token is a previously-validated token, ready to use without re-parsing; a nil token is a cached negative result
+	// Check if we have a cached validation result for this token
 	cached, ok := s.tokenCache.Get(cacheKey)
 	if ok {
-		if cached == nil {
+		if !cached.valid {
 			return nil, errCachedTokenValidationFailed
 		}
-		return cached, nil
+		return cached.token, nil
 	}
 
 	// Not in the cache: validate the token's signature and claims
@@ -219,11 +223,10 @@ func (s *Server) parseSessionToken(val string, portalName string, cookieDomain s
 		}
 	}
 
-	// Cache the result: the parsed token on success, or a nil token as a negative result
-	// Caching the parsed token (rather than just a "valid" flag) lets subsequent requests skip re-parsing entirely, which is the dominant cost on the session-validation hot path
+	// Cache the result so subsequent requests can skip re-parsing, which is the dominant cost on the session-validation hot path
 	// openid.Token guards all reads with a RWMutex, so the cached token is safe to share across concurrent requests
 	ttl := computeTokenCacheTTL(oidcToken, err != nil)
-	s.tokenCache.Set(cacheKey, oidcToken, ttl)
+	s.tokenCache.Set(cacheKey, tokenCacheEntry{token: oidcToken, valid: err == nil}, ttl)
 
 	if err != nil {
 		return nil, fmt.Errorf("failed to parse session token JWT: %w", err)
@@ -607,7 +610,7 @@ func stateCookieSig(c *gin.Context, stateCookieID string, portalName string, non
 
 // tokenCacheKey computes the cache key for a session token (using xxHash, variant XXH64)
 // The key combines the token, the expected audience, and the portal name
-// The parts are hashed incrementally so we never allocate an intermediate concatenated string, which matters because the token alone can be several KB
+// The parts are hashed incrementally to avoid allocating an intermediate concatenated string
 func (s *Server) tokenCacheKey(val string, audience string, portalName string) uint64 {
 	var d xxhash.Digest
 	d.Reset()

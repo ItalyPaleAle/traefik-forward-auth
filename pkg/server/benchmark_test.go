@@ -1,8 +1,6 @@
 package server
 
 import (
-	"context"
-	"io"
 	"log/slog"
 	"net/http"
 	"net/http/httptest"
@@ -13,7 +11,6 @@ import (
 	"github.com/italypaleale/go-kit/ttlcache"
 	"github.com/lestrrat-go/jwx/v4/jwa"
 	"github.com/lestrrat-go/jwx/v4/jwt"
-	"github.com/lestrrat-go/jwx/v4/jwt/openid"
 
 	"github.com/italypaleale/traefik-forward-auth/pkg/config"
 	"github.com/italypaleale/traefik-forward-auth/pkg/user"
@@ -24,7 +21,7 @@ import (
 func newBenchServer(b *testing.B) *Server {
 	b.Helper()
 
-	log := slog.New(slog.NewTextHandler(io.Discard, nil))
+	log := slog.New(slog.DiscardHandler)
 
 	cfg := config.Get()
 	err := cfg.Process(log)
@@ -32,14 +29,14 @@ func newBenchServer(b *testing.B) *Server {
 		b.Fatalf("failed to process config: %v", err)
 	}
 
-	portals, err := GetPortalsConfig(context.Background(), cfg)
+	portals, err := GetPortalsConfig(b.Context(), cfg)
 	if err != nil {
 		b.Fatalf("failed to get portals config: %v", err)
 	}
 
 	srv := &Server{
 		portals: portals,
-		tokenCache: ttlcache.NewCache[uint64, openid.Token](&ttlcache.CacheOptions{
+		tokenCache: ttlcache.NewCache[uint64, tokenCacheEntry](&ttlcache.CacheOptions{
 			CleanupInterval: 2 * time.Minute,
 		}),
 	}
@@ -83,7 +80,7 @@ func benchContextWithCookie(cookieName, token string) *gin.Context {
 	c, _ := gin.CreateTestContext(w)
 	req := httptest.NewRequest(http.MethodGet, "/", nil)
 	req.Header.Set(headerXForwardedHost, "example.com")
-	req.AddCookie(&http.Cookie{Name: cookieName, Value: token})
+	req.AddCookie(&http.Cookie{Name: cookieName, Value: token}) //nolint:gosec
 	c.Request = req
 	return c
 }
