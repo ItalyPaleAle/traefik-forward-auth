@@ -93,6 +93,25 @@ portals:
         property: "provider.name"
 ```
 
+The table below shows the claims supported by Traefik Forward Auth. It can be that not all claims are supported by your Identity Provider.
+
+| Claim            | Value                              |
+|------------------|------------------------------------|
+| `provider`       | Identity provider name             |
+| `id` or `sub`    | User ID                            |
+| `name`           | Full display name                  |
+| `given_name`     | First name                         |
+| `middle_name`    | Middle name                        |
+| `family_name`    | Last name                          |
+| `nickname`       | Nickname                           |
+| `email`          | Email address                      |
+| `email_verified` | Whether email is verified (bool)   |
+| `picture`        | URL of profile picture             |
+| `locale`         | User's locale (e.g. `en`, `fr-FR`) |
+| `zoneinfo`       | Time zone name                     |
+| `groups`         | Space delimited list of group names|
+| `roles`          | Space delimited list of role names |
+
 > Only scalar values (strings, numbers, and booleans) are currently supported.
 
 Do not forget to include your custom headers in the `forwardAuth` middleware configuration if you want Traefik to add them to the authenticated request, for example:
