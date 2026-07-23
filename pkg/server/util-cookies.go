@@ -179,9 +179,10 @@ func invalidSessionCookieIsSuspicious(err error) bool {
 }
 
 // tokenCacheEntry is the result of a session token validation, stored in the token cache
-// valid reports whether the token passed validation; token holds the parsed token when valid, so subsequent requests can reuse it without re-parsing
 type tokenCacheEntry struct {
+	// token holds the parsed token when valid, so subsequent requests can reuse it without re-parsing
 	token openid.Token
+	// valid reports whether the token passed validation
 	valid bool
 }
 
@@ -198,6 +199,7 @@ func (s *Server) parseSessionToken(val string, portalName string, cookieDomain s
 		if !cached.valid {
 			return nil, errCachedTokenValidationFailed
 		}
+
 		return cached.token, nil
 	}
 
@@ -226,11 +228,14 @@ func (s *Server) parseSessionToken(val string, portalName string, cookieDomain s
 	// Cache the result so subsequent requests can skip re-parsing, which is the dominant cost on the session-validation hot path
 	// openid.Token guards all reads with a RWMutex, so the cached token is safe to share across concurrent requests
 	ttl := computeTokenCacheTTL(oidcToken, err != nil)
-	s.tokenCache.Set(cacheKey, tokenCacheEntry{token: oidcToken, valid: err == nil}, ttl)
-
+	s.tokenCache.Set(cacheKey, tokenCacheEntry{
+		token: oidcToken,
+		valid: err == nil,
+	}, ttl)
 	if err != nil {
 		return nil, fmt.Errorf("failed to parse session token JWT: %w", err)
 	}
+
 	return oidcToken, nil
 }
 
@@ -610,7 +615,6 @@ func stateCookieSig(c *gin.Context, stateCookieID string, portalName string, non
 
 // tokenCacheKey computes the cache key for a session token (using xxHash, variant XXH64)
 // The key combines the token, the expected audience, and the portal name
-// The parts are hashed incrementally to avoid allocating an intermediate concatenated string
 func (s *Server) tokenCacheKey(val string, audience string, portalName string) uint64 {
 	var d xxhash.Digest
 	d.Reset()

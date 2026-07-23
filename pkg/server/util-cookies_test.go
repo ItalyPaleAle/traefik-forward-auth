@@ -1195,7 +1195,6 @@ func TestGetSessionCookieWithCache(t *testing.T) {
 
 	t.Run("cached token is safe to read concurrently", func(t *testing.T) {
 		// The token cache stores a parsed openid.Token that is shared across requests
-		// Run getSessionCookie from many goroutines against the same cached token to catch data races (run this test with -race)
 		testProfile := &user.Profile{
 			ID: "test-user-concurrent",
 			Name: user.ProfileName{
@@ -1229,7 +1228,6 @@ func TestGetSessionCookieWithCache(t *testing.T) {
 		require.NoError(t, err)
 
 		// Read the shared cached token concurrently
-		// Assertions must never run inside goroutines, so each goroutine reports its outcome over a channel that the main goroutine checks
 		const goroutines = 32
 		errCh := make(chan error, goroutines)
 		for range goroutines {
