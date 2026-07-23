@@ -305,8 +305,16 @@ func (p *Profile) Get(claim string) any {
 		return p.Timezone
 	case "groups":
 		return p.Groups
+	case "groups-comma":
+		return strings.Join(p.Groups, ",")
+	case "groups-space":
+		return strings.Join(p.Groups, " ")
 	case "roles":
 		return p.Roles
+	case "roles-comma":
+		return strings.Join(p.Roles, ",")
+	case "roles-space":
+		return strings.Join(p.Roles, " ")
 	default:
 		return p.AdditionalClaims[claim]
 	}
