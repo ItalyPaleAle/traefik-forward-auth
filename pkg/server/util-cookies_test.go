@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -1004,12 +1005,12 @@ func TestTokenCaching(t *testing.T) {
 		require.NotNil(t, token1)
 
 		// Compute cache key
-		cacheKey := srv.tokenCacheKey(cookieValue + "\x00" + config.Get().GetTokenAudienceClaim(""))
+		cacheKey := srv.tokenCacheKey(cookieValue, config.Get().GetTokenAudienceClaim(""), testPortalName)
 
-		// Verify validation result is in the cache
-		valid, ok := srv.tokenCache.Get(cacheKey)
+		// Verify the parsed token is in the cache
+		cachedToken, ok := srv.tokenCache.Get(cacheKey)
 		require.True(t, ok, "token validation result should be in cache")
-		require.True(t, valid, "cached validation result should be true")
+		require.NotNil(t, cachedToken, "cached result should be the parsed token")
 
 		// Second parse - should use cache
 		token2, err := srv.parseSessionToken(cookieValue, testPortalName, "")
@@ -1031,12 +1032,12 @@ func TestTokenCaching(t *testing.T) {
 		require.Nil(t, token1)
 
 		// Compute cache key
-		cacheKey := srv.tokenCacheKey(invalidToken + "\x00" + config.Get().GetTokenAudienceClaim("tfa.example.com"))
+		cacheKey := srv.tokenCacheKey(invalidToken, config.Get().GetTokenAudienceClaim("tfa.example.com"), testPortalName)
 
 		// Verify the validation failure is in the cache
-		valid, ok := srv.tokenCache.Get(cacheKey)
+		cachedToken, ok := srv.tokenCache.Get(cacheKey)
 		require.True(t, ok, "validation result should be in cache")
-		require.False(t, valid, "cached validation result should be false")
+		require.Nil(t, cachedToken, "cached negative result should be a nil token")
 
 		// Second parse - should return cached error
 		token2, err := srv.parseSessionToken(invalidToken, testPortalName, "tfa.example.com")
@@ -1103,13 +1104,15 @@ func TestTokenCaching(t *testing.T) {
 			testTokenAlt = "different.token.value"
 		)
 
+		const testAudience = "example.com"
+
 		// Verify it's consistent
-		cacheKey1 := srv.tokenCacheKey(testToken)
-		cacheKey2 := srv.tokenCacheKey(testToken)
+		cacheKey1 := srv.tokenCacheKey(testToken, testAudience, testPortalName)
+		cacheKey2 := srv.tokenCacheKey(testToken, testAudience, testPortalName)
 		assert.Equal(t, cacheKey1, cacheKey2)
 
 		// Verify different tokens produce different keys
-		cacheKey3 := srv.tokenCacheKey(testTokenAlt)
+		cacheKey3 := srv.tokenCacheKey(testTokenAlt, testAudience, testPortalName)
 		assert.NotEqual(t, cacheKey1, cacheKey3)
 	})
 }
@@ -1165,7 +1168,7 @@ func TestGetSessionCookieWithCache(t *testing.T) {
 		require.NotNil(t, provider1)
 
 		// Verify token is in cache
-		cacheKey := srv.tokenCacheKey(cookieValue + "\x00" + config.Get().GetTokenAudienceClaim(""))
+		cacheKey := srv.tokenCacheKey(cookieValue, config.Get().GetTokenAudienceClaim(""), testPortalName)
 		_, ok := srv.tokenCache.Get(cacheKey)
 		require.True(t, ok, "token should be in cache after first call")
 
@@ -1188,4 +1191,66 @@ func TestGetSessionCookieWithCache(t *testing.T) {
 		assert.Equal(t, profile1.Name, profile2.Name)
 		assert.Equal(t, profile1.Email, profile2.Email)
 	})
+
+	t.Run("cached token is safe to read concurrently", func(t *testing.T) {
+		// The token cache stores a parsed openid.Token that is shared across requests
+		// Run getSessionCookie from many goroutines against the same cached token to catch data races (run this test with -race)
+		testProfile := &user.Profile{
+			ID: "test-user-concurrent",
+			Name: user.ProfileName{
+				FullName: "Concurrent User",
+			},
+			Email: &user.ProfileEmail{
+				Value:    "concurrent@example.com",
+				Verified: true,
+			},
+			Provider: "testoauth2",
+			Groups:   []string{"g1", "g2"},
+			Roles:    []string{"r1"},
+		}
+
+		w := httptest.NewRecorder()
+		c, _ := gin.CreateTestContext(w)
+		c.Request, _ = http.NewRequest(http.MethodGet, "/", nil)
+		err := srv.setSessionCookie(c, testPortalName, testProfile, time.Hour)
+		require.NoError(t, err)
+
+		cookies := w.Result().Cookies()
+		require.Len(t, cookies, 1)
+
+		cfg := config.Get()
+		cookieName := cfg.Cookies.CookieName(testPortalName)
+		cookieValue := cookies[0].Value
+
+		// Warm the cache so all goroutines hit the shared cached token
+		cWarm := newContextWithSessionCookie(cookieName, cookieValue)
+		_, _, err = srv.getSessionCookie(cWarm, testPortalName)
+		require.NoError(t, err)
+
+		const goroutines = 32
+		var wg sync.WaitGroup
+		wg.Add(goroutines)
+		for range goroutines {
+			go func() {
+				defer wg.Done()
+				cReq := newContextWithSessionCookie(cookieName, cookieValue)
+				profile, provider, gErr := srv.getSessionCookie(cReq, testPortalName)
+				assert.NoError(t, gErr)
+				if assert.NotNil(t, profile) {
+					assert.Equal(t, testProfile.ID, profile.ID)
+					assert.Equal(t, testProfile.Groups, profile.Groups)
+				}
+				assert.NotNil(t, provider)
+			}()
+		}
+		wg.Wait()
+	})
+}
+
+func newContextWithSessionCookie(cookieName, cookieValue string) *gin.Context {
+	w := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(w)
+	c.Request, _ = http.NewRequest(http.MethodGet, "/", nil)
+	c.Request.AddCookie(&http.Cookie{Name: cookieName, Value: cookieValue}) //nolint:gosec
+	return c
 }
