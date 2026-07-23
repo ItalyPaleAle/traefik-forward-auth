@@ -20,10 +20,10 @@ import (
 const testPortalName = "test1"
 
 func TestSetSessionCookie(t *testing.T) {
+	// This test calls the server's methods directly and never issues HTTP requests, so it does not start the server
+	// Starting the background server goroutine would let its startup config.Get() race with the config.SetTestConfig call in the "audience is scoped to cookie domain" subtest
 	srv, logBuf := newTestServer(t)
 	require.NotNil(t, srv)
-	stopServerFn := startTestServer(t, srv)
-	defer stopServerFn(t)
 	defer logBuf.Reset()
 
 	t.Run("success", func(t *testing.T) {
