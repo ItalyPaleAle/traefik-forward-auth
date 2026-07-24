@@ -2,6 +2,7 @@ package server
 
 import (
 	"encoding/json"
+	"strings"
 
 	"github.com/spf13/cast"
 
@@ -25,7 +26,13 @@ func (h authenticatedClaimHeader) GetName() string {
 }
 
 func (h authenticatedClaimHeader) GetValue(portal Portal, provider auth.Provider, profile *user.Profile) string {
-	return cast.ToString(profile.Get(h.claim))
+	switch h.claim {
+	case "groups", "roles":
+		slice := cast.ToStringSlice(profile.Get(h.claim))
+		return strings.Join(slice, " ")
+	default:
+		return cast.ToString(profile.Get(h.claim))
+	}
 }
 
 type authenticatedPropertyHeader struct {
