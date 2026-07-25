@@ -93,7 +93,8 @@ portals:
         property: "provider.name"
 ```
 
-> Only scalar values (strings, numbers, and booleans) are currently supported.
+> Only scalar values (strings, numbers, and booleans) are currently supported, for both built-in and custom claims.
+> As a special case, the "groups" and "roles" claims can be referenced too, whose values are encoded as space-separated lists.
 
 Do not forget to include your custom headers in the `forwardAuth` middleware configuration if you want Traefik to add them to the authenticated request, for example:
 

@@ -312,6 +312,19 @@ func (p *Profile) Get(claim string) any {
 	}
 }
 
+// GetAs returns the value of the claim by its name, as the type T.
+// The second returned value is false if the claim is not present or if its value is not of type T.
+func GetAs[T any](p *Profile, claim string) (val T, ok bool) {
+	v := p.Get(claim)
+	if v == nil {
+		return val, false
+	}
+
+	// Note that on failure the type assertion sets val to the zero value of T
+	val, ok = v.(T)
+	return val, ok
+}
+
 // PopulateFullName builds the full name if it's not set but there are other fields
 func (n *ProfileName) PopulateFullName() {
 	if n.FullName != "" {
