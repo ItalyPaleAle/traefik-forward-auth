@@ -232,7 +232,11 @@ func TestRouteGetAuthRootAuthenticated(t *testing.T) {
 				Claim: "missing",
 			},
 			{
-				Name:  "X-Incompatible-Claim",
+				Name:  "X-Forwarded-Groups",
+				Claim: "groups",
+			},
+			{
+				Name:  "X-Forwarded-Roles",
 				Claim: "roles",
 			},
 			{
@@ -248,7 +252,9 @@ func TestRouteGetAuthRootAuthenticated(t *testing.T) {
 		assert.Empty(t, res.Header.Get("X-Forwarded-Displayname"))
 		assert.Empty(t, res.Header.Get("X-Authenticated-User"))
 		assert.Empty(t, res.Header.Get("X-Missing-Claim"))
-		assert.Empty(t, res.Header.Get("X-Incompatible-Claim"))
+		// Groups and roles are encoded as space-separated lists
+		assert.Equal(t, strings.Join(profile.Groups, " "), res.Header.Get("X-Forwarded-Groups"))
+		assert.Equal(t, strings.Join(profile.Roles, " "), res.Header.Get("X-Forwarded-Roles"))
 		assert.Empty(t, res.Header.Get("X-Claim-Too-Long"))
 	}))
 }
