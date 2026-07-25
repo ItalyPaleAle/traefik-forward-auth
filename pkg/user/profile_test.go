@@ -133,3 +133,72 @@ func TestNewProfileFromOpenIDToken(t *testing.T) {
 		})
 	}
 }
+
+func TestGetAs(t *testing.T) {
+	profile := &Profile{
+		Provider: "test",
+		ID:       "user123",
+		Name:     ProfileName{FullName: "John Doe"},
+		Email:    &ProfileEmail{Value: "john@example.com", Verified: true},
+		Groups:   []string{"group1", "group2"},
+		AdditionalClaims: map[string]any{
+			"str": "hello",
+			"int": 42,
+		},
+	}
+
+	t.Run("known claim of matching type", func(t *testing.T) {
+		val, ok := GetAs[string](profile, "email")
+		assert.True(t, ok)
+		assert.Equal(t, "john@example.com", val)
+
+		verified, ok := GetAs[bool](profile, "email_verified")
+		assert.True(t, ok)
+		assert.True(t, verified)
+
+		groups, ok := GetAs[[]string](profile, "groups")
+		assert.True(t, ok)
+		assert.Equal(t, []string{"group1", "group2"}, groups)
+	})
+
+	t.Run("additional claim of matching type", func(t *testing.T) {
+		str, ok := GetAs[string](profile, "str")
+		assert.True(t, ok)
+		assert.Equal(t, "hello", str)
+
+		num, ok := GetAs[int](profile, "int")
+		assert.True(t, ok)
+		assert.Equal(t, 42, num)
+	})
+
+	t.Run("claim of different type", func(t *testing.T) {
+		// Values are not converted, so the type must match exactly
+		val, ok := GetAs[bool](profile, "email")
+		assert.False(t, ok)
+		assert.False(t, val)
+
+		num, ok := GetAs[int64](profile, "int")
+		assert.False(t, ok)
+		assert.Zero(t, num)
+	})
+
+	t.Run("claim not found", func(t *testing.T) {
+		val, ok := GetAs[string](profile, "not-found")
+		assert.False(t, ok)
+		assert.Empty(t, val)
+	})
+
+	t.Run("known claim with empty value", func(t *testing.T) {
+		// Claims that are always present in the profile are returned even if empty
+		val, ok := GetAs[string](profile, "nickname")
+		assert.True(t, ok)
+		assert.Empty(t, val)
+	})
+
+	t.Run("email_verified without email", func(t *testing.T) {
+		noEmail := &Profile{ID: "user456"}
+		val, ok := GetAs[bool](noEmail, "email_verified")
+		assert.False(t, ok)
+		assert.False(t, val)
+	})
+}

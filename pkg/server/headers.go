@@ -28,8 +28,11 @@ func (h authenticatedClaimHeader) GetName() string {
 func (h authenticatedClaimHeader) GetValue(portal Portal, provider auth.Provider, profile *user.Profile) string {
 	switch h.claim {
 	case "groups", "roles":
-		slice := cast.ToStringSlice(profile.Get(h.claim))
-		return strings.Join(slice, " ")
+		v, ok := user.GetAs[[]string](profile, h.claim)
+		if !ok || len(v) == 0 {
+			return ""
+		}
+		return strings.Join(v, " ")
 	default:
 		return cast.ToString(profile.Get(h.claim))
 	}
