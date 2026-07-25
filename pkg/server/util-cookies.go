@@ -55,38 +55,13 @@ func (s *Server) getSessionCookie(c *gin.Context, portalName string) (profile *u
 	cfg := config.Get()
 	cookieName := cfg.Cookies.CookieName(portalName)
 
-	// Get the base cookie
-	cookieValue, err := c.Cookie(cookieName)
+	// Read the session cookie, reassembling it from chunk cookies (suffixes _1, _2, ...) if needed
+	// This parses the request's Cookie header only once
+	cookieValue, err := readSessionCookieValue(c, cookieName)
 	if errors.Is(err, http.ErrNoCookie) {
 		return nil, nil, nil
 	} else if err != nil {
-		return nil, nil, fmt.Errorf("failed to get session cookie: %w", err)
-	}
-	if cookieValue == "" {
-		return nil, nil, fmt.Errorf("session cookie %s is empty", cookieName)
-	}
-
-	// Check if there are chunked cookies and reassemble them
-	// Look for cookies with suffixes _1, _2, etc.
-	var combinedValue strings.Builder
-	for i := 1; i < maxCookieChunks; i++ {
-		chunkName := cookieName + "_" + strconv.Itoa(i)
-		chunkValue, err := c.Cookie(chunkName)
-		if errors.Is(err, http.ErrNoCookie) {
-			// No more chunks
-			break
-		} else if err != nil {
-			return nil, nil, fmt.Errorf("failed to get session cookie chunk %s: %w", chunkName, err)
-		}
-		if chunkValue == "" {
-			return nil, nil, fmt.Errorf("session cookie chunk %s is empty", chunkName)
-		}
-		combinedValue.WriteString(chunkValue)
-	}
-
-	// Reassemble the cookie value if it was chunked
-	if combinedValue.Len() > 0 {
-		cookieValue += combinedValue.String()
+		return nil, nil, err
 	}
 
 	// Get the cookie domain
@@ -122,6 +97,79 @@ func (s *Server) getSessionCookie(c *gin.Context, portalName string) (profile *u
 	return profile, provider, nil
 }
 
+// readSessionCookieValue returns the session cookie value, reassembling it from the base cookie plus any chunk cookies ("<cookieName>_1", "<cookieName>_2", ...)
+// It returns http.ErrNoCookie when the base cookie is not present
+func readSessionCookieValue(c *gin.Context, cookieName string) (string, error) {
+	// Parse the Cookie header once
+	reqCookies := c.Request.Cookies()
+
+	// Find the base cookie and collect any chunk cookies in a single pass
+	// Chunks are rare, so the map stays nil for the common single-cookie case
+	var (
+		baseValue string
+		haveBase  bool
+		chunks    map[int]string
+	)
+	chunkPrefix := cookieName + "_"
+	for _, ck := range reqCookies {
+		switch {
+		case ck.Name == cookieName:
+			// Keep the first occurrence, matching net/http's Request.Cookie lookup
+			if !haveBase {
+				baseValue = ck.Value
+				haveBase = true
+			}
+		case strings.HasPrefix(ck.Name, chunkPrefix):
+			idx, aErr := strconv.Atoi(ck.Name[len(chunkPrefix):])
+			if aErr != nil || idx < 1 || idx >= maxCookieChunks {
+				continue
+			}
+			if chunks == nil {
+				chunks = make(map[int]string, 4)
+			}
+			chunks[idx] = ck.Value
+		}
+	}
+
+	if !haveBase {
+		return "", http.ErrNoCookie
+	}
+
+	// Cookie values are URL-encoded when written (gin escapes them), so decode to match c.Cookie's behavior
+	baseValue = cookieValueUnescape(baseValue)
+	if baseValue == "" {
+		return "", fmt.Errorf("session cookie %s is empty", cookieName)
+	}
+
+	// Fast path: the cookie was not chunked
+	if len(chunks) == 0 {
+		return baseValue, nil
+	}
+
+	// Reassemble the base value with contiguous chunks starting at index 1, stopping at the first gap
+	var sb strings.Builder
+	sb.WriteString(baseValue)
+	for i := 1; ; i++ {
+		chunkValue, ok := chunks[i]
+		if !ok {
+			break
+		}
+		chunkValue = cookieValueUnescape(chunkValue)
+		if chunkValue == "" {
+			return "", fmt.Errorf("session cookie chunk %s%d is empty", chunkPrefix, i)
+		}
+		sb.WriteString(chunkValue)
+	}
+	return sb.String(), nil
+}
+
+// cookieValueUnescape decodes a cookie value the same way gin's c.Cookie does
+// url.QueryUnescape returns the input unchanged when there is nothing to decode (the regular case for our base64url JWT values)
+func cookieValueUnescape(v string) string {
+	unescaped, _ := url.QueryUnescape(v)
+	return unescaped
+}
+
 // invalidSessionCookieIsSuspicious reports whether an error returned by getSessionCookie is "suspicious" (worth a security warning).
 // An expired token is a normal, expected event and returns false.
 // A cached negative validation result also returns false, so that repeatedly presenting the same invalid cookie doesn't flood the logs (the first, uncached attempt is what gets logged).
@@ -130,39 +178,32 @@ func invalidSessionCookieIsSuspicious(err error) bool {
 	return !errors.Is(err, jwt.TokenExpiredError{}) && !errors.Is(err, errCachedTokenValidationFailed)
 }
 
+// tokenCacheEntry is the result of a session token validation, stored in the token cache
+type tokenCacheEntry struct {
+	// token holds the parsed token when valid, so subsequent requests can reuse it without re-parsing
+	token openid.Token
+	// valid reports whether the token passed validation
+	valid bool
+}
+
 func (s *Server) parseSessionToken(val string, portalName string, cookieDomain string) (openid.Token, error) {
 	cfg := config.Get()
 	audience := cfg.GetTokenAudienceClaim(cookieDomain)
 
-	// Compute the hash of the token and expected audience for use as cache key
-	cacheKey := s.tokenCacheKey(val + "\x00" + audience)
+	// Compute the cache key from the token, expected audience, and portal
+	cacheKey := s.tokenCacheKey(val, audience, portalName)
 
-	// Check if the token validation result is in the cache
-	valid, ok := s.tokenCache.Get(cacheKey)
+	// Check if we have a cached validation result for this token
+	cached, ok := s.tokenCache.Get(cacheKey)
 	if ok {
-		if !valid {
-			// Token failed validation (cached result)
+		if !cached.valid {
 			return nil, errCachedTokenValidationFailed
 		}
 
-		// Token was valid (cached result), now parse without validation to extract claims
-		token, err := jwt.Parse([]byte(val),
-			jwt.WithValidate(false),
-			jwt.WithVerify(false),
-			jwt.WithToken(openid.New()),
-		)
-		if err != nil {
-			return nil, fmt.Errorf("failed to parse pre-validated session token JWT: %w", err)
-		}
-
-		oidcToken, ok := token.(openid.Token)
-		if !ok {
-			return nil, fmt.Errorf("JWT parsing returned unexpected token type: %T, expected openid.Token", token)
-		}
-		return oidcToken, nil
+		return cached.token, nil
 	}
 
-	// Token not in cache, validate it
+	// Not in the cache: validate the token's signature and claims
 	token, err := jwt.Parse([]byte(val),
 		jwt.WithAcceptableSkew(acceptableClockSkew),
 		jwt.WithIssuer(jwtIssuer+":"+audience+":"+portalName),
@@ -171,29 +212,30 @@ func (s *Server) parseSessionToken(val string, portalName string, cookieDomain s
 		jwt.WithToken(openid.New()),
 	)
 
-	// Determine validation result
-	valid = err == nil
+	// Extract the concrete openid.Token from a successful parse
 	var oidcToken openid.Token
-	if valid {
-		var ok bool
-		oidcToken, ok = token.(openid.Token)
-		if !ok {
+	if err == nil {
+		var typeOk bool
+		oidcToken, typeOk = token.(openid.Token)
+		if !typeOk {
 			// This indicates a programming error in the JWT library or incorrect usage
 			// We handle it gracefully with an error rather than panicking since this involves user input
-			valid = false
 			err = fmt.Errorf("JWT parsing returned unexpected token type: %T, expected openid.Token", token)
+			oidcToken = nil
 		}
 	}
 
-	// Compute the TTL for the cache based on validation result and token expiration
-	ttl := computeTokenCacheTTL(oidcToken, !valid)
-
-	// Store validation result in cache
-	s.tokenCache.Set(cacheKey, valid, ttl)
-
-	if !valid {
+	// Cache the result so subsequent requests can skip re-parsing, which is the dominant cost on the session-validation hot path
+	// openid.Token guards all reads with a RWMutex, so the cached token is safe to share across concurrent requests
+	ttl := computeTokenCacheTTL(oidcToken, err != nil)
+	s.tokenCache.Set(cacheKey, tokenCacheEntry{
+		token: oidcToken,
+		valid: err == nil,
+	}, ttl)
+	if err != nil {
 		return nil, fmt.Errorf("failed to parse session token JWT: %w", err)
 	}
+
 	return oidcToken, nil
 }
 
@@ -571,9 +613,17 @@ func stateCookieSig(c *gin.Context, stateCookieID string, portalName string, non
 	return base64.RawURLEncoding.EncodeToString(h.Sum(nil))
 }
 
-// tokenCacheKey computes the hash of the token string (using xxHash, variant XXH64) for use as a cache key
-func (s *Server) tokenCacheKey(tokenStr string) uint64 {
-	return xxhash.Sum64String(tokenStr)
+// tokenCacheKey computes the cache key for a session token (using xxHash, variant XXH64)
+// The key combines the token, the expected audience, and the portal name
+func (s *Server) tokenCacheKey(val string, audience string, portalName string) uint64 {
+	var d xxhash.Digest
+	d.Reset()
+	_, _ = d.WriteString(val)
+	_, _ = d.WriteString("\x00")
+	_, _ = d.WriteString(audience)
+	_, _ = d.WriteString("\x00")
+	_, _ = d.WriteString(portalName)
+	return d.Sum64()
 }
 
 // computeTokenCacheTTL computes the TTL for a token validation result in the cache
