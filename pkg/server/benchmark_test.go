@@ -1,6 +1,7 @@
 package server
 
 import (
+	"io"
 	"log/slog"
 	"net/http"
 	"net/http/httptest"
@@ -138,3 +139,71 @@ func BenchmarkGetSessionCookie(b *testing.B) {
 		}
 	}
 }
+
+// BenchmarkHotPathForwardAuth benchmarks the complete request Traefik makes on every
+// proxied request: the full middleware chain plus the portal root route, for a request
+// that carries a valid session cookie.
+// This is the end-to-end hot path, not an individual method.
+func BenchmarkHotPathForwardAuth(b *testing.B) {
+	const portalName = "test1"
+	const cookieDomain = "example.com"
+
+	log := slog.New(slog.NewTextHandler(io.Discard, nil))
+
+	cfg := config.Get()
+	err := cfg.Process(log)
+	if err != nil {
+		b.Fatalf("failed to process config: %v", err)
+	}
+
+	portals, err := GetPortalsConfig(b.Context(), cfg)
+	if err != nil {
+		b.Fatalf("failed to get portals config: %v", err)
+	}
+
+	srv, err := NewServer(NewServerOpts{Portals: portals, log: log})
+	if err != nil {
+		b.Fatalf("failed to create the server: %v", err)
+	}
+
+	profile := createFullTestProfile()
+	token := benchSessionToken(b, portalName, cookieDomain, profile, time.Hour)
+	cookieName := cfg.Cookies.CookieName(portalName)
+
+	newReq := func() *http.Request {
+		req := httptest.NewRequest(http.MethodGet, "/portals/"+portalName+"/", nil)
+		req.Header.Set(headerXForwardedFor, "203.0.113.10")
+		req.Header.Set(headerXForwardedPort, "443")
+		req.Header.Set(headerXForwardedProto, "https")
+		req.Header.Set(headerXForwardedHost, cookieDomain)
+		req.Header.Set(headerXForwardedServer, "traefik@docker")
+		req.AddCookie(&http.Cookie{Name: cookieName, Value: token}) //nolint:gosec
+		return req
+	}
+
+	// Warm the token cache and make sure the route actually authenticates
+	warm := httptest.NewRecorder()
+	srv.appRouter.ServeHTTP(warm, newReq())
+	if warm.Code != http.StatusOK {
+		b.Fatalf("expected the request to be authenticated, got status %d: %s", warm.Code, warm.Body.String())
+	}
+
+	req := newReq()
+	w := &benchResponseWriter{h: make(http.Header, 16)}
+
+	b.ReportAllocs()
+	b.ResetTimer()
+	for b.Loop() {
+		clear(w.h)
+		srv.appRouter.ServeHTTP(w, req)
+	}
+}
+
+// benchResponseWriter discards the response so the benchmark measures the server, not the recorder
+type benchResponseWriter struct {
+	h http.Header
+}
+
+func (b *benchResponseWriter) Header() http.Header         { return b.h }
+func (b *benchResponseWriter) Write(p []byte) (int, error) { return len(p), nil }
+func (b *benchResponseWriter) WriteHeader(int)             {}
