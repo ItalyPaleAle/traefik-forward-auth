@@ -17,8 +17,7 @@ func TestServerLifecycle(t *testing.T) {
 	// This will create in-memory listeners with bufconn too
 	srv, _ := newTestServer(t)
 	require.NotNil(t, srv)
-	stopServerFn := startTestServer(t, srv)
-	defer stopServerFn(t)
+	startTestServer(t, srv)
 
 	// Make a request to the /healthz endpoint in the app server
 	appClient := clientForListener(srv.appListener)

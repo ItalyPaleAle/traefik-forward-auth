@@ -13,10 +13,9 @@ import (
 func TestServerHealthzRoutes(t *testing.T) {
 	// Create the server
 	// This will create in-memory listeners with bufconn too
-	srv, logBuf := newTestServer(t)
+	srv, _ := newTestServer(t)
 	require.NotNil(t, srv)
-	stopServerFn := startTestServer(t, srv)
-	defer stopServerFn(t)
+	startTestServer(t, srv)
 	appClient := clientForListener(srv.appListener)
 
 	// Test the healthz endpoints
@@ -33,8 +32,5 @@ func TestServerHealthzRoutes(t *testing.T) {
 
 		// Check the response
 		assertResponseNoContent(t, res)
-
-		// Reset the log buffer
-		logBuf.Reset()
 	})
 }

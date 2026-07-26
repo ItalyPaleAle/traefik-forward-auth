@@ -109,11 +109,18 @@ type NewServerOpts struct {
 	// Optional function to add test routes
 	// This is used in testing
 	addTestRoutes func(s *Server)
+
+	// Optional property to pass a logger
+	// This is used in testing
+	log *slog.Logger
 }
 
 // NewServer creates a new Server object and initializes it
 func NewServer(opts NewServerOpts) (*Server, error) {
-	log := slog.With("scope", "server")
+	log := opts.log
+	if log == nil {
+		log = slog.With("scope", "server")
+	}
 
 	s := &Server{
 		log:        log,

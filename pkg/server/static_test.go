@@ -144,11 +144,9 @@ func TestAcceptsGzip(t *testing.T) {
 }
 
 func TestServerStaticAssets(t *testing.T) {
-	srv, logBuf := newTestServer(t)
+	srv, _ := newTestServer(t)
 	require.NotNil(t, srv)
-	stopServerFn := startTestServer(t, srv)
-	defer stopServerFn(t)
-	defer logBuf.Reset()
+	startTestServer(t, srv)
 
 	require.NotEmpty(t, srv.styleAsset, "manifest must populate styleAsset")
 	require.True(t, strings.HasPrefix(srv.styleAsset, "style."), "styleAsset should be hashed style.<hash>.css")

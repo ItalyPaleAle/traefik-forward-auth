@@ -1,7 +1,6 @@
 package server
 
 import (
-	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
@@ -23,6 +22,7 @@ import (
 
 	"github.com/italypaleale/traefik-forward-auth/pkg/config"
 	"github.com/italypaleale/traefik-forward-auth/pkg/user"
+	"github.com/italypaleale/traefik-forward-auth/pkg/utils"
 	"github.com/italypaleale/traefik-forward-auth/pkg/utils/bufconn"
 )
 
@@ -58,13 +58,14 @@ func TestMain(m *testing.M) {
 	os.Exit(m.Run())
 }
 
-func newTestServer(t *testing.T) (srv *Server, logBuf *bytes.Buffer) {
+func newTestServer(t *testing.T) (srv *Server, logBuf *utils.SafeBuffer) {
 	t.Helper()
 
 	cfg := config.Get()
 
 	// Logging: we log to stdout and to a buffer, so we can capture logs if needed
-	logBuf = &bytes.Buffer{}
+	// Use a concurrency-safe buffer because the server runs in a background goroutine and the slog handler may be written to from multiple goroutines concurrently
+	logBuf = &utils.SafeBuffer{}
 	logDest := io.MultiWriter(os.Stdout, logBuf)
 
 	log := slog.
@@ -83,9 +84,9 @@ func newTestServer(t *testing.T) (srv *Server, logBuf *bytes.Buffer) {
 	srv, err = NewServer(NewServerOpts{
 		Portals:       portals,
 		addTestRoutes: nil,
+		log:           log,
 	})
 	require.NoError(t, err)
-	srv.log = log
 
 	// Set the listener
 	srv.appListener = bufconn.Listen(bufconnBufSize)
@@ -93,7 +94,7 @@ func newTestServer(t *testing.T) (srv *Server, logBuf *bytes.Buffer) {
 	return srv, logBuf
 }
 
-func startTestServer(t *testing.T, srv *Server) func(t *testing.T) {
+func startTestServer(t *testing.T, srv *Server) {
 	t.Helper()
 
 	// Start the server in a background goroutine
@@ -112,16 +113,14 @@ func startTestServer(t *testing.T, srv *Server) func(t *testing.T) {
 		t.Fatalf("Received an unexpected error in startErrCh: %v", err)
 	}
 
-	// Return a function to tear down the test server, which must be invoked at the end of the test
-	return func(t *testing.T) {
-		t.Helper()
-
+	// Set a cleanup function
+	t.Cleanup(func() {
 		// Shutdown the server
 		srvCancel()
 
 		// At the end of the test, there should be no error
 		require.NoError(t, <-startErrCh, "received an unexpected error in startErrCh")
-	}
+	})
 }
 
 func clientForListener(ln net.Listener) *http.Client {

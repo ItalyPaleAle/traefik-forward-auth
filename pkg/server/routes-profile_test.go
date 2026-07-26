@@ -20,8 +20,7 @@ func TestRouteGetProfile(t *testing.T) {
 	// Create the server
 	srv, _ := newTestServer(t)
 	require.NotNil(t, srv)
-	stopServerFn := startTestServer(t, srv)
-	defer stopServerFn(t)
+	startTestServer(t, srv)
 	appClient := clientForListener(srv.appListener)
 
 	cfg := config.Get()
@@ -233,8 +232,7 @@ func TestRouteGetProfileJSON(t *testing.T) {
 	// Create the server
 	srv, _ := newTestServer(t)
 	require.NotNil(t, srv)
-	stopServerFn := startTestServer(t, srv)
-	defer stopServerFn(t)
+	startTestServer(t, srv)
 	appClient := clientForListener(srv.appListener)
 
 	cfg := config.Get()

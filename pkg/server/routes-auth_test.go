@@ -27,10 +27,9 @@ func TestServerAuthRoutes(t *testing.T) {
 
 			// Create the server
 			// This will create in-memory listeners with bufconn too
-			srv, logBuf := newTestServer(t)
+			srv, _ := newTestServer(t)
 			require.NotNil(t, srv)
-			stopServerFn := startTestServer(t, srv)
-			defer stopServerFn(t)
+			startTestServer(t, srv)
 			appClient := clientForListener(srv.appListener)
 
 			t.Run("auth root redirects to signin", func(t *testing.T) {
@@ -52,8 +51,6 @@ func TestServerAuthRoutes(t *testing.T) {
 				assert.Equal(t, "example.com", locUrl.Host)
 				assert.Equal(t, expectedSigninPath, locUrl.Path)
 				assert.Contains(t, locUrl.Query().Get("state"), "~")
-
-				logBuf.Reset()
 			})
 
 			t.Run("auth root logout flag propagated", func(t *testing.T) {
@@ -76,8 +73,6 @@ func TestServerAuthRoutes(t *testing.T) {
 				assert.Equal(t, expectedSigninPath, locUrl.Path)
 				assert.Contains(t, locUrl.Query().Get("state"), "~")
 				assert.True(t, utils.IsTruthy(locUrl.Query().Get("logout")))
-
-				logBuf.Reset()
 			})
 
 			t.Run("auth root reuses state cookie for same return URL", func(t *testing.T) {
@@ -115,8 +110,6 @@ func TestServerAuthRoutes(t *testing.T) {
 				assert.Equal(t, http.StatusSeeOther, res2.StatusCode)
 				state2 := urlMustParse(t, res2.Header.Get("Location")).Query().Get("state")
 				assert.Equal(t, state1, state2)
-
-				logBuf.Reset()
 			})
 		}
 	}
@@ -156,8 +149,7 @@ func TestRouteGetAuthRootAuthenticated(t *testing.T) {
 			// Create the server
 			srv, _ := newTestServer(t)
 			require.NotNil(t, srv)
-			stopServerFn := startTestServer(t, srv)
-			defer stopServerFn(t)
+			startTestServer(t, srv)
 			appClient := clientForListener(srv.appListener)
 
 			cfg := config.Get()
@@ -267,18 +259,17 @@ func TestRouteGetAuthRootInvalidCookie(t *testing.T) {
 		return func(t *testing.T) {
 			srv, logBuf := newTestServer(t)
 			require.NotNil(t, srv)
-			stopServerFn := startTestServer(t, srv)
-			defer stopServerFn(t)
+			startTestServer(t, srv)
 			appClient := clientForListener(srv.appListener)
 
 			cookieName := config.Get().Cookies.CookieName(portalName)
 
-			logBuf.Reset()
+			// Read the current buffer
+			_ = logBuf.String()
 
 			reqCtx, reqCancel := context.WithTimeout(t.Context(), 2*time.Second)
 			defer reqCancel()
-			req, err := http.NewRequestWithContext(reqCtx, http.MethodGet,
-				fmt.Sprintf("http://localhost:%d/portals/%s", testServerPort, portalName), nil)
+			req, err := http.NewRequestWithContext(reqCtx, http.MethodGet, fmt.Sprintf("http://localhost:%d/portals/%s", testServerPort, portalName), nil)
 			require.NoError(t, err)
 			req.AddCookie(&http.Cookie{Name: cookieName, Value: cookieValue(t)}) //nolint:gosec
 			populateRequiredProxyHeaders(t, req)
@@ -297,7 +288,7 @@ func TestRouteGetAuthRootInvalidCookie(t *testing.T) {
 			// The bad session cookie must be cleared
 			assert.Contains(t, strings.Join(res.Header.Values("Set-Cookie"), "\n"), cookieName+"=")
 
-			// A suspicious (malformed/tampered) cookie is logged as a warning; an expired one is not
+			// A suspicious (malformed/tampered) cookie is logged as a warning, an expired one is not
 			if expectSuspiciousLog {
 				assert.Contains(t, logBuf.String(), suspiciousLogLine)
 			} else {
@@ -319,9 +310,8 @@ func TestRouteGetAuthRootInvalidCookie(t *testing.T) {
 
 func TestRouteGetAuthProvider(t *testing.T) {
 	// Create the server
-	srv, logBuf := newTestServer(t)
-	stopServerFn := startTestServer(t, srv)
-	defer stopServerFn(t)
+	srv, _ := newTestServer(t)
+	startTestServer(t, srv)
 	appClient := clientForListener(srv.appListener)
 
 	// Helper to get a fresh state (stateCookieID~nonce) plus associated Set-Cookie headers
@@ -367,8 +357,6 @@ func TestRouteGetAuthProvider(t *testing.T) {
 
 		assert.Equal(t, "https://example.com/portals/test1/oauth2/callback", locUrl.Query().Get("redirect_uri"))
 		assert.Contains(t, locUrl.Query().Get("state"), "~")
-
-		logBuf.Reset()
 	})
 
 	t.Run("missing state param", func(t *testing.T) {
@@ -383,8 +371,6 @@ func TestRouteGetAuthProvider(t *testing.T) {
 		defer closeBody(res)
 
 		assert.Equal(t, http.StatusBadRequest, res.StatusCode)
-
-		logBuf.Reset()
 	})
 
 	t.Run("invalid state format", func(t *testing.T) {
@@ -406,8 +392,6 @@ func TestRouteGetAuthProvider(t *testing.T) {
 		defer closeBody(res)
 
 		assert.Equal(t, http.StatusUnauthorized, res.StatusCode)
-
-		logBuf.Reset()
 	})
 
 	t.Run("nonce mismatch", func(t *testing.T) {
@@ -431,8 +415,6 @@ func TestRouteGetAuthProvider(t *testing.T) {
 		defer closeBody(res)
 
 		assert.Equal(t, http.StatusUnauthorized, res.StatusCode)
-
-		logBuf.Reset()
 	})
 }
 
@@ -484,8 +466,7 @@ func TestDedicatedSubdomainRedirects(t *testing.T) {
 
 	srv, _ := newTestServer(t)
 	require.NotNil(t, srv)
-	stopServerFn := startTestServer(t, srv)
-	defer stopServerFn(t)
+	startTestServer(t, srv)
 	appClient := clientForListener(srv.appListener)
 
 	// Step 1: simulate the forward-auth call from Traefik for an app on app.example.com — TFA should redirect the user to auth.example.com to start the sign-in
@@ -528,8 +509,7 @@ func TestSubpathModeRedirects(t *testing.T) {
 
 	srv, _ := newTestServer(t)
 	require.NotNil(t, srv)
-	stopServerFn := startTestServer(t, srv)
-	defer stopServerFn(t)
+	startTestServer(t, srv)
 	appClient := clientForListener(srv.appListener)
 
 	res := doProxiedRequest(t, appClient, "/portals/test1", testProxyHeaders{host: "app.example.com", uri: "/dashboard"}, nil)
@@ -573,8 +553,7 @@ func TestSubpathModeRedirectsWithDomain(t *testing.T) {
 
 	srv, _ := newTestServer(t)
 	require.NotNil(t, srv)
-	stopServerFn := startTestServer(t, srv)
-	defer stopServerFn(t)
+	startTestServer(t, srv)
 	appClient := clientForListener(srv.appListener)
 
 	// Hit TFA directly on example.com (since this is sub-path mode the apps and TFA share the host)
@@ -608,8 +587,7 @@ func TestMixedDomainsRedirects(t *testing.T) {
 
 	srv, _ := newTestServer(t)
 	require.NotNil(t, srv)
-	stopServerFn := startTestServer(t, srv)
-	defer stopServerFn(t)
+	startTestServer(t, srv)
 	appClient := clientForListener(srv.appListener)
 
 	t.Run("example.com tenant uses authHost", func(t *testing.T) {
@@ -639,8 +617,7 @@ func TestStateCookieDomainAcrossHosts(t *testing.T) {
 
 	srv, _ := newTestServer(t)
 	require.NotNil(t, srv)
-	stopServerFn := startTestServer(t, srv)
-	defer stopServerFn(t)
+	startTestServer(t, srv)
 	appClient := clientForListener(srv.appListener)
 
 	// Step 1: forward-auth call from the app — produces a state cookie scoped to example.com
@@ -680,8 +657,7 @@ func TestUnmatchedHostRejected(t *testing.T) {
 
 	srv, _ := newTestServer(t)
 	require.NotNil(t, srv)
-	stopServerFn := startTestServer(t, srv)
-	defer stopServerFn(t)
+	startTestServer(t, srv)
 	appClient := clientForListener(srv.appListener)
 
 	res := doProxiedRequest(t, appClient, "/portals/test1", testProxyHeaders{host: "app.evil.com", uri: "/dashboard"}, nil)
@@ -706,8 +682,7 @@ func TestLogoutRedirectsUseAuthHost(t *testing.T) {
 
 		srv, _ := newTestServer(t)
 		require.NotNil(t, srv)
-		stopServerFn := startTestServer(t, srv)
-		defer stopServerFn(t)
+		startTestServer(t, srv)
 		appClient := clientForListener(srv.appListener)
 
 		reqCtx, cancel := context.WithTimeout(t.Context(), 2*time.Second)
@@ -733,8 +708,7 @@ func TestLogoutRedirectsUseAuthHost(t *testing.T) {
 
 		srv, _ := newTestServer(t)
 		require.NotNil(t, srv)
-		stopServerFn := startTestServer(t, srv)
-		defer stopServerFn(t)
+		startTestServer(t, srv)
 		appClient := clientForListener(srv.appListener)
 
 		reqCtx, cancel := context.WithTimeout(t.Context(), 2*time.Second)
@@ -771,8 +745,7 @@ func TestOAuth2CallbackRoundTrip(t *testing.T) {
 
 	srv, _ := newTestServer(t)
 	require.NotNil(t, srv)
-	stopServerFn := startTestServer(t, srv)
-	defer stopServerFn(t)
+	startTestServer(t, srv)
 	appClient := clientForListener(srv.appListener)
 
 	// 1) Forward-auth call from the app — gets us a state cookie and the sign-in URL

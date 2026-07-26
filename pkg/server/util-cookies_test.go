@@ -22,9 +22,8 @@ const testPortalName = "test1"
 func TestSetSessionCookie(t *testing.T) {
 	// This test calls the server's methods directly and never issues HTTP requests, so it does not start the server
 	// Starting the background server goroutine would let its startup config.Get() race with the config.SetTestConfig call in the "audience is scoped to cookie domain" subtest
-	srv, logBuf := newTestServer(t)
+	srv, _ := newTestServer(t)
 	require.NotNil(t, srv)
-	defer logBuf.Reset()
 
 	t.Run("success", func(t *testing.T) {
 		// Create a test profile
@@ -416,11 +415,9 @@ func TestCookieDomainForContext(t *testing.T) {
 }
 
 func TestGetSessionCookie(t *testing.T) {
-	srv, logBuf := newTestServer(t)
+	srv, _ := newTestServer(t)
 	require.NotNil(t, srv)
-	stopServerFn := startTestServer(t, srv)
-	defer stopServerFn(t)
-	defer logBuf.Reset()
+	startTestServer(t, srv)
 
 	t.Run("success", func(t *testing.T) {
 		// First set a session cookie
@@ -524,11 +521,9 @@ func TestGetSessionCookie(t *testing.T) {
 }
 
 func TestDeleteSessionCookie(t *testing.T) {
-	srv, logBuf := newTestServer(t)
+	srv, _ := newTestServer(t)
 	require.NotNil(t, srv)
-	stopServerFn := startTestServer(t, srv)
-	defer stopServerFn(t)
-	defer logBuf.Reset()
+	startTestServer(t, srv)
 
 	t.Run("success", func(t *testing.T) {
 		// First set a session cookie
@@ -640,9 +635,8 @@ func TestDeleteSessionCookie(t *testing.T) {
 func TestSetStateCookie(t *testing.T) {
 	// This test calls the server's methods directly and never issues HTTP requests, so it does not start the server
 	// Starting the background server goroutine would let its startup config.Get() race with the config.SetTestConfig call in the "uses return URL domain" subtest
-	srv, logBuf := newTestServer(t)
+	srv, _ := newTestServer(t)
 	require.NotNil(t, srv)
-	defer logBuf.Reset()
 
 	portal := srv.portals[testPortalName]
 	require.NotNil(t, portal, "test portal should exist")
@@ -721,11 +715,9 @@ func TestSetStateCookie(t *testing.T) {
 }
 
 func TestGetStateCookie(t *testing.T) {
-	srv, logBuf := newTestServer(t)
+	srv, _ := newTestServer(t)
 	require.NotNil(t, srv)
-	stopServerFn := startTestServer(t, srv)
-	defer stopServerFn(t)
-	defer logBuf.Reset()
+	startTestServer(t, srv)
 
 	portal := srv.portals[testPortalName]
 	require.NotNil(t, portal, "test portal should exist")
@@ -853,11 +845,9 @@ func TestGetStateCookie(t *testing.T) {
 }
 
 func TestDeleteStateCookies(t *testing.T) {
-	srv, logBuf := newTestServer(t)
+	srv, _ := newTestServer(t)
 	require.NotNil(t, srv)
-	stopServerFn := startTestServer(t, srv)
-	defer stopServerFn(t)
-	defer logBuf.Reset()
+	startTestServer(t, srv)
 
 	portal := srv.portals[testPortalName]
 	require.NotNil(t, portal, "test portal should exist")
@@ -948,11 +938,9 @@ func TestDeleteStateCookies(t *testing.T) {
 }
 
 func TestGenerateNonce(t *testing.T) {
-	srv, logBuf := newTestServer(t)
+	srv, _ := newTestServer(t)
 	require.NotNil(t, srv)
-	stopServerFn := startTestServer(t, srv)
-	defer stopServerFn(t)
-	defer logBuf.Reset()
+	startTestServer(t, srv)
 
 	nonce1, err := srv.generateNonce()
 	require.NoError(t, err)
@@ -967,11 +955,9 @@ func TestGenerateNonce(t *testing.T) {
 }
 
 func TestTokenCaching(t *testing.T) {
-	srv, logBuf := newTestServer(t)
+	srv, _ := newTestServer(t)
 	require.NotNil(t, srv)
-	stopServerFn := startTestServer(t, srv)
-	defer stopServerFn(t)
-	defer logBuf.Reset()
+	startTestServer(t, srv)
 
 	t.Run("valid token is cached", func(t *testing.T) {
 		// Create a test profile
@@ -1119,11 +1105,9 @@ func TestTokenCaching(t *testing.T) {
 }
 
 func TestGetSessionCookieWithCache(t *testing.T) {
-	srv, logBuf := newTestServer(t)
+	srv, _ := newTestServer(t)
 	require.NotNil(t, srv)
-	stopServerFn := startTestServer(t, srv)
-	defer stopServerFn(t)
-	defer logBuf.Reset()
+	startTestServer(t, srv)
 
 	t.Run("getSessionCookie uses cached token", func(t *testing.T) {
 		// Create a test profile
