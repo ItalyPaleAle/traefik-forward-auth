@@ -316,6 +316,17 @@ func (p *Profile) Get(claim string) any {
 // The second returned value is false if the claim is not present or if its value is not of type T.
 // As a special case, when T is string the value is converted to a string rather than reported as a mismatch, so that claims with a non-string value (such as "email_verified") can still be requested as strings.
 func GetAs[T any](p *Profile, claim string) (val T, ok bool) {
+	// Most claims hold a string and are requested as a string
+	// GetString returns those without going through Get, whose "any" return value forces the string to be boxed, which allocates
+	// This syntax allows us to check if T is string
+	if valPtr, isString := any(&val).(*string); isString {
+		if s, found := p.GetString(claim); found {
+			*valPtr = s
+			return val, true
+		}
+		return val, false
+	}
+
 	v := p.Get(claim)
 	if v == nil {
 		return val, false
@@ -337,6 +348,48 @@ func GetAs[T any](p *Profile, claim string) (val T, ok bool) {
 	}
 
 	return val, false
+}
+
+// GetString returns the value of the claim by its name, as a string.
+// The second returned value is false if the claim is not present.
+//
+// It behaves exactly like GetAs[string], but the claims that already hold a string are returned directly rather than through Get.
+// Get returns "any", so returning a string through it boxes the value and allocates, which showed up on the hot path: every authenticated request sets one response header per configured claim.
+func (p *Profile) GetString(claim string) (string, bool) {
+	switch claim {
+	case "provider":
+		return p.Provider, true
+	case "id", "sub":
+		return p.ID, true
+	case "name":
+		return p.Name.FullName, true
+	case "given_name":
+		return p.Name.First, true
+	case "middle_name":
+		return p.Name.Middle, true
+	case "family_name":
+		return p.Name.Last, true
+	case "nickname":
+		return p.Name.Nickname, true
+	case "email":
+		return p.GetEmail(), true
+	case "picture":
+		return p.Picture, true
+	case "locale":
+		return p.Locale, true
+	case "zoneinfo":
+		return p.Timezone, true
+	default:
+		// Claims that don't hold a string, and claims read from AdditionalClaims, still go through Get so they are converted the same way as before
+		v := p.Get(claim)
+		if v == nil {
+			return "", false
+		}
+		if s, isString := v.(string); isString {
+			return s, true
+		}
+		return cast.ToString(v), true
+	}
 }
 
 // PopulateFullName builds the full name if it's not set but there are other fields

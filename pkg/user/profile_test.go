@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	"github.com/lestrrat-go/jwx/v4/jwt/openid"
+	"github.com/spf13/cast"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -201,4 +202,84 @@ func TestGetAs(t *testing.T) {
 		assert.False(t, ok)
 		assert.False(t, val)
 	})
+}
+
+// TestGetStringMatchesGetAs checks that GetString returns exactly what GetAs[string] returned before
+// it was given a fast path, including for the claims that don't hold a string
+func TestGetStringMatchesGetAs(t *testing.T) {
+	// getAsStringReference is the implementation GetAs[string] had before GetString existed
+	getAsStringReference := func(p *Profile, claim string) (val string, ok bool) {
+		v := p.Get(claim)
+		if v == nil {
+			return "", false
+		}
+		val, ok = v.(string)
+		if ok {
+			return val, true
+		}
+		return cast.ToString(v), true
+	}
+
+	profiles := map[string]*Profile{
+		"full": {
+			Provider: "testoauth2",
+			ID:       "user123",
+			Name:     ProfileName{FullName: "John Doe", Nickname: "johnd", First: "John", Middle: "Q", Last: "Doe"},
+			Email:    &ProfileEmail{Value: "john@example.com", Verified: true},
+			Picture:  "https://example.com/avatar.jpg",
+			Locale:   "en-US",
+			Timezone: "America/New_York",
+			Groups:   []string{"admins", "users"},
+			Roles:    []string{"admin", "editor"},
+			AdditionalClaims: map[string]any{
+				"dept":     "eng",
+				"level":    7,
+				"active":   true,
+				"ratio":    1.5,
+				"tags":     []string{"a", "b"},
+				"explicit": nil,
+			},
+		},
+		"empty": {},
+		"unverified email": {
+			Email: &ProfileEmail{Value: "nobody@example.com", Verified: false},
+		},
+	}
+
+	claims := []string{
+		"provider", "id", "sub", "name", "given_name", "middle_name", "family_name",
+		"nickname", "email", "email_verified", "picture", "locale", "zoneinfo",
+		"groups", "roles",
+		"dept", "level", "active", "ratio", "tags", "explicit", "missing", "",
+	}
+
+	for profileName, p := range profiles {
+		for _, claim := range claims {
+			t.Run(profileName+"/"+claim, func(t *testing.T) {
+				wantVal, wantOk := getAsStringReference(p, claim)
+
+				gotVal, gotOk := p.GetString(claim)
+				assert.Equal(t, wantOk, gotOk, "GetString ok")
+				assert.Equal(t, wantVal, gotVal, "GetString value")
+
+				// GetAs[string] must agree too, since it now goes through GetString
+				asVal, asOk := GetAs[string](p, claim)
+				assert.Equal(t, wantOk, asOk, "GetAs ok")
+				assert.Equal(t, wantVal, asVal, "GetAs value")
+			})
+		}
+	}
+}
+
+// TestGetStringDoesNotAllocate checks that reading a string claim doesn't box the value into an interface,
+// which is the reason GetString exists
+func TestGetStringDoesNotAllocate(t *testing.T) {
+	p := &Profile{ID: "user123", Name: ProfileName{FullName: "John Doe"}}
+
+	allocs := testing.AllocsPerRun(100, func() {
+		_, _ = p.GetString("id")
+		_, _ = GetAs[string](p, "name")
+	})
+
+	assert.Zero(t, allocs, "reading string claims should not allocate")
 }
