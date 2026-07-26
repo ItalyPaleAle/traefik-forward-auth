@@ -5,6 +5,8 @@ import (
 	"net/http"
 	"strings"
 
+	"github.com/gin-gonic/gin"
+
 	"github.com/italypaleale/traefik-forward-auth/pkg/auth"
 	"github.com/italypaleale/traefik-forward-auth/pkg/config"
 	"github.com/italypaleale/traefik-forward-auth/pkg/user"
@@ -13,6 +15,37 @@ import (
 type AuthenticatedHeader interface {
 	GetName() string
 	GetValue(portal *Portal, provider auth.Provider, profile *user.Profile) string
+}
+
+// setAuthenticatedHeaders adds the portal's authenticated headers to the response.
+//
+// Every value shares a single backing array, so a portal with N headers allocates once rather than once per header.
+// This runs on every request Traefik forwards, where it was the largest single source of allocations.
+func setAuthenticatedHeaders(c *gin.Context, portal *Portal, provider auth.Provider, profile *user.Profile) {
+	if len(portal.Headers) == 0 {
+		return
+	}
+
+	h := c.Writer.Header()
+
+	// Capacity is fixed up front so appending never reallocates and never invalidates a slice already handed to the header map
+	values := make([]string, 0, len(portal.Headers))
+
+	for _, header := range portal.Headers {
+		// Header names are canonicalized when the portal configuration is loaded, so they can be set without canonicalizing them again per request
+		name := header.GetName()
+
+		value := validateHeaderValue(header.GetValue(portal, provider, profile))
+		if value == "" {
+			// An empty value removes the header, matching the behavior of gin's Context.Header
+			delete(h, name)
+			continue
+		}
+
+		values = append(values, value)
+		// Capping the slice at its length means anything that later adds to this header allocates its own array instead of writing into ours
+		h[name] = values[len(values)-1 : len(values) : len(values)]
+	}
 }
 
 type authenticatedClaimHeader struct {
