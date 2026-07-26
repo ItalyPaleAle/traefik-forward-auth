@@ -202,6 +202,12 @@ func (s *Server) MiddlewareProxyHeaders(c *gin.Context) {
 		AbortWithError(c, NewResponseError(http.StatusBadRequest, "Invalid value for the 'X-Forwarded-Host' header"))
 		return
 	}
+
+	// Keep the client IP for the request log line, so the logger doesn't parse X-Forwarded-For a second time
+	rs := getRequestState(c)
+	if rs != nil {
+		rs.clientIP = clientIP
+	}
 }
 
 // MiddlewareLoadAuthCookie is a middleware that checks if the request contains a valid authentication token in the cookie.
@@ -339,7 +345,14 @@ func (s *Server) MiddlewareLogger(parentLog *slog.Logger) func(c *gin.Context) {
 
 		// Other fields to include
 		duration := time.Since(start)
-		clientIP := c.ClientIP()
+		// MiddlewareProxyHeaders already extracted the client IP from X-Forwarded-For for the routes that run it; fall back to Gin for the routes that don't (health checks, static assets, the API)
+		clientIP := ""
+		if rs != nil {
+			clientIP = rs.clientIP
+		}
+		if clientIP == "" {
+			clientIP = c.ClientIP()
+		}
 		statusCode := c.Writer.Status()
 		// If no data was written, respSize could be -1
 		respSize := max(c.Writer.Size(), 0)
@@ -356,6 +369,11 @@ func (s *Server) MiddlewareLogger(parentLog *slog.Logger) func(c *gin.Context) {
 			level = slog.LevelWarn
 		default:
 			level = slog.LevelError
+		}
+
+		// Nothing below is observable when the log line is going to be dropped, and building the attributes is a meaningful part of the cost of a request
+		if !parentLog.Enabled(c.Request.Context(), level) {
+			return
 		}
 
 		// Check if we have a message

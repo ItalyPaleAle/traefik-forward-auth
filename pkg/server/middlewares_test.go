@@ -363,3 +363,61 @@ func TestIsValidHostHeaderMatchesRegexp(t *testing.T) {
 		}
 	})
 }
+
+func TestMiddlewareLoggerSkipsDisabledLevels(t *testing.T) {
+	// A handler that returns 200 logs at INFO, so a logger set to WARN drops the line entirely
+	buf := &bytes.Buffer{}
+	log := slog.New(slog.NewTextHandler(buf, &slog.HandlerOptions{Level: slog.LevelWarn}))
+	srv := &Server{log: log}
+
+	router := gin.New()
+	router.Use(srv.MiddlewareAddRequestState, srv.MiddlewareRequestId, srv.MiddlewareLogger(log))
+	router.GET("/ok", func(c *gin.Context) { c.String(http.StatusOK, "ok") })
+	router.GET("/bad", func(c *gin.Context) { c.String(http.StatusBadRequest, "bad") })
+
+	router.ServeHTTP(httptest.NewRecorder(), httptest.NewRequest(http.MethodGet, "/ok", nil))
+	assert.Empty(t, buf.String(), "a 200 should not be logged when the level is WARN")
+
+	// A 4xx logs at WARN, so it still comes through
+	router.ServeHTTP(httptest.NewRecorder(), httptest.NewRequest(http.MethodGet, "/bad", nil))
+	assert.Contains(t, buf.String(), "status=400")
+}
+
+func TestMiddlewareLoggerClientIP(t *testing.T) {
+	newRouter := func(buf *bytes.Buffer, withProxyHeaders bool) *gin.Engine {
+		log := slog.New(slog.NewTextHandler(buf, nil))
+		srv := &Server{log: log}
+
+		router := gin.New()
+		router.Use(srv.MiddlewareAddRequestState, srv.MiddlewareRequestId, srv.MiddlewareLogger(log))
+		if withProxyHeaders {
+			router.Use(srv.MiddlewareProxyHeaders)
+		}
+		router.GET("/test", func(c *gin.Context) { c.String(http.StatusOK, "ok") })
+
+		return router
+	}
+
+	t.Run("uses the IP MiddlewareProxyHeaders extracted", func(t *testing.T) {
+		buf := &bytes.Buffer{}
+		req := httptest.NewRequest(http.MethodGet, "/test", nil)
+		req.Header.Set(headerXForwardedFor, "203.0.113.10, 10.0.0.1")
+		req.Header.Set(headerXForwardedPort, "443")
+		req.Header.Set(headerXForwardedProto, "https")
+		req.Header.Set(headerXForwardedHost, "example.com")
+
+		newRouter(buf, true).ServeHTTP(httptest.NewRecorder(), req)
+
+		assert.Contains(t, buf.String(), "client=203.0.113.10")
+	})
+
+	t.Run("falls back to Gin on routes without the proxy headers middleware", func(t *testing.T) {
+		buf := &bytes.Buffer{}
+		req := httptest.NewRequest(http.MethodGet, "/test", nil)
+		req.RemoteAddr = "198.51.100.7:1234"
+
+		newRouter(buf, false).ServeHTTP(httptest.NewRecorder(), req)
+
+		assert.Contains(t, buf.String(), "client=198.51.100.7")
+	})
+}

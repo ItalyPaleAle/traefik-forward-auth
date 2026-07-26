@@ -25,6 +25,10 @@ type requestState struct {
 	// It is resolved from the route the first time it's needed, then reused for the rest of the request
 	portal *Portal
 
+	// Client IP, extracted from X-Forwarded-For by MiddlewareProxyHeaders
+	// It is empty on routes that don't run that middleware
+	clientIP string
+
 	// User's session, populated when the request carries a valid session cookie
 	profile       *user.Profile
 	provider      auth.Provider
