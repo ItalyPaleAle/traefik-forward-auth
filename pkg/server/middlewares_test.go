@@ -4,8 +4,10 @@ import (
 	"bytes"
 	"errors"
 	"log/slog"
+	"math/rand"
 	"net/http"
 	"net/http/httptest"
+	"regexp"
 	"strings"
 	"testing"
 
@@ -297,5 +299,67 @@ func TestGetPortal(t *testing.T) {
 		// A new request resolves from scratch, and now finds nothing
 		_, err = srv.getPortal(newContextForPortal("test1"))
 		require.Error(t, err)
+	})
+}
+
+// TestIsValidHostHeaderMatchesRegexp checks that isValidHostHeader accepts exactly the same values
+// as the regular expression it replaced, which is kept here as the reference implementation
+func TestIsValidHostHeaderMatchesRegexp(t *testing.T) {
+	reference := regexp.MustCompile(`^(?:[\w-]+|(?:[\w\-]+\.)+\w+|\[[0-9\:]+\])(?::\d+)?$`)
+
+	check := func(t *testing.T, v string) {
+		t.Helper()
+		assert.Equalf(t, reference.MatchString(v), isValidHostHeader(v), "mismatch for %q", v)
+	}
+
+	t.Run("representative values", func(t *testing.T) {
+		values := []string{
+			"", ".", "..", "-", "_", ":", "::",
+			"example", "example.com", "sub.example.com", "a.b.c.d",
+			"my-host", "my-host.example.com", "example.my-tld",
+			"host_name", "host_name.example.com",
+			"EXAMPLE.COM", "Example.Com",
+			"123", "1.2.3.4", "192.168.0.1:8080",
+			"example.com:443", "example.com:0", "example.com:",
+			"example.com:abc", "example.com:80:80", "example.com::80",
+			":8080", "example.com.", ".example.com", "example..com",
+			"[::1]", "[::1]:8080", "[2001:db8::1]", "[2001:db8::1]:443",
+			"[]", "[]:80", "[::1", "::1]", "[::1]x", "[::1]:", "[::1]:abc",
+			"[abcd::1]", "[::1]80", "[[::1]]",
+			"bad host", "bad!host", "host/path", "host?q", "host#f",
+			"exam\tple", "exam\nple", "example.com ", " example.com",
+			"a-", "-a", "a.b-", "a.-b", "a-.b", "xn--e1afmkfd.xn--p1ai",
+			"host.example.com:65535", "host.example.com:99999999",
+			"日本.jp", "café.com",
+		}
+		for _, v := range values {
+			check(t, v)
+		}
+	})
+
+	t.Run("generated combinations", func(t *testing.T) {
+		pieces := []string{"", "a", "-", "_", ".", "1", ":", "]", "[", "z9"}
+		for _, a := range pieces {
+			for _, b := range pieces {
+				for _, c := range pieces {
+					for _, d := range pieces {
+						check(t, a+b+c+d)
+					}
+				}
+			}
+		}
+	})
+
+	t.Run("random values", func(t *testing.T) {
+		const alphabet = "abz09-_.:[]! \t"
+		rnd := rand.New(rand.NewSource(20260726)) //nolint:gosec
+		buf := make([]byte, 12)
+		for range 200_000 {
+			n := rnd.Intn(len(buf)) + 1
+			for i := range n {
+				buf[i] = alphabet[rnd.Intn(len(alphabet))]
+			}
+			check(t, string(buf[:n]))
+		}
 	})
 }

@@ -19,7 +19,107 @@ import (
 	"github.com/italypaleale/traefik-forward-auth/pkg/utils"
 )
 
-var hostHeaderRe regexp.Regexp = *regexp.MustCompile(`^(?:[\w-]+|(?:[\w\-]+\.)+\w+|\[[0-9\:]+\])(?::\d+)?$`)
+// isValidHostHeader reports whether v is an acceptable value for the X-Forwarded-Host header.
+// It accepts a hostname made of dot-separated labels, or an IPv6 address in square brackets, each optionally followed by ":<port>".
+//
+// This is equivalent to matching against `^(?:[\w-]+|(?:[\w\-]+\.)+\w+|\[[0-9\:]+\])(?::\d+)?$`, which is what it replaces.
+// The regular expression was one of the single most expensive operations on the hot path, because it falls back to the backtracking engine; TestIsValidHostHeaderMatchesRegexp checks the two agree.
+func isValidHostHeader(v string) bool {
+	if v == "" {
+		return false
+	}
+
+	// Split off the optional ":<port>" suffix
+	// A bracketed IPv6 address contains colons of its own, so for those the port can only start after the closing bracket
+	var host, port string
+	hasPort := false
+	switch {
+	case v[0] == '[':
+		end := strings.IndexByte(v, ']')
+		if end < 0 {
+			return false
+		}
+		host, port = v[:end+1], v[end+1:]
+		if port != "" {
+			if port[0] != ':' {
+				return false
+			}
+			port = port[1:]
+			hasPort = true
+		}
+	default:
+		idx := strings.IndexByte(v, ':')
+		if idx >= 0 {
+			host, port = v[:idx], v[idx+1:]
+			hasPort = true
+		} else {
+			host = v
+		}
+	}
+
+	// The port must be one or more digits
+	if hasPort {
+		if port == "" {
+			return false
+		}
+		for i := range len(port) {
+			if port[i] < '0' || port[i] > '9' {
+				return false
+			}
+		}
+	}
+
+	// A value that is nothing but a port, such as ":8080", has no host to validate
+	if host == "" {
+		return false
+	}
+
+	// Bracketed IPv6 address: "[" one or more digits and colons "]"
+	if host[0] == '[' {
+		inner := host[1 : len(host)-1]
+		if inner == "" {
+			return false
+		}
+		for i := range len(inner) {
+			if (inner[i] < '0' || inner[i] > '9') && inner[i] != ':' {
+				return false
+			}
+		}
+		return true
+	}
+
+	// Hostname: dot-separated labels of word characters, where every label but the last may also contain hyphens
+	// A hostname with a single label (no dots) may contain hyphens too, matching the first branch of the regular expression
+	start := 0
+	for i := 0; i <= len(host); i++ {
+		if i < len(host) && host[i] != '.' {
+			continue
+		}
+
+		label := host[start:i]
+		if label == "" {
+			return false
+		}
+
+		// Hyphens are allowed in every label except the last one of a multi-label hostname
+		allowHyphen := i < len(host) || start == 0
+		for j := range len(label) {
+			c := label[j]
+			switch {
+			case c >= 'a' && c <= 'z', c >= 'A' && c <= 'Z', c >= '0' && c <= '9', c == '_':
+				// Word character, always allowed
+			case c == '-' && allowHyphen:
+				// Allowed in this position
+			default:
+				return false
+			}
+		}
+
+		start = i + 1
+	}
+
+	return true
+}
 
 // MiddlewareAddRequestState is a middleware that attaches a requestState to the request's context.
 // It must run before any other middleware or handler that reads or writes that state.
@@ -98,7 +198,7 @@ func (s *Server) MiddlewareProxyHeaders(c *gin.Context) {
 	}
 
 	// Validate X-Forwarded-Host
-	if !hostHeaderRe.MatchString(xForwardedHost) {
+	if !isValidHostHeader(xForwardedHost) {
 		AbortWithError(c, NewResponseError(http.StatusBadRequest, "Invalid value for the 'X-Forwarded-Host' header"))
 		return
 	}
