@@ -28,6 +28,7 @@ type tlsCertProvider struct {
 	path    string
 	cert    string
 	key     string
+	log     *slog.Logger
 }
 
 // Creates a new tlsCertProvider object
@@ -56,6 +57,7 @@ func newTLSCertProvider(path string) (*tlsCertProvider, error) {
 		path:    path,
 		cert:    cert,
 		key:     key,
+		log:     slog.With("scope", "tlsCertProvider"),
 	}, nil
 }
 
@@ -90,8 +92,6 @@ func (p *tlsCertProvider) SetTLSCert(tlsCert *tls.Certificate) {
 
 // Watch starts watching (in background) for changes to the TLS certificate and key on disk, and triggers a reload when that happens.
 func (p *tlsCertProvider) Watch(ctx context.Context) error {
-	log := utils.LogFromContext(ctx)
-
 	watcher, err := fsnotify.WatchFolder(ctx, p.path)
 	if err != nil {
 		return fmt.Errorf("failed to start watching for changes on disk: %w", err)
@@ -104,14 +104,14 @@ func (p *tlsCertProvider) Watch(ctx context.Context) error {
 			select {
 			case <-watcher:
 				// Reload
-				log.InfoContext(ctx, "Found changes in folder containing TLS certificates; will reload certificates")
+				p.log.InfoContext(ctx, "Found changes in folder containing TLS certificates; will reload certificates")
 				reloadErr = p.Reload()
 				if reloadErr != nil {
 					// Log errors only
-					log.ErrorContext(ctx, "Failed to load updated TLS certificates from disk", slog.Any("error", reloadErr))
+					p.log.ErrorContext(ctx, "Failed to load updated TLS certificates from disk", slog.Any("error", reloadErr))
 					continue
 				}
-				log.InfoContext(ctx, "TLS certificates have been reloaded")
+				p.log.InfoContext(ctx, "TLS certificates have been reloaded")
 
 			case <-ctx.Done():
 				// Stop on context cancellation

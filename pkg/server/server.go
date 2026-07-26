@@ -32,7 +32,6 @@ import (
 	"github.com/italypaleale/traefik-forward-auth/pkg/buildinfo"
 	"github.com/italypaleale/traefik-forward-auth/pkg/config"
 	"github.com/italypaleale/traefik-forward-auth/pkg/metrics"
-	"github.com/italypaleale/traefik-forward-auth/pkg/utils"
 	"github.com/italypaleale/traefik-forward-auth/pkg/utils/conditions"
 )
 
@@ -103,7 +102,6 @@ type Server struct {
 
 // NewServerOpts contains options for the NewServer method
 type NewServerOpts struct {
-	Log           *slog.Logger
 	Metrics       *metrics.TFAMetrics
 	TraceExporter sdkTrace.SpanExporter
 	Portals       map[string]*Portal
@@ -115,8 +113,10 @@ type NewServerOpts struct {
 
 // NewServer creates a new Server object and initializes it
 func NewServer(opts NewServerOpts) (*Server, error) {
+	log := slog.With("scope", "server")
+
 	s := &Server{
-		log:        opts.Log,
+		log:        log,
 		metrics:    opts.Metrics,
 		portals:    opts.Portals,
 		startTime:  time.Now().UTC(),
@@ -136,7 +136,7 @@ func NewServer(opts NewServerOpts) (*Server, error) {
 	}
 
 	// Init the object
-	err := s.init(opts.Log, opts.TraceExporter)
+	err := s.init(log, opts.TraceExporter)
 	if err != nil {
 		return nil, err
 	}
@@ -305,7 +305,7 @@ func (s *Server) Run(ctx context.Context) error {
 		shutdownCancel()
 		if err != nil {
 			// Log the error only (could be context canceled)
-			utils.LogFromContext(ctx).WarnContext(ctx,
+			s.log.WarnContext(ctx,
 				"App server shutdown error",
 				slog.Any("error", err),
 			)
@@ -357,7 +357,6 @@ func (s *Server) predicatesCacheCleanup(ctx context.Context) {
 
 func (s *Server) startAppServer(ctx context.Context) error {
 	cfg := config.Get()
-	log := utils.LogFromContext(ctx)
 
 	// Create the HTTP(S) server
 	s.appSrv = &http.Server{
@@ -389,7 +388,7 @@ func (s *Server) startAppServer(ctx context.Context) error {
 	}
 
 	// Start the HTTP(S) server in a background goroutine
-	log.InfoContext(ctx, "App server started",
+	s.log.InfoContext(ctx, "App server started",
 		slog.String("bind", cfg.Server.Bind),
 		slog.Int("port", cfg.Server.Port),
 		slog.Bool("tls", s.tlsConfig != nil),
@@ -405,7 +404,7 @@ func (s *Server) startAppServer(ctx context.Context) error {
 			srvErr = s.appSrv.Serve(s.appListener)
 		}
 		if !errors.Is(srvErr, http.ErrServerClosed) {
-			slogkit.FatalError(log, "Error starting app server", srvErr)
+			slogkit.FatalError(s.log, "Error starting app server", srvErr)
 		}
 	}()
 

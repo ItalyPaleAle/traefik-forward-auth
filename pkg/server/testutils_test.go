@@ -81,11 +81,11 @@ func newTestServer(t *testing.T) (srv *Server, logBuf *bytes.Buffer) {
 
 	// Create the server object
 	srv, err = NewServer(NewServerOpts{
-		Log:           log,
 		Portals:       portals,
 		addTestRoutes: nil,
 	})
 	require.NoError(t, err)
+	srv.log = log
 
 	// Set the listener
 	srv.appListener = bufconn.Listen(bufconnBufSize)

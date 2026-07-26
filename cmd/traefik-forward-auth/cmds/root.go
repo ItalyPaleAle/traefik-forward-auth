@@ -17,7 +17,6 @@ import (
 	"github.com/italypaleale/traefik-forward-auth/pkg/config"
 	tfametrics "github.com/italypaleale/traefik-forward-auth/pkg/metrics"
 	"github.com/italypaleale/traefik-forward-auth/pkg/server"
-	"github.com/italypaleale/traefik-forward-auth/pkg/utils"
 )
 
 var rootCmd = &cobra.Command{
@@ -80,9 +79,6 @@ func runService(ctx context.Context) {
 
 	log.Info("Starting traefik-forward-auth", "build", buildinfo.BuildDescription)
 
-	// Store the logger in the context too
-	ctx = utils.LogToContext(ctx, log)
-
 	// Init metrics
 	metrics, metricsShutdownFn, err := tfametrics.NewTFAMetrics(ctx, log)
 	if err != nil {
@@ -114,7 +110,6 @@ func runService(ctx context.Context) {
 
 	// Create the Server object
 	srv, err := server.NewServer(server.NewServerOpts{
-		Log:           log,
 		Portals:       portals,
 		Metrics:       metrics,
 		TraceExporter: traceExporter,
