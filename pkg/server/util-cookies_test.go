@@ -638,10 +638,10 @@ func TestDeleteSessionCookie(t *testing.T) {
 }
 
 func TestSetStateCookie(t *testing.T) {
+	// This test calls the server's methods directly and never issues HTTP requests, so it does not start the server
+	// Starting the background server goroutine would let its startup config.Get() race with the config.SetTestConfig call in the "uses return URL domain" subtest
 	srv, logBuf := newTestServer(t)
 	require.NotNil(t, srv)
-	stopServerFn := startTestServer(t, srv)
-	defer stopServerFn(t)
 	defer logBuf.Reset()
 
 	portal := srv.portals[testPortalName]
@@ -1191,6 +1191,82 @@ func TestGetSessionCookieWithCache(t *testing.T) {
 		assert.Equal(t, profile1.ID, profile2.ID)
 		assert.Equal(t, profile1.Name, profile2.Name)
 		assert.Equal(t, profile1.Email, profile2.Email)
+	})
+
+	t.Run("a cache key collision does not serve another token's session", func(t *testing.T) {
+		// Build two distinct sessions
+		profileA := &user.Profile{ID: "user-a", Provider: "testoauth2", Name: user.ProfileName{FullName: "User A"}}
+		profileB := &user.Profile{ID: "user-b", Provider: "testoauth2", Name: user.ProfileName{FullName: "User B"}}
+
+		newToken := func(p *user.Profile) string {
+			w := httptest.NewRecorder()
+			c, _ := gin.CreateTestContext(w)
+			c.Request, _ = http.NewRequest(http.MethodGet, "/", nil)
+			require.NoError(t, srv.setSessionCookie(c, testPortalName, p, time.Hour))
+			cookies := w.Result().Cookies()
+			require.Len(t, cookies, 1)
+			return cookies[0].Value
+		}
+		tokenA := newToken(profileA)
+		tokenB := newToken(profileB)
+		require.NotEqual(t, tokenA, tokenB)
+
+		cookieName := config.Get().Cookies.CookieName(testPortalName)
+		audience := config.Get().GetTokenAudienceClaim("")
+
+		// Warm the cache for token A, so we have a fully populated entry (token and profile) for it
+		_, _, err := srv.getSessionCookie(newContextWithSessionCookie(cookieName, tokenA), testPortalName)
+		require.NoError(t, err)
+		entryA, okA := srv.tokenCache.Get(srv.tokenCacheKey(tokenA, audience, testPortalName))
+		require.True(t, okA)
+		require.NotNil(t, entryA.profile)
+
+		// Simulate a hash collision: store A's entry under the key token B maps to
+		keyB := srv.tokenCacheKey(tokenB, audience, testPortalName)
+		srv.tokenCache.Set(keyB, entryA, time.Minute)
+
+		// Presenting token B must still resolve to B's own identity, not to the entry sitting under its key
+		profile, _, err := srv.getSessionCookie(newContextWithSessionCookie(cookieName, tokenB), testPortalName)
+		require.NoError(t, err)
+		require.NotNil(t, profile)
+		assert.Equal(t, profileB.ID, profile.ID)
+	})
+
+	t.Run("profile is built once and reused from the cache", func(t *testing.T) {
+		testProfile := &user.Profile{
+			ID: "test-user-cached-profile",
+			Name: user.ProfileName{
+				FullName: "Cached Profile User",
+			},
+			Provider: "testoauth2",
+			Groups:   []string{"g1", "g2"},
+		}
+
+		w := httptest.NewRecorder()
+		c, _ := gin.CreateTestContext(w)
+		c.Request, _ = http.NewRequest(http.MethodGet, "/", nil)
+		err := srv.setSessionCookie(c, testPortalName, testProfile, time.Hour)
+		require.NoError(t, err)
+
+		cookies := w.Result().Cookies()
+		require.Len(t, cookies, 1)
+
+		cookieName := config.Get().Cookies.CookieName(testPortalName)
+		cookieValue := cookies[0].Value
+
+		profile1, provider1, err := srv.getSessionCookie(newContextWithSessionCookie(cookieName, cookieValue), testPortalName)
+		require.NoError(t, err)
+		require.NotNil(t, profile1)
+
+		profile2, provider2, err := srv.getSessionCookie(newContextWithSessionCookie(cookieName, cookieValue), testPortalName)
+		require.NoError(t, err)
+		require.NotNil(t, profile2)
+
+		// The second request must reuse the very same profile rather than building a new one
+		assert.Same(t, profile1, profile2)
+		assert.Same(t, provider1, provider2)
+		assert.Equal(t, testProfile.ID, profile2.ID)
+		assert.Equal(t, testProfile.Groups, profile2.Groups)
 	})
 
 	t.Run("cached token is safe to read concurrently", func(t *testing.T) {

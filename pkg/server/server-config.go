@@ -8,15 +8,15 @@ import (
 	"github.com/italypaleale/traefik-forward-auth/pkg/config"
 )
 
-func GetPortalsConfig(ctx context.Context, conf *config.Config) (map[string]Portal, error) {
-	portals := make(map[string]Portal, len(conf.Portals))
+func GetPortalsConfig(ctx context.Context, conf *config.Config) (map[string]*Portal, error) {
+	portals := make(map[string]*Portal, len(conf.Portals))
 	for _, p := range conf.Portals {
 		providers, err := p.GetAuthProviders(ctx)
 		if err != nil {
 			return nil, fmt.Errorf("failed to get auth providers for portal '%s': %w", p.Name, err)
 		}
 
-		portal := Portal{
+		portal := &Portal{
 			Name:                  p.Name,
 			DisplayName:           p.DisplayName,
 			Providers:             make(map[string]auth.Provider, len(providers)),
@@ -31,7 +31,7 @@ func GetPortalsConfig(ctx context.Context, conf *config.Config) (map[string]Port
 			portal.SessionLifetime = conf.Tokens.SessionLifetime
 		}
 
-		err = setPagesPortalConfig(p, &portal)
+		err = setPagesPortalConfig(p, portal)
 		if err != nil {
 			return nil, fmt.Errorf("configuration for portal '%s' is invalid: %w", p.Name, err)
 		}

@@ -14,7 +14,7 @@ func TestRoutePostLogout(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 
 	srv := &Server{
-		portals: map[string]Portal{
+		portals: map[string]*Portal{
 			"test1": {Name: "test1"},
 		},
 	}

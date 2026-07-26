@@ -1,6 +1,8 @@
 package server
 
 import (
+	"encoding/json"
+	"fmt"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -12,7 +14,7 @@ import (
 )
 
 func TestAuthenticatedClaimHeader(t *testing.T) {
-	portal := Portal{Name: "myportal"}
+	portal := &Portal{Name: "myportal"}
 	provider := auth.NewTestProviderSeamless()
 
 	t.Run("GetName", func(t *testing.T) {
@@ -122,7 +124,7 @@ func TestAuthenticatedClaimHeader(t *testing.T) {
 }
 
 func TestAuthenticatedPropertyHeader(t *testing.T) {
-	portal := Portal{Name: "myportal"}
+	portal := &Portal{Name: "myportal"}
 	provider := auth.NewTestProviderSeamless()
 	profile := &user.Profile{ID: "user123"}
 
@@ -153,7 +155,7 @@ func TestAuthenticatedPropertyHeader(t *testing.T) {
 }
 
 func TestBuiltinAuthenticatedUserHeader(t *testing.T) {
-	portal := Portal{Name: "myportal"}
+	portal := &Portal{Name: "myportal"}
 	provider := auth.NewTestProviderSeamless()
 
 	h := builtinAuthenticatedUserHeader{}
@@ -217,4 +219,38 @@ func TestGetHeadersConfig(t *testing.T) {
 		assert.Equal(t, authenticatedClaimHeader{name: "X-Forwarded-Groups", claim: "groups"}, headers[1])
 		assert.Equal(t, authenticatedPropertyHeader{name: "X-Portal", property: config.PropertyPortalName}, headers[2])
 	})
+}
+
+func TestJSONQuoteString(t *testing.T) {
+	// jsonQuoteString takes a shortcut for values that need no escaping, so its output must be identical to the JSON encoder's for every input
+	//nolint:gosmopolitan
+	values := []string{
+		"",
+		"user123",
+		"user@example.com",
+		"3f2504e0-4f89-11d3-9a0c-0305e82c3301",
+		"with space",
+		"tilde~and-dash_dot.",
+		`quote"inside`,
+		`back\slash`,
+		"angle<brackets>",
+		"amper&sand",
+		"new\nline",
+		"tab\tchar",
+		"null\x00byte",
+		"del\x7fchar",
+		"accented-é",
+		"日本語",
+		"emoji-🎉",
+		"invalid-utf8-\xff",
+	}
+
+	for _, val := range values {
+		t.Run(fmt.Sprintf("%q", val), func(t *testing.T) {
+			expected, err := json.Marshal(val)
+			require.NoError(t, err)
+
+			assert.Equal(t, string(expected), jsonQuoteString(val))
+		})
+	}
 }

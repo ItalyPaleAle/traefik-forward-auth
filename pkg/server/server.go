@@ -49,6 +49,7 @@ const (
 	headerXForwardedUser        = "X-Forwarded-User"
 	headerXAuthenticatedUser    = "X-Authenticated-User"
 	headerXForwardAuthIf        = "X-Forward-Auth-If"
+	headerXRequestID            = "X-Request-Id"
 
 	contentTypeTextPlain = "text/plain; charset=utf-8"
 
@@ -58,10 +59,14 @@ const (
 // Server is the server based on Gin
 type Server struct {
 	appRouter  *gin.Engine
+	log        *slog.Logger
 	metrics    *metrics.TFAMetrics
-	portals    map[string]Portal
+	portals    map[string]*Portal
 	predicates *haxmap.Map[string, cachedPredicate]
 	tokenCache *ttlcache.Cache[uint64, tokenCacheEntry]
+
+	// Precomputed session cookie name for each portal
+	sessionCookieNames map[string]string
 
 	// Servers
 	appSrv *http.Server
@@ -101,7 +106,7 @@ type NewServerOpts struct {
 	Log           *slog.Logger
 	Metrics       *metrics.TFAMetrics
 	TraceExporter sdkTrace.SpanExporter
-	Portals       map[string]Portal
+	Portals       map[string]*Portal
 
 	// Optional function to add test routes
 	// This is used in testing
@@ -111,6 +116,7 @@ type NewServerOpts struct {
 // NewServer creates a new Server object and initializes it
 func NewServer(opts NewServerOpts) (*Server, error) {
 	s := &Server{
+		log:        opts.Log,
 		metrics:    opts.Metrics,
 		portals:    opts.Portals,
 		startTime:  time.Now().UTC(),
@@ -120,6 +126,13 @@ func NewServer(opts NewServerOpts) (*Server, error) {
 		}),
 
 		addTestRoutes: opts.addTestRoutes,
+	}
+
+	// Precompute the session cookie name for each portal
+	cookiesCfg := config.Get().Cookies
+	s.sessionCookieNames = make(map[string]string, len(opts.Portals))
+	for name := range opts.Portals {
+		s.sessionCookieNames[name] = cookiesCfg.CookieName(name)
 	}
 
 	// Init the object
@@ -185,6 +198,7 @@ func (s *Server) initAppServer(log *slog.Logger) (err error) {
 	// Create the Gin router and add various middlewares
 	s.appRouter = gin.New()
 	s.appRouter.Use(gin.Recovery())
+	s.appRouter.Use(s.MiddlewareAddRequestState)
 	if s.tracer != nil {
 		s.appRouter.Use(otelgin.Middleware("appserver", otelgin.WithTracerProvider(s.tracer)))
 	}

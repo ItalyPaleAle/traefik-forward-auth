@@ -52,8 +52,7 @@ const (
 var errCachedTokenValidationFailed = errors.New("session token validation failed (cached result)")
 
 func (s *Server) getSessionCookie(c *gin.Context, portalName string) (profile *user.Profile, provider auth.Provider, err error) {
-	cfg := config.Get()
-	cookieName := cfg.Cookies.CookieName(portalName)
+	cookieName := s.sessionCookieName(portalName)
 
 	// Read the session cookie, reassembling it from chunk cookies (suffixes _1, _2, ...) if needed
 	// This parses the request's Cookie header only once
@@ -71,30 +70,65 @@ func (s *Server) getSessionCookie(c *gin.Context, portalName string) (profile *u
 	}
 
 	// Parse the JWT in the cookie
-	token, err := s.parseSessionToken(cookieValue, portalName, cookieDomain)
+	entry, cacheKey, err := s.lookupSessionToken(cookieValue, portalName, cookieDomain)
 	if err != nil {
 		return nil, nil, err
 	}
 
+	// Reuse the profile built for a previous request with this token, if we have one
+	if entry.profile != nil {
+		return entry.profile, entry.provider, nil
+	}
+
+	// Build the profile from the token's claims, then keep it on the cache entry so subsequent requests don't have to build it again
+	profile, provider, err = s.buildSessionProfile(entry.token, portalName)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	entry.profile = profile
+	entry.provider = provider
+	s.tokenCache.Set(cacheKey, entry, computeTokenCacheTTL(entry.token, false))
+
+	return profile, provider, nil
+}
+
+// buildSessionProfile builds the user profile from the claims of a validated session token, and resolves the provider that issued it
+//
+// The result is cached and shared across requests, so the profile must not be modified after this function returns
+func (s *Server) buildSessionProfile(token openid.Token, portalName string) (*user.Profile, auth.Provider, error) {
 	// Get the user profile from the claim
 	providerName, _ := jwt.Get[string](token, user.ProviderNameClaim)
 	if providerName == "" {
 		return nil, nil, fmt.Errorf("claim %s is missing or empty", user.ProviderNameClaim)
 	}
-	profile, err = user.NewProfileFromOpenIDToken(token, providerName)
+	profile, err := user.NewProfileFromOpenIDToken(token, providerName)
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to parse claims from session token JWT: %w", err)
 	}
 
-	provider = s.portals[portalName].Providers[profile.Provider]
+	provider := s.portals[portalName].Providers[profile.Provider]
 	if provider == nil {
 		return nil, nil, errors.New("invalid provider in session token JWT")
 	}
 
 	// Populate additional claims if any
+	// This is the last step that modifies the profile: from here on it is shared and read-only
 	provider.PopulateAdditionalClaims(token, profile.SetAdditionalClaim)
 
 	return profile, provider, nil
+}
+
+// sessionCookieName returns the name of the session cookie for a portal
+func (s *Server) sessionCookieName(portalName string) string {
+	// Names are precomputed for every configured portal when the server is created, so this avoids a string concatenation per request
+	name, ok := s.sessionCookieNames[portalName]
+	if ok {
+		return name
+	}
+
+	// Fall back to computing the name for portals that aren't in the map
+	return config.Get().Cookies.CookieName(portalName)
 }
 
 // readSessionCookieValue returns the session cookie value, reassembling it from the base cookie plus any chunk cookies ("<cookieName>_1", "<cookieName>_2", ...)
@@ -164,8 +198,14 @@ func readSessionCookieValue(c *gin.Context, cookieName string) (string, error) {
 }
 
 // cookieValueUnescape decodes a cookie value the same way gin's c.Cookie does
-// url.QueryUnescape returns the input unchanged when there is nothing to decode (the regular case for our base64url JWT values)
+// Returns the input unchanged when there is nothing to decode
 func cookieValueUnescape(v string) string {
+	// QueryUnescape requires walking every byte with a byte-at-a-time loop, which is very slow as session cookies can be several KBs
+	// '%' and '+' are the only bytes it acts on, so we look for those first: IndexByte is vectorized
+	if strings.IndexByte(v, '%') < 0 && strings.IndexByte(v, '+') < 0 {
+		return v
+	}
+
 	unescaped, _ := url.QueryUnescape(v)
 	return unescaped
 }
@@ -180,13 +220,35 @@ func invalidSessionCookieIsSuspicious(err error) bool {
 
 // tokenCacheEntry is the result of a session token validation, stored in the token cache
 type tokenCacheEntry struct {
+	// raw is the session token this entry was created for
+	// Cache keys are 64-bit hashes, so two different tokens could (in theory, while unlikely) map to the same key
+	// Comparing the token itself on a hit means a collision can never serve one session's identity to another
+	raw string
 	// token holds the parsed token when valid, so subsequent requests can reuse it without re-parsing
 	token openid.Token
+	// profile is the user profile built from the token's claims, and provider is the provider that issued it
+	// They are populated the first time a request needs them, and are nil for entries that were only used to validate a token (such as those created by the /verify API)
+	//
+	// IMPORTANT: both are shared by every request that reads this entry, so they must be treated as read-only
+	// Never modify the profile (including its Groups, Roles, and AdditionalClaims) after it has been stored here
+	profile  *user.Profile
+	provider auth.Provider
 	// valid reports whether the token passed validation
 	valid bool
 }
 
 func (s *Server) parseSessionToken(val string, portalName string, cookieDomain string) (openid.Token, error) {
+	entry, _, err := s.lookupSessionToken(val, portalName, cookieDomain)
+	if err != nil {
+		return nil, err
+	}
+
+	return entry.token, nil
+}
+
+// lookupSessionToken returns the cache entry for a session token, validating the token first if it isn't cached yet
+// It also returns the cache key, so callers can store what they derived from the token on the same entry
+func (s *Server) lookupSessionToken(val string, portalName string, cookieDomain string) (tokenCacheEntry, uint64, error) {
 	cfg := config.Get()
 	audience := cfg.GetTokenAudienceClaim(cookieDomain)
 
@@ -194,13 +256,14 @@ func (s *Server) parseSessionToken(val string, portalName string, cookieDomain s
 	cacheKey := s.tokenCacheKey(val, audience, portalName)
 
 	// Check if we have a cached validation result for this token
+	// The entry is only usable if it was created for this exact token: on the (vanishingly unlikely) event of a hash collision we fall through and validate normally, overwriting the entry
 	cached, ok := s.tokenCache.Get(cacheKey)
-	if ok {
+	if ok && cached.raw == val {
 		if !cached.valid {
-			return nil, errCachedTokenValidationFailed
+			return tokenCacheEntry{}, cacheKey, errCachedTokenValidationFailed
 		}
 
-		return cached.token, nil
+		return cached, cacheKey, nil
 	}
 
 	// Not in the cache: validate the token's signature and claims
@@ -227,16 +290,18 @@ func (s *Server) parseSessionToken(val string, portalName string, cookieDomain s
 
 	// Cache the result so subsequent requests can skip re-parsing, which is the dominant cost on the session-validation hot path
 	// openid.Token guards all reads with a RWMutex, so the cached token is safe to share across concurrent requests
-	ttl := computeTokenCacheTTL(oidcToken, err != nil)
-	s.tokenCache.Set(cacheKey, tokenCacheEntry{
+	entry := tokenCacheEntry{
+		raw:   val,
 		token: oidcToken,
 		valid: err == nil,
-	}, ttl)
+	}
+	ttl := computeTokenCacheTTL(oidcToken, err != nil)
+	s.tokenCache.Set(cacheKey, entry, ttl)
 	if err != nil {
-		return nil, fmt.Errorf("failed to parse session token JWT: %w", err)
+		return tokenCacheEntry{}, cacheKey, fmt.Errorf("failed to parse session token JWT: %w", err)
 	}
 
-	return oidcToken, nil
+	return entry, cacheKey, nil
 }
 
 func (s *Server) setSessionCookie(c *gin.Context, portalName string, profile *user.Profile, expiration time.Duration) error {
@@ -296,7 +361,7 @@ func (s *Server) setSessionCookieForDomain(c *gin.Context, portalName string, pr
 		return fmt.Errorf("failed to serialize token: %w", err)
 	}
 
-	cookieName := cfg.Cookies.CookieName(portalName)
+	cookieName := s.sessionCookieName(portalName)
 	tokenStr := string(cookieValue)
 
 	// Check if we need to chunk the cookie
@@ -342,7 +407,7 @@ func (s *Server) setSessionCookieForDomain(c *gin.Context, portalName string, pr
 
 func (s *Server) deleteSessionCookie(c *gin.Context, portalName string) {
 	cfg := config.Get()
-	cookieName := cfg.Cookies.CookieName(portalName)
+	cookieName := s.sessionCookieName(portalName)
 	cookieDomain, _, ok := cookieDomainForContext(c)
 	if !ok {
 		return
@@ -388,7 +453,7 @@ type stateCookieContent struct {
 	returnURL string
 }
 
-func (s *Server) getStateCookie(c *gin.Context, portal Portal, stateCookieID string) (content stateCookieContent, err error) {
+func (s *Server) getStateCookie(c *gin.Context, portal *Portal, stateCookieID string) (content stateCookieContent, err error) {
 	cfg := config.Get()
 
 	// Get the cookie
@@ -465,7 +530,7 @@ func (s *Server) generateNonce() (string, error) {
 	return base64.RawURLEncoding.EncodeToString(nonceBytes), nil
 }
 
-func (s *Server) setStateCookie(c *gin.Context, portal Portal, nonce string, returnURL string, stateCookieID string) (err error) {
+func (s *Server) setStateCookie(c *gin.Context, portal *Portal, nonce string, returnURL string, stateCookieID string) (err error) {
 	cfg := config.Get()
 	expiration := portal.AuthenticationTimeout
 
@@ -582,7 +647,7 @@ func cookieDomainForReturnURL(c *gin.Context, returnURL string) (cookieDomain st
 func requestHost(c *gin.Context) string {
 	// Traefik sends the original application host in X-Forwarded-Host
 	// That is the host cookies must be scoped to when this service is behind the forward-auth middleware
-	host := c.Request.Header.Get(headerXForwardedHost)
+	host := headerValue(c.Request.Header, headerXForwardedHost)
 	if host != "" {
 		return host
 	}

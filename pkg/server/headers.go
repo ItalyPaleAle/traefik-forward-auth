@@ -2,9 +2,8 @@ package server
 
 import (
 	"encoding/json"
+	"net/http"
 	"strings"
-
-	"github.com/spf13/cast"
 
 	"github.com/italypaleale/traefik-forward-auth/pkg/auth"
 	"github.com/italypaleale/traefik-forward-auth/pkg/config"
@@ -13,7 +12,7 @@ import (
 
 type AuthenticatedHeader interface {
 	GetName() string
-	GetValue(portal Portal, provider auth.Provider, profile *user.Profile) string
+	GetValue(portal *Portal, provider auth.Provider, profile *user.Profile) string
 }
 
 type authenticatedClaimHeader struct {
@@ -25,7 +24,7 @@ func (h authenticatedClaimHeader) GetName() string {
 	return h.name
 }
 
-func (h authenticatedClaimHeader) GetValue(portal Portal, provider auth.Provider, profile *user.Profile) string {
+func (h authenticatedClaimHeader) GetValue(portal *Portal, provider auth.Provider, profile *user.Profile) string {
 	switch h.claim {
 	case "groups", "roles":
 		v, ok := user.GetAs[[]string](profile, h.claim)
@@ -34,7 +33,8 @@ func (h authenticatedClaimHeader) GetValue(portal Portal, provider auth.Provider
 		}
 		return strings.Join(v, " ")
 	default:
-		return cast.ToString(profile.Get(h.claim))
+		v, _ := user.GetAs[string](profile, h.claim)
+		return v
 	}
 }
 
@@ -47,7 +47,7 @@ func (h authenticatedPropertyHeader) GetName() string {
 	return h.name
 }
 
-func (h authenticatedPropertyHeader) GetValue(portal Portal, provider auth.Provider, profile *user.Profile) string {
+func (h authenticatedPropertyHeader) GetValue(portal *Portal, provider auth.Provider, profile *user.Profile) string {
 	switch h.property {
 	case config.PropertyPortalName:
 		return portal.Name
@@ -65,10 +65,29 @@ func (h builtinAuthenticatedUserHeader) GetName() string {
 }
 
 // Returns the user information to include in the "X-Authenticated-User" header
-func (h builtinAuthenticatedUserHeader) GetValue(portal Portal, provider auth.Provider, profile *user.Profile) string {
-	userID, _ := json.Marshal(profile.ID)
+func (h builtinAuthenticatedUserHeader) GetValue(portal *Portal, provider auth.Provider, profile *user.Profile) string {
 	// Provider and portal names is already guaranteed to not include characters that must be escaped as JSON
-	return `{"provider":"` + provider.GetProviderName() + `","portal":"` + portal.Name + `","user":` + string(userID) + `}`
+	return `{"provider":"` + provider.GetProviderName() + `","portal":"` + portal.Name + `","user":` + jsonQuoteString(profile.ID) + `}`
+}
+
+// jsonQuoteString returns val as a quoted JSON string, identically to json.Marshal
+func jsonQuoteString(val string) string {
+	// User IDs very rarely contain characters that need escaping, so the common case is quoting the value directly
+	// Fall back to the JSON encoder if we find anything that would require encoding
+	for i := range len(val) {
+		c := val[i]
+		// Fall back for control characters, for the characters encoding/json escapes, and for anything non-ASCII (which may need escaping as UTF-8)
+		if c < 0x20 || c > 0x7E || c == '"' || c == '\\' || c == '<' || c == '>' || c == '&' {
+			enc, err := json.Marshal(val)
+			if err != nil {
+				// Marshaling a string cannot fail, but return a valid JSON string rather than something malformed if it ever does
+				return `""`
+			}
+			return string(enc)
+		}
+	}
+
+	return `"` + val + `"`
 }
 
 func getHeadersConfig(p config.ConfigPortal) []AuthenticatedHeader {
@@ -83,12 +102,14 @@ func getHeadersConfig(p config.ConfigPortal) []AuthenticatedHeader {
 	}
 
 	// Add the custom headers
+	// Names are canonicalized here so that setting them on a response doesn't have to canonicalize them on every request
 	headers := make([]AuthenticatedHeader, len(*p.Headers))
 	for i, h := range *p.Headers {
+		name := http.CanonicalHeaderKey(h.Name)
 		if h.Claim != "" {
-			headers[i] = authenticatedClaimHeader{name: h.Name, claim: h.Claim}
+			headers[i] = authenticatedClaimHeader{name: name, claim: h.Claim}
 		} else if h.Property != "" {
-			headers[i] = authenticatedPropertyHeader{name: h.Name, property: h.Property}
+			headers[i] = authenticatedPropertyHeader{name: name, property: h.Property}
 		}
 	}
 	return headers

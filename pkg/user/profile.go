@@ -314,6 +314,7 @@ func (p *Profile) Get(claim string) any {
 
 // GetAs returns the value of the claim by its name, as the type T.
 // The second returned value is false if the claim is not present or if its value is not of type T.
+// As a special case, when T is string the value is converted to a string rather than reported as a mismatch, so that claims with a non-string value (such as "email_verified") can still be requested as strings.
 func GetAs[T any](p *Profile, claim string) (val T, ok bool) {
 	v := p.Get(claim)
 	if v == nil {
@@ -321,8 +322,21 @@ func GetAs[T any](p *Profile, claim string) (val T, ok bool) {
 	}
 
 	// Note that on failure the type assertion sets val to the zero value of T
+	// Most claims are already of the requested type, so this usually succeeds and we avoid the conversion below
 	val, ok = v.(T)
-	return val, ok
+	if ok {
+		return val, true
+	}
+
+	// The claim exists but has a different type: convert it if the caller asked for a string
+	// This syntax allows us to check if T is string
+	valPtr, isString := any(&val).(*string)
+	if isString {
+		*valPtr = cast.ToString(v)
+		return val, true
+	}
+
+	return val, false
 }
 
 // PopulateFullName builds the full name if it's not set but there are other fields

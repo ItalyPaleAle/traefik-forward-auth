@@ -81,10 +81,10 @@ func (s *Server) RouteGetAuthRoot(c *gin.Context) {
 	_, _ = c.Writer.WriteString(`Redirecting to sign-in page: ` + signInURL)
 }
 
-func (s *Server) handleAuthenticatedRoot(c *gin.Context, portal Portal, provider auth.Provider, profile *user.Profile) {
+func (s *Server) handleAuthenticatedRoot(c *gin.Context, portal *Portal, provider auth.Provider, profile *user.Profile) {
 	// Check if there's any condition ("if" query string arg or "X-Forward-Auth-If" header) to check claims against, for AuthZ
 	cond := c.Query("if")
-	condHeader := c.GetHeader(headerXForwardAuthIf)
+	condHeader := headerValue(c.Request.Header, headerXForwardAuthIf)
 	if cond != "" && condHeader != "" {
 		_ = c.Error(errors.New("condition passed in both 'if' query string arg and '" + headerXForwardAuthIf + "' header"))
 		AbortWithError(c, NewResponseErrorf(http.StatusBadRequest, "Authorization condition passed in both 'if' query string arg and '"+headerXForwardAuthIf+"' header"))
@@ -114,19 +114,21 @@ func (s *Server) handleAuthenticatedRoot(c *gin.Context, portal Portal, provider
 	s.metrics.RecordAuthentication(true)
 
 	// Add authenticated headers to the response
+	// Header names are canonicalized when the portal configuration is loaded, so they can be set without canonicalizing them again per request
 	for _, header := range portal.Headers {
 		name := header.GetName()
 		value := header.GetValue(portal, provider, profile)
-		c.Header(name, validateHeaderValue(value))
+		setResponseHeader(c, name, validateHeaderValue(value))
 	}
 
+	// Note: while ugly-ish, concatenating the response body is the cheapest option, considering this runs on every request Traefik forwards
 	switch {
 	case utils.IsTruthy(c.Query("html")):
-		s.renderAuthenticatedTemplate(c, &portal, provider, profile.ID)
+		s.renderAuthenticatedTemplate(c, portal, provider, profile.ID)
 	case profile.Name.FullName != "":
-		_, _ = fmt.Fprintf(c.Writer, `You are authenticated with provider '%s' as '%s' ('%s')`, provider.GetProviderDisplayName(), profile.Name.FullName, profile.ID)
+		_, _ = c.Writer.WriteString(`You are authenticated with provider '` + provider.GetProviderDisplayName() + `' as '` + profile.Name.FullName + `' ('` + profile.ID + `')`)
 	default:
-		_, _ = fmt.Fprintf(c.Writer, `You are authenticated with provider '%s' as '%s'`, provider.GetProviderDisplayName(), profile.ID)
+		_, _ = c.Writer.WriteString(`You are authenticated with provider '` + provider.GetProviderDisplayName() + `' as '` + profile.ID + `'`)
 	}
 }
 
@@ -202,10 +204,10 @@ func (s *Server) RouteGetAuthSignin(c *gin.Context) {
 	}
 
 	// Render the template
-	s.renderSigninTemplate(c, &portal, stateCookieID, content.nonce, logoutBanner)
+	s.renderSigninTemplate(c, portal, stateCookieID, content.nonce, logoutBanner)
 }
 
-func (s *Server) parseStateParamPreAuth(c *gin.Context, portal Portal) (stateCookieContent, string, error) {
+func (s *Server) parseStateParamPreAuth(c *gin.Context, portal *Portal) (stateCookieContent, string, error) {
 	// Ensure we have a state parameter
 	stateParam := c.Query("state")
 	if stateParam == "" {
@@ -259,7 +261,7 @@ func (s *Server) RouteGetAuthProvider(c *gin.Context) {
 
 // Handles GET /portals/:portal/providers/:provider when using an OAuth2-based provider
 // This redirects users to the OAuth2 Identity Provider
-func (s *Server) handleGetAuthProviderOAuth2(c *gin.Context, portal Portal, stateCookieID string, nonce string, provider auth.OAuth2Provider) {
+func (s *Server) handleGetAuthProviderOAuth2(c *gin.Context, portal *Portal, stateCookieID string, nonce string, provider auth.OAuth2Provider) {
 	var err error
 
 	// Redirect to the authorization URL
@@ -289,7 +291,7 @@ func (s *Server) RouteGetOAuth2Callback(c *gin.Context) {
 	// Check if there's an error in the query string
 	qsErr := c.Query("error")
 	if qsErr != "" {
-		c.Set(logMessageContextKey, "Error from the app server: "+qsErr)
+		setLogMessage(c, "Error from the app server: "+qsErr)
 		AbortWithError(c, NewResponseError(http.StatusFailedDependency, "The auth server returned an error"))
 		return
 	}
@@ -370,12 +372,12 @@ func (s *Server) RouteGetOAuth2Callback(c *gin.Context) {
 
 // Handles GET /portals/:portal/providers/:provider when using a seamless auth provider
 // This performs seamless auth
-func (s *Server) handleGetAuthProviderSeamlessAuth(c *gin.Context, portal Portal, returnURL string, provider auth.SeamlessProvider) {
+func (s *Server) handleGetAuthProviderSeamlessAuth(c *gin.Context, portal *Portal, returnURL string, provider auth.SeamlessProvider) {
 	// Try to authenticate with the seamless auth
 	var err error
 	profile, err := provider.SeamlessAuth(c.Request)
 	if err != nil {
-		c.Set(logMessageContextKey, "Seamless authentication failed: "+err.Error())
+		setLogMessage(c, "Seamless authentication failed: "+err.Error())
 		s.deleteSessionCookie(c, portal.Name)
 		AbortWithError(c, NewResponseError(http.StatusUnauthorized, "Not authenticated"))
 		return
@@ -421,29 +423,16 @@ func (s *Server) RoutePostLogout(c *gin.Context) {
 }
 
 func (s *Server) getProfileFromContext(c *gin.Context) (*user.Profile, auth.Provider) {
-	if !c.GetBool(sessionAuthContextKey) {
+	rs := getRequestState(c)
+	if rs == nil || !rs.authenticated {
 		return nil, nil
 	}
 
-	profileAny, ok := c.Get(sessionProfileContextKey)
-	if !ok {
-		return nil, nil
-	}
-	profile, ok := profileAny.(*user.Profile)
-	if !ok || profile == nil || profile.ID == "" {
+	if rs.profile == nil || rs.profile.ID == "" || rs.provider == nil {
 		return nil, nil
 	}
 
-	providerAny, ok := c.Get(sessionProviderContextKey)
-	if !ok {
-		return nil, nil
-	}
-	provider, ok := providerAny.(auth.Provider)
-	if !ok || provider == nil {
-		return nil, nil
-	}
-
-	return profile, provider
+	return rs.profile, rs.provider
 }
 
 // Get the return URL, to redirect users to after a successful auth
@@ -451,7 +440,7 @@ func getReturnURL(c *gin.Context, portal string) string {
 	// Traefik docs: https://doc.traefik.io/traefik/middlewares/http/forwardauth/
 	// If there's no "X-Forwarded-Uri" header, it means that the auth request was not initiated by Traefik originally
 	// In this case, we redirect to the /portal/:portal/profile route
-	forwardedURI := c.Request.Header.Get(headerXForwardedURI)
+	forwardedURI := headerValue(c.Request.Header, headerXForwardedURI)
 	if forwardedURI == "" {
 		return getPortalURI(c, portal) + "/profile"
 	}
@@ -464,7 +453,7 @@ func getReturnURL(c *gin.Context, portal string) string {
 		return getPortalURI(c, portal) + "/profile"
 	}
 
-	return getForwardedProto(c) + "://" + c.Request.Header.Get(headerXForwardedHost) + reqURL.RequestURI()
+	return getForwardedProto(c) + "://" + headerValue(c.Request.Header, headerXForwardedHost) + reqURL.RequestURI()
 }
 
 // Computes the state cookie ID for the given return URL
@@ -508,7 +497,7 @@ func getPortalURI(c *gin.Context, portal string) string {
 func getForwardedProto(c *gin.Context) string {
 	// Map WebSocket protocols to HTTP protocols for OAuth2 redirect URI
 	// OAuth2 callback URLs must be HTTP/HTTPS for browsers to navigate to
-	switch c.GetHeader(headerXForwardedProto) {
+	switch headerValue(c.Request.Header, headerXForwardedProto) {
 	case "ws":
 		return "http"
 	case "wss":

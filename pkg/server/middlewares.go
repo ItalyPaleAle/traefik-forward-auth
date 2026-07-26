@@ -1,12 +1,13 @@
 package server
 
 import (
+	"context"
 	"fmt"
 	"log/slog"
-	"net"
 	"net/http"
 	"net/netip"
 	"regexp"
+	"strconv"
 	"strings"
 	"time"
 
@@ -18,23 +19,14 @@ import (
 	"github.com/italypaleale/traefik-forward-auth/pkg/utils"
 )
 
-const (
-	sessionAuthContextKey     = "session-auth"
-	sessionProfileContextKey  = "session-profile"
-	sessionProviderContextKey = "session-provider"
-	requestIDContextKey       = "request-id"
-	logMaskContextKey         = "log-mask"
-	logMessageContextKey      = "log-message"
-)
-
-var proxyHeaders = []string{
-	headerXForwardedFor,
-	headerXForwardedPort,
-	headerXForwardedProto,
-	headerXForwardedHost,
-}
-
 var hostHeaderRe regexp.Regexp = *regexp.MustCompile(`^(?:[\w-]+|(?:[\w\-]+\.)+\w+|\[[0-9\:]+\])(?::\d+)?$`)
+
+// MiddlewareAddRequestState is a middleware that attaches a requestState to the request's context.
+// It must run before any other middleware or handler that reads or writes that state.
+func (s *Server) MiddlewareAddRequestState(c *gin.Context) {
+	rs := &requestState{}
+	c.Request = c.Request.WithContext(context.WithValue(c.Request.Context(), requestStateKey{}, rs))
+}
 
 // MiddlewareRequireClientCertificate is a middleware that requires a valid client certificate to be present.
 // This is meant to be used to enforce mTLS on specific routes, when the server's TLS is configured with VerifyClientCertIfGiven.
@@ -55,28 +47,49 @@ func (s *Server) MiddlewareRequireClientCertificate(c *gin.Context) {
 // It stops the request if the headers aren't set.
 // This middleware should be used first in the chain.
 func (s *Server) MiddlewareProxyHeaders(c *gin.Context) {
+	// Read each header we need once, rather than once to check it's present and again to use its value
+	h := c.Request.Header
+	xForwardedFor := headerValue(h, headerXForwardedFor)
+	xForwardedPort := headerValue(h, headerXForwardedPort)
+	xForwardedProto := headerValue(h, headerXForwardedProto)
+	xForwardedHost := headerValue(h, headerXForwardedHost)
+
 	// Ensure required headers are present
-	for _, header := range proxyHeaders {
-		if c.Request.Header.Get(header) == "" {
-			AbortWithError(c, NewResponseErrorf(http.StatusBadRequest, "Missing header %s", header))
-			return
-		}
+	var missing string
+	switch {
+	case xForwardedFor == "":
+		missing = headerXForwardedFor
+	case xForwardedPort == "":
+		missing = headerXForwardedPort
+	case xForwardedProto == "":
+		missing = headerXForwardedProto
+	case xForwardedHost == "":
+		missing = headerXForwardedHost
+	}
+	if missing != "" {
+		AbortWithError(c, NewResponseErrorf(http.StatusBadRequest, "Missing header %s", missing))
+		return
 	}
 
 	// Get the X-Forwarded-For header and extract the originating client IP
 	// X-Forwarded-For is conventionally a comma-separated chain "client, proxy1, ..."
-	clientIP := utils.ClientIPFromXForwardedFor(c.Request.Header.Get(headerXForwardedFor))
-	xForwardedPort := c.Request.Header.Get(headerXForwardedPort)
+	clientIP := utils.ClientIPFromXForwardedFor(xForwardedFor)
 
 	// Get and validate the remote address
-	_, err := netip.ParseAddrPort(net.JoinHostPort(clientIP, xForwardedPort))
+	// The address and port are validated separately because joining them into "host:port" just to have netip re-split it allocates on every request
+	_, err := netip.ParseAddr(clientIP)
+	if err != nil {
+		AbortWithError(c, NewResponseErrorf(http.StatusBadRequest, "Invalid remote address and port: %v", err))
+		return
+	}
+	_, err = strconv.ParseUint(xForwardedPort, 10, 16)
 	if err != nil {
 		AbortWithError(c, NewResponseErrorf(http.StatusBadRequest, "Invalid remote address and port: %v", err))
 		return
 	}
 
 	// Validate X-Forwarded-Proto
-	switch c.Request.Header.Get(headerXForwardedProto) {
+	switch xForwardedProto {
 	case "http", "https", "ws", "wss":
 		// All good
 	default:
@@ -85,7 +98,7 @@ func (s *Server) MiddlewareProxyHeaders(c *gin.Context) {
 	}
 
 	// Validate X-Forwarded-Host
-	if !hostHeaderRe.MatchString(c.Request.Header.Get(headerXForwardedHost)) {
+	if !hostHeaderRe.MatchString(xForwardedHost) {
 		AbortWithError(c, NewResponseError(http.StatusBadRequest, "Invalid value for the 'X-Forwarded-Host' header"))
 		return
 	}
@@ -109,7 +122,7 @@ func (s *Server) MiddlewareLoadAuthCookie(c *gin.Context) {
 
 		// Log a warning for cookies that look malformed or tampered with
 		if invalidSessionCookieIsSuspicious(err) {
-			log := utils.LogFromContext(c.Request.Context())
+			log := s.requestLogger(c)
 			log.WarnContext(c.Request.Context(),
 				"Rejected a session cookie that failed validation; it may be malformed or tampered with",
 				slog.Any("error", err),
@@ -132,21 +145,28 @@ func (s *Server) MiddlewareLoadAuthCookie(c *gin.Context) {
 		return
 	}
 
-	// Set the claims in the context
-	c.Set(sessionAuthContextKey, true)
-	c.Set(sessionProfileContextKey, profile)
-	c.Set(sessionProviderContextKey, provider)
+	// Set the claims in the request state
+	rs := getRequestState(c)
+	if rs != nil {
+		rs.authenticated = true
+		rs.profile = profile
+		rs.provider = provider
+	}
 }
 
 // MiddlewareRequestId is a middleware that generates a unique request ID for each request
 func (s *Server) MiddlewareRequestId(c *gin.Context) {
+	rs := getRequestState(c)
+
 	// Check if we have a trusted request ID header and it has a value
 	headerName := config.Get().Server.TrustedRequestIdHeader
 	if headerName != "" {
 		v := c.GetHeader(headerName)
 		if v != "" {
-			c.Set(requestIDContextKey, v)
-			c.Header("x-request-id", v)
+			if rs != nil {
+				rs.requestID = v
+			}
+			setResponseHeader(c, headerXRequestID, v)
 			return
 		}
 	}
@@ -159,8 +179,10 @@ func (s *Server) MiddlewareRequestId(c *gin.Context) {
 	}
 
 	v := reqUuid.String()
-	c.Set(requestIDContextKey, v)
-	c.Header("x-request-id", v)
+	if rs != nil {
+		rs.requestID = v
+	}
+	setResponseHeader(c, headerXRequestID, v)
 }
 
 // MiddlewareCountMetrics is a Gin middleware that records requests served by the server
@@ -189,10 +211,11 @@ func (s *Server) MiddlewareLogger(parentLog *slog.Logger) func(c *gin.Context) {
 	return func(c *gin.Context) {
 		method := c.Request.Method
 
-		// Ensure the logger in the context has a request ID, then store it in the context
-		reqId := c.GetString(requestIDContextKey)
-		log := parentLog.With(slog.String("id", reqId))
-		c.Request = c.Request.WithContext(utils.LogToContext(c.Request.Context(), log))
+		rs := getRequestState(c)
+		var reqId string
+		if rs != nil {
+			reqId = rs.requestID
+		}
 
 		// Do not log OPTIONS requests
 		if method == http.MethodOptions {
@@ -222,7 +245,7 @@ func (s *Server) MiddlewareLogger(parentLog *slog.Logger) func(c *gin.Context) {
 		respSize := max(c.Writer.Size(), 0)
 
 		// May be present
-		traefik := c.Request.Header.Get(headerXForwardedServer)
+		traefik := headerValue(c.Request.Header, headerXForwardedServer)
 
 		// Get the logger and the appropriate error level
 		var level slog.Level
@@ -236,31 +259,30 @@ func (s *Server) MiddlewareLogger(parentLog *slog.Logger) func(c *gin.Context) {
 		}
 
 		// Check if we have a message
-		msg := c.GetString(logMessageContextKey)
-		if msg == "" {
-			msg = "HTTP Request"
+		msg := "HTTP Request"
+		if rs != nil && rs.logMessage != "" {
+			msg = rs.logMessage
 		}
 
 		// Check if we have an error
 		lastErr := c.Errors.Last()
 		if lastErr != nil {
-			// We'll pick the last error only
-			log = log.With(slog.Any("error", lastErr.Err))
-
 			// Set the message as request failed
 			msg = "Failed request"
 		}
 
 		// Check if we want to mask something in the URL
-		mask, ok := c.Get(logMaskContextKey)
-		if ok {
-			f, ok := mask.(func(string) string)
-			if ok && f != nil {
-				path = f(path)
-			}
+		if rs != nil && rs.logMask != nil {
+			path = rs.logMask(path)
 		}
 
-		attrs := make([]slog.Attr, 0, 7)
+		// The request ID and the error are passed as attributes rather than derived onto the logger
+		attrs := make([]slog.Attr, 0, 9)
+		attrs = append(attrs, slog.String("id", reqId))
+		if lastErr != nil {
+			// We'll pick the last error only
+			attrs = append(attrs, slog.Any("error", lastErr.Err))
+		}
 		attrs = append(attrs,
 			slog.Int("status", statusCode),
 			slog.String("method", method),
@@ -274,20 +296,31 @@ func (s *Server) MiddlewareLogger(parentLog *slog.Logger) func(c *gin.Context) {
 		}
 
 		// Emit the log
-		log.LogAttrs(c.Request.Context(), level, msg, attrs...)
+		parentLog.LogAttrs(c.Request.Context(), level, msg, attrs...)
 	}
 }
 
-// MiddlewareLoggerMask returns a Gin middleware that adds the logMaskContextKey to mask the path using a regular expression
+// MiddlewareLoggerMask returns a Gin middleware that masks the request path using a regular expression before it is logged
 func (s *Server) MiddlewareLoggerMask(exp *regexp.Regexp, replace string) gin.HandlerFunc {
 	return func(c *gin.Context) {
-		c.Set(logMaskContextKey, func(path string) string {
+		rs := getRequestState(c)
+		if rs == nil {
+			return
+		}
+
+		rs.logMask = func(path string) string {
 			return exp.ReplaceAllString(path, replace)
-		})
+		}
 	}
 }
 
-func (s *Server) getPortal(c *gin.Context) (Portal, error) {
+func (s *Server) getPortal(c *gin.Context) (*Portal, error) {
+	// Requests resolve the portal more than once, so the result is kept for the rest of the request
+	rs := getRequestState(c)
+	if rs != nil && rs.portal != nil {
+		return rs.portal, nil
+	}
+
 	cfg := config.Get()
 
 	portalName := strings.ToLower(c.Param("portal"))
@@ -297,22 +330,26 @@ func (s *Server) getPortal(c *gin.Context) (Portal, error) {
 
 	portal, ok := s.portals[portalName]
 	if !ok {
-		return Portal{}, NewResponseError(http.StatusNotFound, "Portal not found")
+		return nil, NewResponseError(http.StatusNotFound, "Portal not found")
+	}
+
+	if rs != nil {
+		rs.portal = portal
 	}
 
 	return portal, nil
 }
 
-func (s *Server) getProvider(c *gin.Context) (Portal, auth.Provider, error) {
+func (s *Server) getProvider(c *gin.Context) (*Portal, auth.Provider, error) {
 	portal, err := s.getPortal(c)
 	if err != nil {
-		return Portal{}, nil, err
+		return nil, nil, err
 	}
 
 	providerName := strings.ToLower(c.Param("provider"))
 	provider, ok := portal.Providers[providerName]
 	if !ok {
-		return Portal{}, nil, NewResponseError(http.StatusNotFound, "Provider not found")
+		return nil, nil, NewResponseError(http.StatusNotFound, "Provider not found")
 	}
 
 	return portal, provider, nil

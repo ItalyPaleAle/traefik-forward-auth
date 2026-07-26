@@ -1,8 +1,12 @@
 package server
 
 import (
+	"bytes"
+	"errors"
+	"log/slog"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 
 	"github.com/gin-gonic/gin"
@@ -25,6 +29,7 @@ func TestMiddlewareProxyHeaders(t *testing.T) {
 			req.Header.Set(k, v)
 		}
 		c.Request = req
+
 		return c, rec
 	}
 
@@ -120,6 +125,10 @@ func TestMiddlewareRequestId(t *testing.T) {
 			req.Header.Set(k, v)
 		}
 		c.Request = req
+
+		// The middleware stores the request ID in the request state, which the router attaches before it runs
+		s.MiddlewareAddRequestState(c)
+
 		return c, rec
 	}
 
@@ -138,7 +147,7 @@ func TestMiddlewareRequestId(t *testing.T) {
 
 		// Should echo the same ID and set it in context
 		assert.Equal(t, "custom-id-123", rec.Header().Get("x-request-id"))
-		assert.Equal(t, "custom-id-123", c.GetString(requestIDContextKey))
+		assert.Equal(t, "custom-id-123", getRequestState(c).requestID)
 	})
 
 	t.Run("generates UUID if trusted header missing", func(t *testing.T) {
@@ -151,7 +160,7 @@ func TestMiddlewareRequestId(t *testing.T) {
 		require.NotEmpty(t, v)
 		_, err := uuid.Parse(v)
 		require.NoError(t, err, "generated request id should be a valid uuid")
-		assert.Equal(t, v, c.GetString(requestIDContextKey))
+		assert.Equal(t, v, getRequestState(c).requestID)
 	})
 
 	t.Run("generates UUID if no trusted header configured", func(t *testing.T) {
@@ -164,6 +173,129 @@ func TestMiddlewareRequestId(t *testing.T) {
 		require.NotEmpty(t, v)
 		_, err := uuid.Parse(v)
 		require.NoError(t, err)
-		assert.Equal(t, v, c.GetString(requestIDContextKey))
+		assert.Equal(t, v, getRequestState(c).requestID)
+	})
+}
+
+func TestMiddlewareLogger(t *testing.T) {
+	newLoggedRequest := func(t *testing.T, handler gin.HandlerFunc) string {
+		t.Helper()
+
+		buf := &bytes.Buffer{}
+		log := slog.New(slog.NewTextHandler(buf, nil))
+
+		srv := &Server{log: log}
+		router := gin.New()
+		router.Use(srv.MiddlewareAddRequestState, srv.MiddlewareRequestId, srv.MiddlewareLogger(log))
+		router.GET("/test", handler)
+
+		w := httptest.NewRecorder()
+		router.ServeHTTP(w, httptest.NewRequest(http.MethodGet, "/test", nil))
+
+		return buf.String()
+	}
+
+	t.Run("includes the request ID and the request attributes", func(t *testing.T) {
+		out := newLoggedRequest(t, func(c *gin.Context) {
+			c.String(http.StatusOK, "ok")
+		})
+
+		assert.Contains(t, out, `msg="HTTP Request"`)
+		assert.Contains(t, out, "id=")
+		assert.Contains(t, out, "status=200")
+		assert.Contains(t, out, "method=GET")
+		assert.Contains(t, out, "path=/test")
+	})
+
+	t.Run("includes the error and marks the request as failed", func(t *testing.T) {
+		out := newLoggedRequest(t, func(c *gin.Context) {
+			_ = c.Error(errors.New("something broke"))
+			c.String(http.StatusInternalServerError, "error")
+		})
+
+		assert.Contains(t, out, `msg="Failed request"`)
+		assert.Contains(t, out, "id=")
+		assert.Contains(t, out, `error="something broke"`)
+		assert.Contains(t, out, "status=500")
+	})
+
+	t.Run("handlers can log with the request ID", func(t *testing.T) {
+		var handlerRequestID string
+		out := newLoggedRequest(t, func(c *gin.Context) {
+			handlerRequestID = getRequestState(c).requestID
+			c.String(http.StatusOK, "ok")
+		})
+
+		require.NotEmpty(t, handlerRequestID)
+		// The request log line carries the same ID the handler saw
+		assert.Contains(t, out, "id="+handlerRequestID)
+	})
+
+	t.Run("requestLogger tags the handler's own log lines with the request ID", func(t *testing.T) {
+		buf := &bytes.Buffer{}
+		log := slog.New(slog.NewTextHandler(buf, nil))
+		srv := &Server{log: log}
+
+		router := gin.New()
+		router.Use(srv.MiddlewareAddRequestState, srv.MiddlewareRequestId, srv.MiddlewareLogger(log))
+		router.GET("/test", func(c *gin.Context) {
+			srv.requestLogger(c).InfoContext(c.Request.Context(), "from the handler")
+			c.String(http.StatusOK, "ok")
+		})
+		router.ServeHTTP(httptest.NewRecorder(), httptest.NewRequest(http.MethodGet, "/test", nil))
+
+		out := buf.String()
+		assert.Contains(t, out, "from the handler")
+		// The handler's line and the request line both carry an ID
+		assert.GreaterOrEqual(t, strings.Count(out, "id="), 2)
+	})
+}
+
+func TestGetPortal(t *testing.T) {
+	newContextForPortal := func(portalName string) *gin.Context {
+		c, _ := gin.CreateTestContext(httptest.NewRecorder())
+		c.Request = httptest.NewRequest(http.MethodGet, "/", nil)
+		c.Params = gin.Params{{Key: "portal", Value: portalName}}
+
+		// getPortal keeps the resolved portal in the request state, which the router attaches before any route runs
+		(&Server{}).MiddlewareAddRequestState(c)
+
+		return c
+	}
+
+	t.Run("resolves the portal from the route parameter", func(t *testing.T) {
+		srv := &Server{portals: map[string]*Portal{"test1": {Name: "test1"}}}
+
+		portal, err := srv.getPortal(newContextForPortal("test1"))
+		require.NoError(t, err)
+		require.NotNil(t, portal)
+		assert.Equal(t, "test1", portal.Name)
+	})
+
+	t.Run("returns an error for an unknown portal", func(t *testing.T) {
+		srv := &Server{portals: map[string]*Portal{"test1": {Name: "test1"}}}
+
+		_, err := srv.getPortal(newContextForPortal("nope"))
+		require.Error(t, err)
+	})
+
+	t.Run("resolves only once per request", func(t *testing.T) {
+		srv := &Server{portals: map[string]*Portal{"test1": {Name: "test1"}}}
+		c := newContextForPortal("test1")
+
+		first, err := srv.getPortal(c)
+		require.NoError(t, err)
+		require.NotNil(t, first)
+
+		// Removing the portal proves the second call did not look it up again
+		delete(srv.portals, "test1")
+
+		second, err := srv.getPortal(c)
+		require.NoError(t, err)
+		assert.Same(t, first, second)
+
+		// A new request resolves from scratch, and now finds nothing
+		_, err = srv.getPortal(newContextForPortal("test1"))
+		require.Error(t, err)
 	})
 }
