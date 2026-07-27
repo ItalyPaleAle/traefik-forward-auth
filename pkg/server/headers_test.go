@@ -3,8 +3,10 @@ package server
 import (
 	"encoding/json"
 	"fmt"
+	"net/http/httptest"
 	"testing"
 
+	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
@@ -253,4 +255,104 @@ func TestJSONQuoteString(t *testing.T) {
 			assert.Equal(t, string(expected), jsonQuoteString(val))
 		})
 	}
+}
+
+func TestSetAuthenticatedHeaders(t *testing.T) {
+	provider := auth.NewTestProviderSeamless()
+	profile := &user.Profile{
+		Provider: "testseamless",
+		ID:       "user123",
+		Name:     user.ProfileName{FullName: "John Doe"},
+		Email:    &user.ProfileEmail{Value: "john@example.com", Verified: true},
+	}
+
+	newContext := func() *gin.Context {
+		c, _ := gin.CreateTestContext(httptest.NewRecorder())
+		return c
+	}
+
+	t.Run("sets every configured header", func(t *testing.T) {
+		portal := &Portal{
+			Name: "myportal",
+			Headers: []AuthenticatedHeader{
+				authenticatedClaimHeader{name: "X-Forwarded-User", claim: "id"},
+				authenticatedClaimHeader{name: "X-Forwarded-Email", claim: "email"},
+				authenticatedPropertyHeader{name: "X-Forwarded-Portal", property: config.PropertyPortalName},
+			},
+		}
+
+		c := newContext()
+		setAuthenticatedHeaders(c, portal, provider, profile)
+
+		h := c.Writer.Header()
+		assert.Equal(t, "user123", h.Get("X-Forwarded-User"))
+		assert.Equal(t, "john@example.com", h.Get("X-Forwarded-Email"))
+		assert.Equal(t, "myportal", h.Get("X-Forwarded-Portal"))
+	})
+
+	t.Run("an empty value removes the header", func(t *testing.T) {
+		portal := &Portal{
+			Name: "myportal",
+			Headers: []AuthenticatedHeader{
+				authenticatedClaimHeader{name: "X-Forwarded-User", claim: "id"},
+				// The profile has no nickname, so this one resolves to an empty value
+				authenticatedClaimHeader{name: "X-Forwarded-Nickname", claim: "nickname"},
+			},
+		}
+
+		c := newContext()
+		c.Writer.Header().Set("X-Forwarded-Nickname", "stale")
+
+		setAuthenticatedHeaders(c, portal, provider, profile)
+
+		h := c.Writer.Header()
+		assert.Equal(t, "user123", h.Get("X-Forwarded-User"))
+		assert.NotContains(t, h, "X-Forwarded-Nickname")
+	})
+
+	t.Run("values stay independent even though they share a backing array", func(t *testing.T) {
+		portal := &Portal{
+			Name: "myportal",
+			Headers: []AuthenticatedHeader{
+				authenticatedClaimHeader{name: "X-Forwarded-User", claim: "id"},
+				authenticatedClaimHeader{name: "X-Forwarded-Email", claim: "email"},
+				authenticatedClaimHeader{name: "X-Forwarded-Displayname", claim: "name"},
+			},
+		}
+
+		c := newContext()
+		setAuthenticatedHeaders(c, portal, provider, profile)
+
+		h := c.Writer.Header()
+		// Adding a second value to one header must not overwrite the value of the next one
+		h.Add("X-Forwarded-User", "extra")
+
+		assert.Equal(t, []string{"user123", "extra"}, h["X-Forwarded-User"])
+		assert.Equal(t, []string{"john@example.com"}, h["X-Forwarded-Email"])
+		assert.Equal(t, []string{"John Doe"}, h["X-Forwarded-Displayname"])
+	})
+
+	t.Run("no headers configured", func(t *testing.T) {
+		c := newContext()
+		setAuthenticatedHeaders(c, &Portal{Name: "myportal"}, provider, profile)
+		assert.Empty(t, c.Writer.Header())
+	})
+
+	t.Run("allocates once regardless of the number of headers", func(t *testing.T) {
+		portal := &Portal{
+			Name: "myportal",
+			Headers: []AuthenticatedHeader{
+				authenticatedClaimHeader{name: "X-Forwarded-User", claim: "id"},
+				authenticatedClaimHeader{name: "X-Forwarded-Email", claim: "email"},
+				authenticatedClaimHeader{name: "X-Forwarded-Displayname", claim: "name"},
+			},
+		}
+
+		c := newContext()
+		allocs := testing.AllocsPerRun(100, func() {
+			setAuthenticatedHeaders(c, portal, provider, profile)
+		})
+
+		assert.Equal(t, 1, int(allocs))
+	})
 }

@@ -114,12 +114,7 @@ func (s *Server) handleAuthenticatedRoot(c *gin.Context, portal *Portal, provide
 	s.metrics.RecordAuthentication(true)
 
 	// Add authenticated headers to the response
-	// Header names are canonicalized when the portal configuration is loaded, so they can be set without canonicalizing them again per request
-	for _, header := range portal.Headers {
-		name := header.GetName()
-		value := header.GetValue(portal, provider, profile)
-		setResponseHeader(c, name, validateHeaderValue(value))
-	}
+	setAuthenticatedHeaders(c, portal, provider, profile)
 
 	// Note: while ugly-ish, concatenating the response body is the cheapest option, considering this runs on every request Traefik forwards
 	switch {

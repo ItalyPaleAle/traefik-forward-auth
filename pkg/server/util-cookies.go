@@ -134,9 +134,6 @@ func (s *Server) sessionCookieName(portalName string) string {
 // readSessionCookieValue returns the session cookie value, reassembling it from the base cookie plus any chunk cookies ("<cookieName>_1", "<cookieName>_2", ...)
 // It returns http.ErrNoCookie when the base cookie is not present
 func readSessionCookieValue(c *gin.Context, cookieName string) (string, error) {
-	// Parse the Cookie header once
-	reqCookies := c.Request.Cookies()
-
 	// Find the base cookie and collect any chunk cookies in a single pass
 	// Chunks are rare, so the map stays nil for the common single-cookie case
 	var (
@@ -145,25 +142,26 @@ func readSessionCookieValue(c *gin.Context, cookieName string) (string, error) {
 		chunks    map[int]string
 	)
 	chunkPrefix := cookieName + "_"
-	for _, ck := range reqCookies {
+	rangeRequestCookies(c.Request.Header, func(name, value string) bool {
 		switch {
-		case ck.Name == cookieName:
+		case name == cookieName:
 			// Keep the first occurrence, matching net/http's Request.Cookie lookup
 			if !haveBase {
-				baseValue = ck.Value
+				baseValue = value
 				haveBase = true
 			}
-		case strings.HasPrefix(ck.Name, chunkPrefix):
-			idx, aErr := strconv.Atoi(ck.Name[len(chunkPrefix):])
+		case strings.HasPrefix(name, chunkPrefix):
+			idx, aErr := strconv.Atoi(name[len(chunkPrefix):])
 			if aErr != nil || idx < 1 || idx >= maxCookieChunks {
-				continue
+				return true
 			}
 			if chunks == nil {
 				chunks = make(map[int]string, 4)
 			}
-			chunks[idx] = ck.Value
+			chunks[idx] = value
 		}
-	}
+		return true
+	})
 
 	if !haveBase {
 		return "", http.ErrNoCookie
