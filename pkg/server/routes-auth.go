@@ -70,7 +70,7 @@ func (s *Server) RouteGetAuthRoot(c *gin.Context) {
 
 	// Redirect the user
 	signInURL := getPortalURI(c, portal.Name) + "/signin?state=" + stateCookieID + "~" + nonce
-	if utils.IsTruthy(queryValue(c, "logout")) {
+	if utils.IsTruthy(c.Query("logout")) {
 		// Check if the user has just logged out and forward the query string parameter to the signin page for the banner to be shown
 		signInURL += "&logout=1"
 	}
@@ -83,7 +83,7 @@ func (s *Server) RouteGetAuthRoot(c *gin.Context) {
 
 func (s *Server) handleAuthenticatedRoot(c *gin.Context, portal *Portal, provider auth.Provider, profile *user.Profile) {
 	// Check if there's any condition ("if" query string arg or "X-Forward-Auth-If" header) to check claims against, for AuthZ
-	cond := queryValue(c, "if")
+	cond := c.Query("if")
 	condHeader := headerValue(c.Request.Header, headerXForwardAuthIf)
 	if cond != "" && condHeader != "" {
 		_ = c.Error(errors.New("condition passed in both 'if' query string arg and '" + headerXForwardAuthIf + "' header"))
@@ -118,7 +118,7 @@ func (s *Server) handleAuthenticatedRoot(c *gin.Context, portal *Portal, provide
 
 	// Note: while ugly-ish, concatenating the response body is the cheapest option, considering this runs on every request Traefik forwards
 	switch {
-	case utils.IsTruthy(queryValue(c, "html")):
+	case utils.IsTruthy(c.Query("html")):
 		s.renderAuthenticatedTemplate(c, portal, provider, profile.ID)
 	case profile.Name.FullName != "":
 		_, _ = c.Writer.WriteString(`You are authenticated with provider '` + provider.GetProviderDisplayName() + `' as '` + profile.Name.FullName + `' ('` + profile.ID + `')`)
@@ -184,7 +184,7 @@ func (s *Server) RouteGetAuthSignin(c *gin.Context) {
 	}
 
 	// Check if the user has just logged out, and if so, display the logged out banner
-	logoutBanner := utils.IsTruthy(queryValue(c, "logout"))
+	logoutBanner := utils.IsTruthy(c.Query("logout"))
 
 	// If there's a single provider, we redirect the user to that directly, unless AlwaysShowProvidersPage is true
 	// We also always display the signing page if the user just logged out
