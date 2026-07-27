@@ -204,8 +204,6 @@ func TestGetAs(t *testing.T) {
 	})
 }
 
-// TestGetStringMatchesGetAs checks that GetString returns exactly what GetAs[string] returned before
-// it was given a fast path, including for the claims that don't hold a string
 func TestGetStringMatchesGetAs(t *testing.T) {
 	// getAsStringReference is the implementation GetAs[string] had before GetString existed
 	getAsStringReference := func(p *Profile, claim string) (val string, ok bool) {
@@ -271,8 +269,6 @@ func TestGetStringMatchesGetAs(t *testing.T) {
 	}
 }
 
-// TestGetStringDoesNotAllocate checks that reading a string claim doesn't box the value into an interface,
-// which is the reason GetString exists
 func TestGetStringDoesNotAllocate(t *testing.T) {
 	p := &Profile{ID: "user123", Name: ProfileName{FullName: "John Doe"}}
 

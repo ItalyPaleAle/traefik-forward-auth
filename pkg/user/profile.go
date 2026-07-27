@@ -319,11 +319,14 @@ func GetAs[T any](p *Profile, claim string) (val T, ok bool) {
 	// Most claims hold a string and are requested as a string
 	// GetString returns those without going through Get, whose "any" return value forces the string to be boxed, which allocates
 	// This syntax allows us to check if T is string
-	if valPtr, isString := any(&val).(*string); isString {
-		if s, found := p.GetString(claim); found {
+	valPtr, isString := any(&val).(*string)
+	if isString {
+		s, ok := p.GetString(claim)
+		if ok {
 			*valPtr = s
 			return val, true
 		}
+
 		return val, false
 	}
 
@@ -336,14 +339,6 @@ func GetAs[T any](p *Profile, claim string) (val T, ok bool) {
 	// Most claims are already of the requested type, so this usually succeeds and we avoid the conversion below
 	val, ok = v.(T)
 	if ok {
-		return val, true
-	}
-
-	// The claim exists but has a different type: convert it if the caller asked for a string
-	// This syntax allows us to check if T is string
-	valPtr, isString := any(&val).(*string)
-	if isString {
-		*valPtr = cast.ToString(v)
 		return val, true
 	}
 
@@ -385,9 +380,12 @@ func (p *Profile) GetString(claim string) (string, bool) {
 		if v == nil {
 			return "", false
 		}
-		if s, isString := v.(string); isString {
+
+		s, isString := v.(string)
+		if isString {
 			return s, true
 		}
+
 		return cast.ToString(v), true
 	}
 }

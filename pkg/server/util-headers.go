@@ -32,13 +32,13 @@ func setResponseHeader(c *gin.Context, canonicalName string, value string) {
 
 // maxRequestCookies is the number of cookies past which a request's Cookie header is ignored entirely
 // This mirrors net/http's own limit, so that a request rejected by http.Request.Cookies is rejected here too
-const maxRequestCookies = 3000
+const maxRequestCookies = 3_000
 
 // rangeRequestCookies calls fn for each cookie in the request's Cookie header, stopping early if fn returns false.
 //
-// It exists because http.Request.Cookies allocates a slice and an http.Cookie for every cookie the client sent, only for the caller to look at one or two of them.
-// Requests carry the session cookie on every call Traefik forwards, so that showed up as one of the largest sources of allocations on the hot path.
-// Parsing here follows net/http's readCookies exactly, minus the allocations; TestRangeRequestCookiesMatchesNetHTTP checks the two agree.
+// It exists because http.Request.Cookies allocates a slice and an http.Cookie for every cookie the client sent, only for the caller to look at one or two of them
+// Requests carry the session cookie on every call Traefik forwards, so that showed up as one of the largest sources of allocations on the hot path
+// Parsing here follows net/http's readCookies exactly, minus the allocations
 func rangeRequestCookies(h http.Header, fn func(name string, value string) bool) {
 	lines := h["Cookie"]
 	if len(lines) == 0 {

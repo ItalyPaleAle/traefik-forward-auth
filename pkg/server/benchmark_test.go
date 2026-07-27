@@ -102,8 +102,8 @@ func BenchmarkParseSessionToken(b *testing.B) {
 	}
 
 	b.ReportAllocs()
-	b.ResetTimer()
-	for range b.N {
+
+	for b.Loop() {
 		_, err := srv.parseSessionToken(token, portalName, cookieDomain)
 		if err != nil {
 			b.Fatalf("parseSessionToken failed: %v", err)
@@ -131,8 +131,8 @@ func BenchmarkGetSessionCookie(b *testing.B) {
 	}
 
 	b.ReportAllocs()
-	b.ResetTimer()
-	for range b.N {
+
+	for b.Loop() {
 		_, _, err := srv.getSessionCookie(c, portalName)
 		if err != nil {
 			b.Fatalf("getSessionCookie failed: %v", err)
@@ -140,10 +140,7 @@ func BenchmarkGetSessionCookie(b *testing.B) {
 	}
 }
 
-// BenchmarkHotPathForwardAuth benchmarks the complete request Traefik makes on every
-// proxied request: the full middleware chain plus the portal root route, for a request
-// that carries a valid session cookie.
-// This is the end-to-end hot path, not an individual method.
+// BenchmarkHotPathForwardAuth benchmarks the end-to-end hot path
 func BenchmarkHotPathForwardAuth(b *testing.B) {
 	const portalName = "test1"
 	const cookieDomain = "example.com"
@@ -204,6 +201,14 @@ type benchResponseWriter struct {
 	h http.Header
 }
 
-func (b *benchResponseWriter) Header() http.Header         { return b.h }
-func (b *benchResponseWriter) Write(p []byte) (int, error) { return len(p), nil }
-func (b *benchResponseWriter) WriteHeader(int)             {}
+func (b *benchResponseWriter) Header() http.Header {
+	return b.h
+}
+
+func (b *benchResponseWriter) Write(p []byte) (int, error) {
+	return len(p), nil
+}
+
+func (b *benchResponseWriter) WriteHeader(int) {
+	// Nop
+}

@@ -17,10 +17,7 @@ type AuthenticatedHeader interface {
 	GetValue(portal *Portal, provider auth.Provider, profile *user.Profile) string
 }
 
-// setAuthenticatedHeaders adds the portal's authenticated headers to the response.
-//
-// Every value shares a single backing array, so a portal with N headers allocates once rather than once per header.
-// This runs on every request Traefik forwards, where it was the largest single source of allocations.
+// setAuthenticatedHeaders adds the portal's authenticated headers to the response
 func setAuthenticatedHeaders(c *gin.Context, portal *Portal, provider auth.Provider, profile *user.Profile) {
 	if len(portal.Headers) == 0 {
 		return

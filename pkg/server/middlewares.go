@@ -22,8 +22,7 @@ import (
 // isValidHostHeader reports whether v is an acceptable value for the X-Forwarded-Host header.
 // It accepts a hostname made of dot-separated labels, or an IPv6 address in square brackets, each optionally followed by ":<port>".
 //
-// This is equivalent to matching against `^(?:[\w-]+|(?:[\w\-]+\.)+\w+|\[[0-9\:]+\])(?::\d+)?$`, which is what it replaces.
-// The regular expression was one of the single most expensive operations on the hot path, because it falls back to the backtracking engine; TestIsValidHostHeaderMatchesRegexp checks the two agree.
+// This is equivalent to matching against `^(?:[\w-]+|(?:[\w\-]+\.)+\w+|\[[0-9\:]+\])(?::\d+)?$`, which was previously used for the matcher but was too costly in the hot path
 func isValidHostHeader(v string) bool {
 	if v == "" {
 		return false
@@ -33,8 +32,8 @@ func isValidHostHeader(v string) bool {
 	// A bracketed IPv6 address contains colons of its own, so for those the port can only start after the closing bracket
 	var host, port string
 	hasPort := false
-	switch {
-	case v[0] == '[':
+	switch v[0] {
+	case '[':
 		end := strings.IndexByte(v, ']')
 		if end < 0 {
 			return false
@@ -48,9 +47,10 @@ func isValidHostHeader(v string) bool {
 			hasPort = true
 		}
 	default:
-		idx := strings.IndexByte(v, ':')
-		if idx >= 0 {
-			host, port = v[:idx], v[idx+1:]
+		before, after, ok := strings.Cut(v, ":")
+		if ok {
+			host = before
+			port = after
 			hasPort = true
 		} else {
 			host = v

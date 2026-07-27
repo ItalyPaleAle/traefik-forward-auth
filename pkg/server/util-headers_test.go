@@ -90,8 +90,7 @@ func TestSetResponseHeader(t *testing.T) {
 	})
 }
 
-// TestRangeRequestCookiesMatchesNetHTTP checks that rangeRequestCookies parses a Cookie header
-// exactly the way http.Request.Cookies does, since it exists only to avoid that method's allocations
+// TestRangeRequestCookiesMatchesNetHTTP checks that rangeRequestCookies parses a Cookie header exactly the way http.Request.Cookies does, since it exists only to avoid that method's allocations
 func TestRangeRequestCookiesMatchesNetHTTP(t *testing.T) {
 	collect := func(h http.Header) [][2]string {
 		var got [][2]string

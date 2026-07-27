@@ -302,8 +302,7 @@ func TestGetPortal(t *testing.T) {
 	})
 }
 
-// TestIsValidHostHeaderMatchesRegexp checks that isValidHostHeader accepts exactly the same values
-// as the regular expression it replaced, which is kept here as the reference implementation
+// TestIsValidHostHeaderMatchesRegexp checks that isValidHostHeader accepts exactly the same values as the regular expression it replaced, which is kept here as the reference implementation
 func TestIsValidHostHeaderMatchesRegexp(t *testing.T) {
 	reference := regexp.MustCompile(`^(?:[\w-]+|(?:[\w\-]+\.)+\w+|\[[0-9\:]+\])(?::\d+)?$`)
 
@@ -351,13 +350,13 @@ func TestIsValidHostHeaderMatchesRegexp(t *testing.T) {
 	})
 
 	t.Run("random values", func(t *testing.T) {
+		// Fuzz testing
 		const alphabet = "abz09-_.:[]! \t"
-		rnd := rand.New(rand.NewSource(20260726)) //nolint:gosec
 		buf := make([]byte, 12)
 		for range 200_000 {
-			n := rnd.Intn(len(buf)) + 1
+			n := rand.Intn(len(buf)) + 1
 			for i := range n {
-				buf[i] = alphabet[rnd.Intn(len(alphabet))]
+				buf[i] = alphabet[rand.Intn(len(alphabet))]
 			}
 			check(t, string(buf[:n]))
 		}
