@@ -345,7 +345,9 @@ func (s *Server) MiddlewareLogger(parentLog *slog.Logger) func(c *gin.Context) {
 
 		// Other fields to include
 		duration := time.Since(start)
-		// MiddlewareProxyHeaders already extracted the client IP from X-Forwarded-For for the routes that run it; fall back to Gin for the routes that don't (health checks, static assets, the API)
+
+		// MiddlewareProxyHeaders already extracted the client IP from X-Forwarded-For for the routes that run it
+		// Fall back to Gin for the routes that don't (health checks, static assets, the API)
 		clientIP := ""
 		if rs != nil {
 			clientIP = rs.clientIP
@@ -353,6 +355,7 @@ func (s *Server) MiddlewareLogger(parentLog *slog.Logger) func(c *gin.Context) {
 		if clientIP == "" {
 			clientIP = c.ClientIP()
 		}
+
 		statusCode := c.Writer.Status()
 		// If no data was written, respSize could be -1
 		respSize := max(c.Writer.Size(), 0)
