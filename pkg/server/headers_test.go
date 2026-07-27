@@ -353,6 +353,6 @@ func TestSetAuthenticatedHeaders(t *testing.T) {
 			setAuthenticatedHeaders(c, portal, provider, profile)
 		})
 
-		assert.Equal(t, float64(1), allocs)
+		assert.Equal(t, 1, int(allocs))
 	})
 }

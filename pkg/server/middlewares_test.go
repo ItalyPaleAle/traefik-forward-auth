@@ -312,6 +312,7 @@ func TestIsValidHostHeaderMatchesRegexp(t *testing.T) {
 	}
 
 	t.Run("representative values", func(t *testing.T) {
+		//nolint:gosmopolitan
 		values := []string{
 			"", ".", "..", "-", "_", ":", "::",
 			"example", "example.com", "sub.example.com", "a.b.c.d",
@@ -354,9 +355,9 @@ func TestIsValidHostHeaderMatchesRegexp(t *testing.T) {
 		const alphabet = "abz09-_.:[]! \t"
 		buf := make([]byte, 12)
 		for range 200_000 {
-			n := rand.Intn(len(buf)) + 1
+			n := rand.Intn(len(buf)) // #nosec G404 -- test code
 			for i := range n {
-				buf[i] = alphabet[rand.Intn(len(alphabet))]
+				buf[i] = alphabet[rand.Intn(len(alphabet))] // #nosec G404 -- test code
 			}
 			check(t, string(buf[:n]))
 		}

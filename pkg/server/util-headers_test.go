@@ -103,9 +103,13 @@ func TestRangeRequestCookiesMatchesNetHTTP(t *testing.T) {
 
 	expected := func(h http.Header) [][2]string {
 		req := &http.Request{Header: h}
-		var want [][2]string
-		for _, ck := range req.Cookies() {
-			want = append(want, [2]string{ck.Name, ck.Value})
+		if len(req.Cookies()) == 0 {
+			return nil
+		}
+
+		want := make([][2]string, len(req.Cookies()))
+		for i, ck := range req.Cookies() {
+			want[i] = [2]string{ck.Name, ck.Value}
 		}
 		return want
 	}

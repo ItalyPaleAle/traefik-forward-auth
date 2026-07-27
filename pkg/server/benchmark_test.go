@@ -145,6 +145,7 @@ func BenchmarkHotPathForwardAuth(b *testing.B) {
 	const portalName = "test1"
 	const cookieDomain = "example.com"
 
+	//nolint:sloglint // using TextHandler explicitly to measure better cost
 	log := slog.New(slog.NewTextHandler(io.Discard, nil))
 
 	cfg := config.Get()
