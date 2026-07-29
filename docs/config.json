@@ -11,5 +11,9 @@
   },
   "theme": {
     "scheme": "teal"
+  },
+  "robots": {
+    "llmsTXT": true,
+    "disallow": []
   }
 }
