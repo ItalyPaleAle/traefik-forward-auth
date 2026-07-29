@@ -3,8 +3,12 @@ baseURL = "https://traefik-forward-auth.italypaleale.me/"
 locale = "en-us"
 title = "Traefik Forward Auth"
 disableKinds = ["rss"]
+enableRobotsTXT = true
 
 [module]
+  [module.hugoVersion]
+    extended = true
+    min = '0.164.0'
   [[module.imports]]
     path = "github.com/italypaleale/hugo-assets"
 
@@ -31,6 +35,9 @@ disableKinds = ["rss"]
   github_repo = "https://github.com/italypaleale/traefik-forward-auth"
   github_branch = "main"
   PlausibleAnalytics = true
+
+  [params.robots]
+    llmsTXT = true
 
   [params.theme]
     scheme = "teal"
