@@ -49,7 +49,7 @@ Using Federated Identity Credentials is the **recommended** approach when:
 - The application is running on Azure on a platform that supports [Managed Identity](https://learn.microsoft.com/en-us/entra/identity/managed-identities-azure-resources/overview). Both system-assigned and user-assigned identities are supported.
 - The application is running on platforms that support [Workload Identity Federation](https://learn.microsoft.com/en-us/entra/workload-id/workload-identity-federation), for example on Kubernetes (on any cloud or on-premises) or other clouds.
 - The application is running on Kubernetes and can use service account tokens
-- The application is running on a node connected to a Tailscale network and you have deployed [tsiam](https://github.com/italypaleale/tsiam)
+- The application is running on a node connected to a Tailscale network and you have deployed [tsiam](https://tsiam.italypaleale.me)
 
 > Check the documentation for your platform on configuring the managed identity or the workload identity for your application.
 
