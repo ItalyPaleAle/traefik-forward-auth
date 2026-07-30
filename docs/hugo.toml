@@ -34,6 +34,7 @@ enableRobotsTXT = true
   github_url = "https://github.com/italypaleale/traefik-forward-auth"
   github_repo = "https://github.com/italypaleale/traefik-forward-auth"
   github_branch = "main"
+  github_path = "docs"
   PlausibleAnalytics = true
 
   [params.robots]
