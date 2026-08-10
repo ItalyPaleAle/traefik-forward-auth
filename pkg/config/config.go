@@ -35,9 +35,6 @@ const (
 	PropertyProviderName = "provider.name"
 )
 
-// Default public port where Traefik Forward Auth is reachable
-const defaultAuthPort = 443
-
 // Config is the struct containing configuration
 type Config struct {
 	// Configuration for the application's server
@@ -78,7 +75,7 @@ type ConfigServer struct {
 	// Each entry sets the cookie domain for matching requests, and optionally the public hostname where Traefik Forward Auth is reachable for that domain (`authHost`)
 	// `authHost` is only required when running in "dedicated sub-domain" mode (where Traefik Forward Auth is served on a different host than the apps); in "sub-path" mode the request host is used and `authHost` can be omitted
 	// `authHost` must be the same as, or a sub-domain of, `domain`. If omitted, it defaults to `domain`
-	// `authPort` sets the public port of Traefik Forward Auth for that domain, and defaults to 443
+	// `authHost` can include a non-standard public port (e.g. `auth.example.com:8443`) when Traefik Forward Auth is not reachable on the standard HTTPS port
 	// +recommended
 	Domains []ConfigServerDomain `yaml:"domains"`
 
@@ -148,24 +145,9 @@ type ConfigServerDomain struct {
 	// Used for OAuth2 callback URLs and redirects to the sign-in page when running in "dedicated sub-domain" mode
 	// Must be the same as, or a sub-domain of, `domain`
 	// If omitted, defaults to the value of `domain` (which is appropriate when running in "sub-path" mode)
+	// Can include a non-standard public port, e.g. `auth.example.com:8443`, when Traefik Forward Auth is not reachable on the standard HTTPS port
 	// +example "auth.example.com"
 	AuthHost string `yaml:"authHost"`
-
-	// Public port where Traefik Forward Auth is reachable for this domain
-	// Set this when the public endpoint is not served on the standard HTTPS port, for example behind a reverse proxy listening on a non-standard port
-	// The port is included in OAuth2 callback URLs and in redirects to the sign-in page; it is omitted from those URLs when set to 443
-	// +default 443
-	AuthPort int `yaml:"authPort"`
-}
-
-// AuthHostPort returns the public address of Traefik Forward Auth for this domain, as `host` or `host:port`
-// The port is omitted when it is the default HTTPS port, so that URLs stay in their canonical form
-func (d ConfigServerDomain) AuthHostPort() string {
-	if d.AuthPort == 0 || d.AuthPort == defaultAuthPort {
-		return d.AuthHost
-	}
-
-	return net.JoinHostPort(d.AuthHost, strconv.Itoa(d.AuthPort))
 }
 
 type ConfigCookies struct {
@@ -190,7 +172,7 @@ func (c ConfigCookies) CookieName(portalName string) string {
 
 // DomainForHost returns the cookie domain and the public auth host that best match `host`
 // `cookieDomain` is the value to use for the Set-Cookie Domain attribute (empty for a host-only cookie when host is an IP)
-// `authHost` is the public address of Traefik Forward Auth for that domain, used when building OAuth2 callbacks and sign-in redirects; it includes the port configured in `authPort` unless that is the default HTTPS port
+// `authHost` is the public address of Traefik Forward Auth for that domain, used when building OAuth2 callbacks and sign-in redirects; it includes a port when one was configured
 // `ok` is false when none of the configured domains match the request host
 func (s ConfigServer) DomainForHost(host string) (cookieDomain string, authHost string, ok bool) {
 	// Normalize the request host so callers can pass either Host or X-Forwarded-Host values
@@ -230,7 +212,7 @@ func (s ConfigServer) DomainForHost(host string) (cookieDomain string, authHost 
 		return "", "", false
 	}
 
-	return s.Domains[bestIdx].Domain, s.Domains[bestIdx].AuthHostPort(), true
+	return s.Domains[bestIdx].Domain, s.Domains[bestIdx].AuthHost, true
 }
 
 // NormalizeHostname normalizes a hostname or host:port value for comparisons
@@ -256,6 +238,28 @@ func NormalizeHostname(host string) string {
 	host = strings.TrimSuffix(host, ".")
 
 	return host
+}
+
+// splitAuthHost splits an `authHost` value into its normalized hostname and optional port
+// An empty `authHost` returns an empty hostname and port, so the caller can apply its own default
+func splitAuthHost(authHost string) (hostname string, port string, err error) {
+	authHost = strings.TrimSpace(authHost)
+	if authHost == "" {
+		return "", "", nil
+	}
+
+	host, splitPort, splitErr := net.SplitHostPort(authHost)
+	if splitErr != nil {
+		// No port present: treat the entire value as the hostname
+		return NormalizeHostname(authHost), "", nil
+	}
+
+	portNum, convErr := strconv.Atoi(splitPort)
+	if convErr != nil || portNum < 1 || portNum > 65535 {
+		return "", "", errors.New("port must be a number between 1 and 65535")
+	}
+
+	return NormalizeHostname(host), splitPort, nil
 }
 
 type ConfigLogs struct {
@@ -549,7 +553,7 @@ func (c *Config) migrateLegacyDomainConfig(logger *slog.Logger) error {
 	return nil
 }
 
-// validateServerDomains validates each entry in `server.domains`, fills in default authHost and authPort values, and dedupes by domain
+// validateServerDomains validates each entry in `server.domains`, fills in default authHost values, and dedupes by domain
 func (c *Config) validateServerDomains() error {
 	if len(c.Server.Domains) == 0 {
 		return nil
@@ -567,25 +571,28 @@ func (c *Config) validateServerDomains() error {
 		}
 
 		// authHost defaults to the cookie domain when omitted (suitable for "sub-path" mode)
-		authHost := NormalizeHostname(d.AuthHost)
-		if authHost == "" {
-			authHost = domain
-		} else if !validators.IsHostname(authHost) {
-			return fmt.Errorf("property 'server.domains[%d].authHost' is invalid: must be a valid hostname", i)
+		// It may also include a non-standard public port (e.g. "auth.example.com:8443"), which is split off before validating the hostname part
+		authHostname, authPort, err := splitAuthHost(d.AuthHost)
+		if err != nil {
+			return fmt.Errorf("property 'server.domains[%d].authHost' is invalid: %w", i, err)
 		}
 
-		// authHost must be the same as, or a sub-domain of, the cookie domain
-		// Otherwise the browser would not accept the cookie set on the auth host for requests to the app
-		if !utils.IsSubDomain(domain, authHost) {
-			return fmt.Errorf("property 'server.domains[%d].authHost' is invalid: must be the same as, or a sub-domain of, 'domain'", i)
-		}
+		authHost := domain
+		if authHostname != "" {
+			if !validators.IsHostname(authHostname) {
+				return fmt.Errorf("property 'server.domains[%d].authHost' is invalid: must be a valid hostname", i)
+			}
 
-		// authPort defaults to the standard HTTPS port, which is where Traefik Forward Auth is normally exposed publicly
-		authPort := d.AuthPort
-		if authPort == 0 {
-			authPort = defaultAuthPort
-		} else if authPort < 1 || authPort > 65535 {
-			return fmt.Errorf("property 'server.domains[%d].authPort' is invalid: must be a port number between 1 and 65535", i)
+			// authHost must be the same as, or a sub-domain of, the cookie domain
+			// Otherwise the browser would not accept the cookie set on the auth host for requests to the app
+			if !utils.IsSubDomain(domain, authHostname) {
+				return fmt.Errorf("property 'server.domains[%d].authHost' is invalid: must be the same as, or a sub-domain of, 'domain'", i)
+			}
+
+			authHost = authHostname
+			if authPort != "" {
+				authHost = net.JoinHostPort(authHostname, authPort)
+			}
 		}
 
 		// Dedupe values
@@ -595,7 +602,7 @@ func (c *Config) validateServerDomains() error {
 		}
 		seen[domain] = struct{}{}
 
-		out = append(out, ConfigServerDomain{Domain: domain, AuthHost: authHost, AuthPort: authPort})
+		out = append(out, ConfigServerDomain{Domain: domain, AuthHost: authHost})
 	}
 
 	c.Server.Domains = out

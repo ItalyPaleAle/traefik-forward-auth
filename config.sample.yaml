@@ -6,7 +6,7 @@ server:
   ##   `authHost` is only required when running in "dedicated sub-domain" mode (where Traefik Forward Auth is served on a different host than the apps); in "sub-path" mode the request host is used and `authHost` can be omitted
   ##   `authHost` must be the same as, or a sub-domain of, `domain``
   ##   If omitted, it defaults to `domain`
-  ##   `authPort` sets the public port of Traefik Forward Auth for that domain, and defaults to 443
+  ##   `authHost` can include a non-standard public port (e.g. `auth.example.com:8443`) when Traefik Forward Auth is not reachable on the standard HTTPS port
   ## Recommended
   #domains:
   #  -
@@ -22,15 +22,8 @@ server:
   #    ##   Used for OAuth2 callback URLs and redirects to the sign-in page when running in "dedicated sub-domain" mode
   #    ##   Must be the same as, or a sub-domain of, `domain`
   #    ##   If omitted, defaults to the value of `domain` (which is appropriate when running in "sub-path" mode)
+  #    ##   Can include a non-standard public port, e.g. `auth.example.com:8443`, when Traefik Forward Auth is not reachable on the standard HTTPS port
   #    #authHost: "auth.example.com"
-
-  #    ## server.domains.$.authPort (number)
-  #    ## Description:
-  #    ##   Public port where Traefik Forward Auth is reachable for this domain
-  #    ##   Set this when the public endpoint is not served on the standard HTTPS port, for example behind a reverse proxy listening on a non-standard port
-  #    ##   The port is included in OAuth2 callback URLs and in redirects to the sign-in page; it is omitted from those URLs when set to 443
-  #    ## Default: 443
-  #    #authPort: 443
 
   ## server.port (number)
   ## Description:

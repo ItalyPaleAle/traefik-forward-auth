@@ -499,13 +499,13 @@ func TestDedicatedSubdomainRedirects(t *testing.T) {
 		"OAuth2 redirect_uri should target the configured authHost")
 }
 
-// TestDedicatedSubdomainRedirectsWithAuthPort verifies that a non-default `authPort` is included in the redirects to Traefik Forward Auth itself
+// TestDedicatedSubdomainRedirectsWithAuthHostPort verifies that a port included in `authHost` is preserved in the redirects to Traefik Forward Auth itself
 // This covers deployments where the public endpoint is not served on the standard HTTPS port
-func TestDedicatedSubdomainRedirectsWithAuthPort(t *testing.T) {
+func TestDedicatedSubdomainRedirectsWithAuthHostPort(t *testing.T) {
 	t.Cleanup(config.SetTestConfig(func(c *config.Config) {
 		c.Cookies.Domain = ""
 		c.Server.Domains = []config.ConfigServerDomain{
-			{Domain: "example.com", AuthHost: "auth.example.com", AuthPort: 30443},
+			{Domain: "example.com", AuthHost: "auth.example.com:30443"},
 		}
 	}))
 
@@ -519,7 +519,7 @@ func TestDedicatedSubdomainRedirectsWithAuthPort(t *testing.T) {
 
 	require.Equal(t, http.StatusSeeOther, res.StatusCode)
 	signInURL := urlMustParse(t, res.Header.Get("Location"))
-	assert.Equal(t, "auth.example.com:30443", signInURL.Host, "sign-in redirect should include the configured authPort")
+	assert.Equal(t, "auth.example.com:30443", signInURL.Host, "sign-in redirect should include the port configured in authHost")
 
 	state := signInURL.Query().Get("state")
 	require.NotEmpty(t, state)
@@ -536,7 +536,7 @@ func TestDedicatedSubdomainRedirectsWithAuthPort(t *testing.T) {
 	require.Equal(t, http.StatusSeeOther, res2.StatusCode)
 	idpURL := urlMustParse(t, res2.Header.Get("Location"))
 	assert.Equal(t, "https://auth.example.com:30443/portals/test1/oauth2/callback", idpURL.Query().Get("redirect_uri"),
-		"OAuth2 redirect_uri should include the configured authPort")
+		"OAuth2 redirect_uri should include the port configured in authHost")
 }
 
 // TestSubpathModeRedirects verifies the "sub-path" mode where Traefik Forward Auth shares each app's host
