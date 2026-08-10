@@ -499,6 +499,46 @@ func TestDedicatedSubdomainRedirects(t *testing.T) {
 		"OAuth2 redirect_uri should target the configured authHost")
 }
 
+// TestDedicatedSubdomainRedirectsWithAuthPort verifies that a non-default `authPort` is included in the redirects to Traefik Forward Auth itself
+// This covers deployments where the public endpoint is not served on the standard HTTPS port
+func TestDedicatedSubdomainRedirectsWithAuthPort(t *testing.T) {
+	t.Cleanup(config.SetTestConfig(func(c *config.Config) {
+		c.Cookies.Domain = ""
+		c.Server.Domains = []config.ConfigServerDomain{
+			{Domain: "example.com", AuthHost: "auth.example.com", AuthPort: 30443},
+		}
+	}))
+
+	srv, _ := newTestServer(t)
+	require.NotNil(t, srv)
+	startTestServer(t, srv)
+	appClient := clientForListener(srv.appListener)
+
+	res := doProxiedRequest(t, appClient, "/portals/test1", testProxyHeaders{host: "app.example.com:30443", uri: "/dashboard"}, nil)
+	defer closeBody(res)
+
+	require.Equal(t, http.StatusSeeOther, res.StatusCode)
+	signInURL := urlMustParse(t, res.Header.Get("Location"))
+	assert.Equal(t, "auth.example.com:30443", signInURL.Host, "sign-in redirect should include the configured authPort")
+
+	state := signInURL.Query().Get("state")
+	require.NotEmpty(t, state)
+	stateCookies := res.Header.Values("Set-Cookie")
+	require.NotEmpty(t, stateCookies)
+
+	res2 := doProxiedRequest(t, appClient,
+		"/portals/test1/providers/testoauth2?state="+state,
+		testProxyHeaders{host: "auth.example.com:30443"},
+		stateCookies,
+	)
+	defer closeBody(res2)
+
+	require.Equal(t, http.StatusSeeOther, res2.StatusCode)
+	idpURL := urlMustParse(t, res2.Header.Get("Location"))
+	assert.Equal(t, "https://auth.example.com:30443/portals/test1/oauth2/callback", idpURL.Query().Get("redirect_uri"),
+		"OAuth2 redirect_uri should include the configured authPort")
+}
+
 // TestSubpathModeRedirects verifies the "sub-path" mode where Traefik Forward Auth shares each app's host
 // With no `server.domains` configured we expect cookies to be host-only and redirects to use the request host
 func TestSubpathModeRedirects(t *testing.T) {

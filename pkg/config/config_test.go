@@ -53,8 +53,8 @@ func TestValidateConfig(t *testing.T) {
 		assert.Empty(t, config.Cookies.Domain)
 		assert.Empty(t, config.Server.Hostname)
 		assert.Equal(t, []ConfigServerDomain{
-			{Domain: "example.com", AuthHost: "auth.example.com"},
-			{Domain: "example.org", AuthHost: "example.org"},
+			{Domain: "example.com", AuthHost: "auth.example.com", AuthPort: 443},
+			{Domain: "example.org", AuthHost: "example.org", AuthPort: 443},
 		}, config.Server.Domains)
 	})
 
@@ -71,7 +71,7 @@ func TestValidateConfig(t *testing.T) {
 		require.NoError(t, err)
 		assert.Empty(t, config.Cookies.Domain)
 		assert.Equal(t, []ConfigServerDomain{
-			{Domain: "example.com", AuthHost: "example.com"},
+			{Domain: "example.com", AuthHost: "example.com", AuthPort: 443},
 		}, config.Server.Domains)
 		out := buf.String()
 		assert.Contains(t, out, "level=WARN")
@@ -91,7 +91,7 @@ func TestValidateConfig(t *testing.T) {
 		assert.Empty(t, config.Cookies.Domain)
 		assert.Empty(t, config.Server.Hostname)
 		assert.Equal(t, []ConfigServerDomain{
-			{Domain: "example.com", AuthHost: "auth.example.com"},
+			{Domain: "example.com", AuthHost: "auth.example.com", AuthPort: 443},
 		}, config.Server.Domains)
 	})
 
@@ -106,7 +106,7 @@ func TestValidateConfig(t *testing.T) {
 		require.NoError(t, err)
 		assert.Empty(t, config.Server.Hostname)
 		assert.Equal(t, []ConfigServerDomain{
-			{Domain: "example.com", AuthHost: "example.com"},
+			{Domain: "example.com", AuthHost: "example.com", AuthPort: 443},
 		}, config.Server.Domains)
 	})
 
@@ -123,8 +123,8 @@ func TestValidateConfig(t *testing.T) {
 		err := config.Validate(log)
 		require.NoError(t, err)
 		assert.Equal(t, []ConfigServerDomain{
-			{Domain: "example.com", AuthHost: "auth.example.com"},
-			{Domain: "apps.example.com", AuthHost: "apps.example.com"},
+			{Domain: "example.com", AuthHost: "auth.example.com", AuthPort: 443},
+			{Domain: "apps.example.com", AuthHost: "apps.example.com", AuthPort: 443},
 		}, config.Server.Domains)
 	})
 
@@ -141,8 +141,38 @@ func TestValidateConfig(t *testing.T) {
 		err := config.Validate(log)
 		require.NoError(t, err)
 		assert.Equal(t, []ConfigServerDomain{
-			{Domain: "example.com", AuthHost: "auth.example.com"},
+			{Domain: "example.com", AuthHost: "auth.example.com", AuthPort: 443},
 		}, config.Server.Domains)
+	})
+
+	t.Run("keeps a custom authPort", func(t *testing.T) {
+		t.Cleanup(SetTestConfig(func(c *Config) {
+			c.Cookies.Domain = ""
+			c.Server.Hostname = ""
+			c.Server.Domains = []ConfigServerDomain{
+				{Domain: "example.com", AuthHost: "auth.example.com", AuthPort: 8443},
+			}
+		}))
+
+		err := config.Validate(log)
+		require.NoError(t, err)
+		assert.Equal(t, []ConfigServerDomain{
+			{Domain: "example.com", AuthHost: "auth.example.com", AuthPort: 8443},
+		}, config.Server.Domains)
+	})
+
+	t.Run("fails when authPort is out of range", func(t *testing.T) {
+		t.Cleanup(SetTestConfig(func(c *Config) {
+			c.Cookies.Domain = ""
+			c.Server.Hostname = ""
+			c.Server.Domains = []ConfigServerDomain{
+				{Domain: "example.com", AuthHost: "auth.example.com", AuthPort: 70000},
+			}
+		}))
+
+		err := config.Validate(log)
+		require.Error(t, err)
+		require.ErrorContains(t, err, "server.domains[0].authPort")
 	})
 
 	t.Run("fails when authHost is not a sub-domain of domain", func(t *testing.T) {
@@ -406,5 +436,46 @@ func TestSetTokenSigningKey(t *testing.T) {
 		tsk2Raw, err := jwk.Export[[]byte](tsk2)
 		require.NoError(t, err)
 		assert.NotEqual(t, tsk1Raw, tsk2Raw)
+	})
+}
+
+func TestConfigServerDomainAuthHostPort(t *testing.T) {
+	tests := []struct {
+		name   string
+		domain ConfigServerDomain
+		expect string
+	}{
+		{name: "no port set", domain: ConfigServerDomain{AuthHost: "auth.example.com"}, expect: "auth.example.com"},
+		{name: "default port omitted", domain: ConfigServerDomain{AuthHost: "auth.example.com", AuthPort: 443}, expect: "auth.example.com"},
+		{name: "custom port included", domain: ConfigServerDomain{AuthHost: "auth.example.com", AuthPort: 30443}, expect: "auth.example.com:30443"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equal(t, tt.expect, tt.domain.AuthHostPort())
+		})
+	}
+}
+
+func TestConfigServerDomainForHost(t *testing.T) {
+	s := ConfigServer{
+		Domains: []ConfigServerDomain{
+			{Domain: "example.com", AuthHost: "auth.example.com", AuthPort: 30443},
+			{Domain: "example.org", AuthHost: "auth.example.org", AuthPort: 443},
+		},
+	}
+
+	t.Run("includes the custom auth port", func(t *testing.T) {
+		cookieDomain, authHost, ok := s.DomainForHost("app.example.com:30443")
+		require.True(t, ok)
+		assert.Equal(t, "example.com", cookieDomain)
+		assert.Equal(t, "auth.example.com:30443", authHost)
+	})
+
+	t.Run("omits the default auth port", func(t *testing.T) {
+		cookieDomain, authHost, ok := s.DomainForHost("app.example.org")
+		require.True(t, ok)
+		assert.Equal(t, "example.org", cookieDomain)
+		assert.Equal(t, "auth.example.org", authHost)
 	})
 }
