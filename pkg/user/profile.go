@@ -50,6 +50,8 @@ type ProfileName struct {
 	Middle string
 	// Nickname
 	Nickname string
+	// Username
+	Username string
 }
 
 // ProfileEmail contains the email of a user.
@@ -88,6 +90,7 @@ func NewProfileFromOpenIDToken(token openid.Token, provider string) (*Profile, e
 		Middle:   stringOrEmpty(token.MiddleName()),
 		Last:     stringOrEmpty(token.FamilyName()),
 		Nickname: stringOrEmpty(token.Nickname()),
+		Username: stringOrEmpty(token.PreferredUsername()),
 	}
 
 	profile.Name.PopulateFullName()
@@ -146,6 +149,7 @@ func NewProfileFromClaims(claims map[string]any, provider string) (*Profile, err
 		Middle:   cast.ToString(claims["middle_name"]),
 		Last:     cast.ToString(claims["family_name"]),
 		Nickname: cast.ToString(claims["nickname"]),
+		Username: cast.ToString(claims["preferred_username"]),
 	}
 
 	profile.Name.PopulateFullName()
@@ -238,6 +242,9 @@ func (p *Profile) AppendClaims(builder *jwt.Builder) {
 	if p.Name.Nickname != "" {
 		builder.Claim("nickname", p.Name.Nickname)
 	}
+	if p.Name.Username != "" {
+		builder.Claim("preferred_username", p.Name.Username)
+	}
 	if p.Email != nil && p.Email.Value != "" {
 		builder.Claim("email", p.Email.Value)
 		if p.Email.Verified {
@@ -290,6 +297,8 @@ func (p *Profile) Get(claim string) any {
 		return p.Name.Last
 	case "nickname":
 		return p.Name.Nickname
+	case "preferred_username":
+		return p.Name.Username
 	case "email":
 		return p.GetEmail()
 	case "email_verified":
