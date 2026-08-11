@@ -242,7 +242,6 @@ func NormalizeHostname(host string) string {
 // splitAuthHost splits an `authHost` value into its normalized hostname and optional port
 // An empty `authHost` returns an empty hostname and port, so the caller can apply its own default
 func splitAuthHost(authHost string) (hostname string, port string, err error) {
-	authHost = strings.TrimSpace(authHost)
 	if authHost == "" {
 		return "", "", nil
 	}
@@ -570,7 +569,7 @@ func (c *Config) validateServerDomains() error {
 		}
 
 		// authHost defaults to the cookie domain when omitted (suitable for "sub-path" mode)
-		// It may also include a non-standard public port (e.g. "auth.example.com:8443"), which is split off before validating the hostname part
+		// It may also include a port number (e.g. "auth.example.com:8443"), which is split off before validating the hostname part
 		authHostname, authPort, err := splitAuthHost(d.AuthHost)
 		if err != nil {
 			return fmt.Errorf("property 'server.domains[%d].authHost' is invalid: %w", i, err)

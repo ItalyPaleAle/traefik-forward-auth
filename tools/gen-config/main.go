@@ -452,12 +452,11 @@ func processServerDomainsField(outYAML io.Writer, outMD io.Writer, yamlPrefix st
 	y("##   `authHost` is only required when running in \"dedicated sub-domain\" mode (where Traefik Forward Auth is served on a different host than the apps); in \"sub-path\" mode the request host is used and `authHost` can be omitted\n")
 	y("##   `authHost` must be the same as, or a sub-domain of, `domain``\n")
 	y("##   If omitted, it defaults to `domain`\n")
-	y("##   `authHost` can include a non-standard public port (e.g. `auth.example.com:8443`) when Traefik Forward Auth is not reachable on the standard HTTPS port\n")
 	y("## Recommended\n")
 	y("#domains:\n")
 	y("#  -\n")
 
-	fmt.Fprintln(outMD, `| <a id="config-opt-server-domains"></a>`+"`server.domains`"+`| list of domain configurations | Domains served by Traefik Forward Auth<br>Each entry sets the cookie domain for matching requests, and optionally the public hostname where Traefik Forward Auth is reachable for that domain (`+"`authHost`"+`)<br>`+"`authHost`"+` is only required when running in "dedicated sub-domain" mode; in "sub-path" mode the request host is used and `+"`authHost`"+` can be omitted<br>`+"`authHost`"+` must be the same as, or a sub-domain of, `+"`domain`"+`.<br>If omitted, it defaults to `+"`domain`"+`<br>`+"`authHost`"+` can include a non-standard public port (e.g. `+"`auth.example.com:8443`"+`) when Traefik Forward Auth is not reachable on the standard HTTPS port | Recommended |`)
+	fmt.Fprintln(outMD, `| <a id="config-opt-server-domains"></a>`+"`server.domains`"+`| list of domain configurations | Domains served by Traefik Forward Auth<br>Each entry sets the cookie domain for matching requests, and optionally the public hostname where Traefik Forward Auth is reachable for that domain (`+"`authHost`"+`)<br>`+"`authHost`"+` is only required when running in "dedicated sub-domain" mode; in "sub-path" mode the request host is used and `+"`authHost`"+` can be omitted<br>`+"`authHost`"+` must be the same as, or a sub-domain of, `+"`domain`"+`.<br>If omitted, it defaults to `+"`domain`"+` | Recommended |`)
 
 	processStruct(structTypes["ConfigServerDomain"], yamlPrefix+"#    ", "server.domains.$", "server.domains", outYAML, outMD, false)
 }

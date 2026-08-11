@@ -535,8 +535,7 @@ func TestDedicatedSubdomainRedirectsWithAuthHostPort(t *testing.T) {
 
 	require.Equal(t, http.StatusSeeOther, res2.StatusCode)
 	idpURL := urlMustParse(t, res2.Header.Get("Location"))
-	assert.Equal(t, "https://auth.example.com:30443/portals/test1/oauth2/callback", idpURL.Query().Get("redirect_uri"),
-		"OAuth2 redirect_uri should include the port configured in authHost")
+	assert.Equal(t, "https://auth.example.com:30443/portals/test1/oauth2/callback", idpURL.Query().Get("redirect_uri"), "OAuth2 redirect_uri should include the port configured in authHost")
 }
 
 // TestSubpathModeRedirects verifies the "sub-path" mode where Traefik Forward Auth shares each app's host
