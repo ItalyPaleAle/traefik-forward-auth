@@ -75,7 +75,6 @@ type ConfigServer struct {
 	// Each entry sets the cookie domain for matching requests, and optionally the public hostname where Traefik Forward Auth is reachable for that domain (`authHost`)
 	// `authHost` is only required when running in "dedicated sub-domain" mode (where Traefik Forward Auth is served on a different host than the apps); in "sub-path" mode the request host is used and `authHost` can be omitted
 	// `authHost` must be the same as, or a sub-domain of, `domain`. If omitted, it defaults to `domain`
-	// `authHost` can include a non-standard public port (e.g. `auth.example.com:8443`) when Traefik Forward Auth is not reachable on the standard HTTPS port
 	// +recommended
 	Domains []ConfigServerDomain `yaml:"domains"`
 
@@ -145,7 +144,7 @@ type ConfigServerDomain struct {
 	// Used for OAuth2 callback URLs and redirects to the sign-in page when running in "dedicated sub-domain" mode
 	// Must be the same as, or a sub-domain of, `domain`
 	// If omitted, defaults to the value of `domain` (which is appropriate when running in "sub-path" mode)
-	// Can include a non-standard public port, e.g. `auth.example.com:8443`, when Traefik Forward Auth is not reachable on the standard HTTPS port
+	// Can include a port number (e.g. `auth.example.com:8443`), when Traefik Forward Auth is not reachable on the standard HTTPS port
 	// +example "auth.example.com"
 	AuthHost string `yaml:"authHost"`
 }
