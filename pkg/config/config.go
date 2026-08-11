@@ -257,6 +257,11 @@ func splitAuthHost(authHost string) (hostname string, port string, err error) {
 		return "", "", errors.New("port must be a number between 1 and 65535")
 	}
 
+	// 443 is the standard HTTPS port, so omitting it keeps authHost consistent with an unset port
+	if portNum == 443 {
+		return NormalizeHostname(host), "", nil
+	}
+
 	return NormalizeHostname(host), splitPort, nil
 }
 
