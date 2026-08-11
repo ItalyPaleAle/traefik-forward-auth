@@ -16,6 +16,7 @@ import (
 	"os"
 	"reflect"
 	"regexp"
+	"strconv"
 	"strings"
 	"time"
 
@@ -143,6 +144,7 @@ type ConfigServerDomain struct {
 	// Used for OAuth2 callback URLs and redirects to the sign-in page when running in "dedicated sub-domain" mode
 	// Must be the same as, or a sub-domain of, `domain`
 	// If omitted, defaults to the value of `domain` (which is appropriate when running in "sub-path" mode)
+	// Can include a port number (e.g. `auth.example.com:8443`), when Traefik Forward Auth is not reachable on the standard HTTPS port
 	// +example "auth.example.com"
 	AuthHost string `yaml:"authHost"`
 }
@@ -169,7 +171,7 @@ func (c ConfigCookies) CookieName(portalName string) string {
 
 // DomainForHost returns the cookie domain and the public auth host that best match `host`
 // `cookieDomain` is the value to use for the Set-Cookie Domain attribute (empty for a host-only cookie when host is an IP)
-// `authHost` is the public hostname of Traefik Forward Auth for that domain, used when building OAuth2 callbacks and sign-in redirects
+// `authHost` is the public address of Traefik Forward Auth for that domain, used when building OAuth2 callbacks and sign-in redirects; it includes a port when one was configured
 // `ok` is false when none of the configured domains match the request host
 func (s ConfigServer) DomainForHost(host string) (cookieDomain string, authHost string, ok bool) {
 	// Normalize the request host so callers can pass either Host or X-Forwarded-Host values
@@ -235,6 +237,33 @@ func NormalizeHostname(host string) string {
 	host = strings.TrimSuffix(host, ".")
 
 	return host
+}
+
+// splitAuthHost splits an `authHost` value into its normalized hostname and optional port
+// An empty `authHost` returns an empty hostname and port, so the caller can apply its own default
+func splitAuthHost(authHost string) (hostname string, port string, err error) {
+	if authHost == "" {
+		return "", "", nil
+	}
+
+	host, splitPort, err := net.SplitHostPort(authHost)
+	if err != nil {
+		// No port present: treat the entire value as the hostname
+		//nolint:nilerr
+		return NormalizeHostname(authHost), "", nil
+	}
+
+	portNum, err := strconv.Atoi(splitPort)
+	if err != nil || portNum < 1 || portNum > 65535 {
+		return "", "", errors.New("port must be a number between 1 and 65535")
+	}
+
+	// 443 is the standard HTTPS port, so omitting it keeps authHost consistent with an unset port
+	if portNum == 443 {
+		return NormalizeHostname(host), "", nil
+	}
+
+	return NormalizeHostname(host), splitPort, nil
 }
 
 type ConfigLogs struct {
@@ -546,17 +575,28 @@ func (c *Config) validateServerDomains() error {
 		}
 
 		// authHost defaults to the cookie domain when omitted (suitable for "sub-path" mode)
-		authHost := NormalizeHostname(d.AuthHost)
-		if authHost == "" {
-			authHost = domain
-		} else if !validators.IsHostname(authHost) {
-			return fmt.Errorf("property 'server.domains[%d].authHost' is invalid: must be a valid hostname", i)
+		// It may also include a port number (e.g. "auth.example.com:8443"), which is split off before validating the hostname part
+		authHostname, authPort, err := splitAuthHost(d.AuthHost)
+		if err != nil {
+			return fmt.Errorf("property 'server.domains[%d].authHost' is invalid: %w", i, err)
 		}
 
-		// authHost must be the same as, or a sub-domain of, the cookie domain
-		// Otherwise the browser would not accept the cookie set on the auth host for requests to the app
-		if !utils.IsSubDomain(domain, authHost) {
-			return fmt.Errorf("property 'server.domains[%d].authHost' is invalid: must be the same as, or a sub-domain of, 'domain'", i)
+		authHost := domain
+		if authHostname != "" {
+			if !validators.IsHostname(authHostname) {
+				return fmt.Errorf("property 'server.domains[%d].authHost' is invalid: must be a valid hostname", i)
+			}
+
+			// authHost must be the same as, or a sub-domain of, the cookie domain
+			// Otherwise the browser would not accept the cookie set on the auth host for requests to the app
+			if !utils.IsSubDomain(domain, authHostname) {
+				return fmt.Errorf("property 'server.domains[%d].authHost' is invalid: must be the same as, or a sub-domain of, 'domain'", i)
+			}
+
+			authHost = authHostname
+			if authPort != "" {
+				authHost = net.JoinHostPort(authHostname, authPort)
+			}
 		}
 
 		// Dedupe values

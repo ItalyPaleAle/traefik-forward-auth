@@ -145,6 +145,36 @@ func TestValidateConfig(t *testing.T) {
 		}, config.Server.Domains)
 	})
 
+	t.Run("keeps a custom port in authHost", func(t *testing.T) {
+		t.Cleanup(SetTestConfig(func(c *Config) {
+			c.Cookies.Domain = ""
+			c.Server.Hostname = ""
+			c.Server.Domains = []ConfigServerDomain{
+				{Domain: "example.com", AuthHost: "auth.example.com:8443"},
+			}
+		}))
+
+		err := config.Validate(log)
+		require.NoError(t, err)
+		assert.Equal(t, []ConfigServerDomain{
+			{Domain: "example.com", AuthHost: "auth.example.com:8443"},
+		}, config.Server.Domains)
+	})
+
+	t.Run("fails when authHost has a port out of range", func(t *testing.T) {
+		t.Cleanup(SetTestConfig(func(c *Config) {
+			c.Cookies.Domain = ""
+			c.Server.Hostname = ""
+			c.Server.Domains = []ConfigServerDomain{
+				{Domain: "example.com", AuthHost: "auth.example.com:70000"},
+			}
+		}))
+
+		err := config.Validate(log)
+		require.Error(t, err)
+		require.ErrorContains(t, err, "server.domains[0].authHost")
+	})
+
 	t.Run("fails when authHost is not a sub-domain of domain", func(t *testing.T) {
 		t.Cleanup(SetTestConfig(func(c *Config) {
 			c.Cookies.Domain = ""
@@ -406,5 +436,57 @@ func TestSetTokenSigningKey(t *testing.T) {
 		tsk2Raw, err := jwk.Export[[]byte](tsk2)
 		require.NoError(t, err)
 		assert.NotEqual(t, tsk1Raw, tsk2Raw)
+	})
+}
+
+func TestSplitAuthHost(t *testing.T) {
+	tests := []struct {
+		name       string
+		authHost   string
+		expectHost string
+		expectPort string
+		expectErr  bool
+	}{
+		{name: "empty", authHost: "", expectHost: "", expectPort: ""},
+		{name: "no port set", authHost: "auth.example.com", expectHost: "auth.example.com", expectPort: ""},
+		{name: "custom port included", authHost: "Auth.Example.Com:30443", expectHost: "auth.example.com", expectPort: "30443"},
+		{name: "port out of range", authHost: "auth.example.com:70000", expectErr: true},
+		{name: "port not numeric", authHost: "auth.example.com:abc", expectErr: true},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			host, port, err := splitAuthHost(tt.authHost)
+			if tt.expectErr {
+				require.Error(t, err)
+				return
+			}
+			require.NoError(t, err)
+			assert.Equal(t, tt.expectHost, host)
+			assert.Equal(t, tt.expectPort, port)
+		})
+	}
+}
+
+func TestConfigServerDomainForHost(t *testing.T) {
+	s := ConfigServer{
+		Domains: []ConfigServerDomain{
+			{Domain: "example.com", AuthHost: "auth.example.com:30443"},
+			{Domain: "example.org", AuthHost: "auth.example.org"},
+		},
+	}
+
+	t.Run("includes the custom auth port", func(t *testing.T) {
+		cookieDomain, authHost, ok := s.DomainForHost("app.example.com:30443")
+		require.True(t, ok)
+		assert.Equal(t, "example.com", cookieDomain)
+		assert.Equal(t, "auth.example.com:30443", authHost)
+	})
+
+	t.Run("omits the default auth port", func(t *testing.T) {
+		cookieDomain, authHost, ok := s.DomainForHost("app.example.org")
+		require.True(t, ok)
+		assert.Equal(t, "example.org", cookieDomain)
+		assert.Equal(t, "auth.example.org", authHost)
 	})
 }

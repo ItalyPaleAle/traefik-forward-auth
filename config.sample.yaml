@@ -21,6 +21,7 @@ server:
   #    ##   Used for OAuth2 callback URLs and redirects to the sign-in page when running in "dedicated sub-domain" mode
   #    ##   Must be the same as, or a sub-domain of, `domain`
   #    ##   If omitted, defaults to the value of `domain` (which is appropriate when running in "sub-path" mode)
+  #    ##   Can include a port number (e.g. `auth.example.com:8443`), when Traefik Forward Auth is not reachable on the standard HTTPS port
   #    #authHost: "auth.example.com"
 
   ## server.port (number)

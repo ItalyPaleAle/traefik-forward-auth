@@ -70,7 +70,7 @@ To configure Traefik and Traefik Forward Auth in this scenario:
 2. Configure Traefik Forward Auth with one entry under [`server.domains`](/advanced/all-configuration-options#config-opt-server-domains), where:
 
    - `domain` is the cookie domain, e.g. `example.com` (or whatever parent domain covers all your apps)
-   - `authHost` is the public hostname of Traefik Forward Auth itself (`auth.example.com` in this example). This is required in "dedicated sub-domain" mode so redirects and OAuth2 callbacks target the correct host.
+   - `authHost` is the public hostname of Traefik Forward Auth itself (`auth.example.com` in this example). This is required in "dedicated sub-domain" mode so redirects and OAuth2 callbacks target the correct host. It can also include a non-standard public port, for example `authHost: auth.example.com:8443` to make redirects target `https://auth.example.com:8443`.
 
 3. Create a Traefik middleware of type `forwardauth` with:
 
