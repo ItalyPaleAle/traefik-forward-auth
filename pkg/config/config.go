@@ -249,6 +249,7 @@ func splitAuthHost(authHost string) (hostname string, port string, err error) {
 	host, splitPort, err := net.SplitHostPort(authHost)
 	if err != nil {
 		// No port present: treat the entire value as the hostname
+		//nolint:nilerr
 		return NormalizeHostname(authHost), "", nil
 	}
 
