@@ -246,14 +246,14 @@ func splitAuthHost(authHost string) (hostname string, port string, err error) {
 		return "", "", nil
 	}
 
-	host, splitPort, splitErr := net.SplitHostPort(authHost)
-	if splitErr != nil {
+	host, splitPort, err := net.SplitHostPort(authHost)
+	if err != nil {
 		// No port present: treat the entire value as the hostname
 		return NormalizeHostname(authHost), "", nil
 	}
 
-	portNum, convErr := strconv.Atoi(splitPort)
-	if convErr != nil || portNum < 1 || portNum > 65535 {
+	portNum, err := strconv.Atoi(splitPort)
+	if err != nil || portNum < 1 || portNum > 65535 {
 		return "", "", errors.New("port must be a number between 1 and 65535")
 	}
 
