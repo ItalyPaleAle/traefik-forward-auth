@@ -1,6 +1,7 @@
 {
-  "age": "6d",
+  "age": "7d",
   "ignore": [
+    "golang.org/x/*",
     "github.com/italypaleale/*",
     "github.com/lestrrat-go/jwx/*",
     "tailscale.com"
