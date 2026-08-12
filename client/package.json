@@ -4,8 +4,8 @@
     "build": "./build.sh"
   },
   "dependencies": {
-    "@tailwindcss/cli": "4.2.4",
-    "tailwindcss": "4.2.4",
-    "terser": "5.46.1"
+    "@tailwindcss/cli": "4.3.3",
+    "tailwindcss": "4.3.3",
+    "terser": "5.49.1"
   }
 }

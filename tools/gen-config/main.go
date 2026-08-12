@@ -36,14 +36,7 @@ func generateFromStruct(dir string) error {
 	}
 	defer outYAML.Close()
 
-	outFileMD, err := os.Create("config.md")
-	if err != nil {
-		return err
-	}
-	defer outFileMD.Close()
-
-	outBufMD := &bytes.Buffer{}
-	outMD := io.MultiWriter(outBufMD, outFileMD)
+	outMD := &bytes.Buffer{}
 
 	// Map to store struct types defined in the file
 	structTypes = make(map[string]structDef)
@@ -87,7 +80,7 @@ func generateFromStruct(dir string) error {
 	defer readmeFile.Close()
 	readmeFile.Write(readme[:begin])
 	readmeFile.Write([]byte{'\n'})
-	io.Copy(readmeFile, outBufMD)
+	io.Copy(readmeFile, outMD)
 	readmeFile.Write([]byte{'\n'})
 	readmeFile.Write(readme[end:])
 

@@ -26,38 +26,39 @@ jobs:
       GOEXPERIMENT: jsonv2
     steps:
 
-    - name: Check out code
-      uses: actions/checkout@v6
+      - name: Check out code
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
-    - name: Set up Go
-      uses: actions/setup-go@v6
-      with:
-        go-version-file: 'go.mod'
+      - name: Set up Go
+        uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version-file: 'go.mod'
 
-    - name: Set up Node.js
-      uses: actions/setup-node@v6
-      with:
-        node-version: latest
+      - name: Set up Node.js
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: latest
 
-    - name: Check Go dependency minimum age
-      run: |
-        go tool gomod-age
+      - name: Check Go dependency minimum age
+        run: |
+          go tool gomod-age
 
-    - name: Build client
-      working-directory: ./client
-      run: |
-        npm ci
-        ./build.sh
+      - name: Build client
+        working-directory: ./client
+        run: |
+          npm ci
+          ./build.sh
 
-    - name: Check diff
-      run: |
-        make check-config-diff || echo "Please run 'make gen-config'"
+      - name: Run golangci-lint
+        uses: golangci/golangci-lint-action@ba0d7d2ec06a0ea1cb5fa41b2e4a3ab91d21278a # v9.3.0
+        with:
+          version: ${{ env.GOLANGCI_LINT_VERSION }}
 
-    - name: Run golangci-lint
-      uses: golangci/golangci-lint-action@v9
-      with:
-        version: ${{ env.GOLANGCI_LINT_VERSION }}
+      - name: Check diff
+        run: |
+          echo "If this fails, please run 'make gen-config' to fix"
+          make check-config-diff
 
-    - name: Test
-      run: |
-        make test
+      - name: Test
+        run: |
+          make test-race

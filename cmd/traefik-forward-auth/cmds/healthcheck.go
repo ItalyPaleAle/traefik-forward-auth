@@ -3,14 +3,19 @@ package cmds
 import (
 	"context"
 	"crypto/tls"
+	"errors"
 	"log/slog"
 	"net/http"
 	"os"
 	"strconv"
 	"time"
 
-	"github.com/italypaleale/traefik-forward-auth/pkg/config"
+	configkit "github.com/italypaleale/go-kit/config"
+	slogkit "github.com/italypaleale/go-kit/slog"
 	"github.com/spf13/cobra"
+
+	"github.com/italypaleale/traefik-forward-auth/pkg/buildinfo"
+	"github.com/italypaleale/traefik-forward-auth/pkg/config"
 )
 
 // Adapted from https://github.com/pocket-id/pocket-id/blob/v1.11.2/backend/internal/cmds/healthcheck.go
@@ -29,14 +34,30 @@ func init() {
 		Use:   "healthcheck",
 		Short: "Performs a healthcheck of a running traefik-forward-auth instance",
 		Run: func(cmd *cobra.Command, args []string) {
-			loadConfigOrFatal(slog.Default())
-			conf := config.Get()
+			initLogger := slog.Default().
+				With(slog.String("app", buildinfo.AppName)).
+				With(slog.String("version", buildinfo.AppVersion))
+
+			cfg := config.Get()
+			err := configkit.LoadConfig(cfg, configkit.LoadConfigOpts{
+				EnvVar:  configEnvVar,
+				DirName: configDirName,
+			})
+			if err != nil {
+				configErr, ok := errors.AsType[*configkit.ConfigError](err)
+				if ok {
+					configErr.LogFatal(initLogger)
+				} else {
+					slogkit.FatalError(initLogger, "Failed to load configuration", err)
+					return
+				}
+			}
 
 			client := http.DefaultClient
 
 			// Set the default endpoint
 			if flags.Endpoint == "" {
-				if conf.Server.HasTLS() {
+				if cfg.Server.HasTLS() {
 					// Disable TLS certificate validation for healthchecks
 					transport := http.DefaultTransport.(*http.Transport).Clone() //nolint:forcetypeassert
 					if transport.TLSClientConfig == nil {
@@ -47,9 +68,9 @@ func init() {
 					transport.TLSClientConfig.InsecureSkipVerify = true
 					client.Transport = transport
 
-					flags.Endpoint = "https://localhost:" + strconv.Itoa(conf.Server.Port)
+					flags.Endpoint = "https://localhost:" + strconv.Itoa(cfg.Server.Port)
 				} else {
-					flags.Endpoint = "http://localhost:" + strconv.Itoa(conf.Server.Port)
+					flags.Endpoint = "http://localhost:" + strconv.Itoa(cfg.Server.Port)
 				}
 			}
 

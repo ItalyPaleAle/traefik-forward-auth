@@ -1,6 +1,8 @@
-scratch
-config.md
-.bin/
+/scratch
+/config.yaml
+/config.*.yaml
+!/config.sample.yaml
+/.bin/
 
 ## Client
 client/node_modules
