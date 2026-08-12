@@ -3,14 +3,11 @@ package metrics
 import (
 	"context"
 	"fmt"
-	"log/slog"
-	"os"
 	"time"
 
-	"go.opentelemetry.io/contrib/exporters/autoexport"
+	"github.com/italypaleale/go-kit/observability"
 	"go.opentelemetry.io/otel/attribute"
 	api "go.opentelemetry.io/otel/metric"
-	"go.opentelemetry.io/otel/sdk/metric"
 
 	"github.com/italypaleale/traefik-forward-auth/pkg/buildinfo"
 	"github.com/italypaleale/traefik-forward-auth/pkg/config"
@@ -23,30 +20,18 @@ type TFAMetrics struct {
 	authentications api.Int64Counter
 }
 
-func NewTFAMetrics(ctx context.Context, log *slog.Logger) (m *TFAMetrics, shutdownFn func(ctx context.Context) error, err error) {
+func NewTFAMetrics(ctx context.Context) (m *TFAMetrics, shutdownFn func(ctx context.Context) error, err error) {
 	cfg := config.Get()
 	m = &TFAMetrics{}
 
-	resource, err := cfg.GetOtelResource(buildinfo.AppName)
+	meter, shutdownFn, err := observability.InitMetrics(ctx, observability.InitMetricsOpts{
+		Config:  cfg,
+		AppName: buildinfo.AppName,
+		Prefix:  prefix,
+	})
 	if err != nil {
-		return nil, nil, fmt.Errorf("failed to get OpenTelemetry resource: %w", err)
+		return nil, nil, fmt.Errorf("failed to init metrics: %w", err)
 	}
-
-	// Get the metric reader
-	// If the env var OTEL_METRICS_EXPORTER is empty, we set it to "none"
-	if os.Getenv("OTEL_METRICS_EXPORTER") == "" {
-		os.Setenv("OTEL_METRICS_EXPORTER", "none")
-	}
-	mr, err := autoexport.NewMetricReader(ctx)
-	if err != nil {
-		return nil, nil, fmt.Errorf("failed to initialize OpenTelemetry metric reader: %w", err)
-	}
-
-	mp := metric.NewMeterProvider(
-		metric.WithResource(resource),
-		metric.WithReader(mr),
-	)
-	meter := mp.Meter(prefix)
 
 	m.serverRequests, err = meter.Float64Histogram(
 		prefix+"_server_requests",
@@ -66,10 +51,10 @@ func NewTFAMetrics(ctx context.Context, log *slog.Logger) (m *TFAMetrics, shutdo
 		return nil, nil, fmt.Errorf("failed to create "+prefix+"_authentications meter: %w", err)
 	}
 
-	return m, mp.Shutdown, nil
+	return m, shutdownFn, nil
 }
 
-// RecordServerRequest records a request processed by the server.
+// RecordServerRequest records a request processed by the server
 func (m *TFAMetrics) RecordServerRequest(route string, status int, duration time.Duration) {
 	if m == nil {
 		return

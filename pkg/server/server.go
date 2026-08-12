@@ -21,15 +21,11 @@ import (
 
 	"github.com/alphadose/haxmap"
 	"github.com/gin-gonic/gin"
-	slogkit "github.com/italypaleale/go-kit/slog"
 	"github.com/italypaleale/go-kit/ttlcache"
 	"go.opentelemetry.io/contrib/instrumentation/github.com/gin-gonic/gin/otelgin"
-	"go.opentelemetry.io/otel"
-	"go.opentelemetry.io/otel/propagation"
 	sdkTrace "go.opentelemetry.io/otel/sdk/trace"
 
 	"github.com/italypaleale/traefik-forward-auth/pkg/auth"
-	"github.com/italypaleale/traefik-forward-auth/pkg/buildinfo"
 	"github.com/italypaleale/traefik-forward-auth/pkg/config"
 	"github.com/italypaleale/traefik-forward-auth/pkg/metrics"
 	"github.com/italypaleale/traefik-forward-auth/pkg/utils/conditions"
@@ -76,9 +72,9 @@ type Server struct {
 	// TLS configuration for the app server
 	tlsConfig *tls.Config
 
-	tracer  *sdkTrace.TracerProvider
-	running atomic.Bool
-	wg      sync.WaitGroup
+	traceProvider *sdkTrace.TracerProvider
+	running       atomic.Bool
+	wg            sync.WaitGroup
 
 	// Templates and icons
 	templates *template.Template
@@ -103,7 +99,7 @@ type Server struct {
 // NewServerOpts contains options for the NewServer method
 type NewServerOpts struct {
 	Metrics       *metrics.TFAMetrics
-	TraceExporter sdkTrace.SpanExporter
+	TraceProvider *sdkTrace.TracerProvider
 	Portals       map[string]*Portal
 
 	// Optional function to add test routes
@@ -123,11 +119,12 @@ func NewServer(opts NewServerOpts) (*Server, error) {
 	}
 
 	s := &Server{
-		log:        log,
-		metrics:    opts.Metrics,
-		portals:    opts.Portals,
-		startTime:  time.Now().UTC(),
-		predicates: haxmap.New[string, cachedPredicate](),
+		log:           log,
+		metrics:       opts.Metrics,
+		traceProvider: opts.TraceProvider,
+		portals:       opts.Portals,
+		startTime:     time.Now().UTC(),
+		predicates:    haxmap.New[string, cachedPredicate](),
 		tokenCache: ttlcache.NewCache[uint64, tokenCacheEntry](&ttlcache.CacheOptions{
 			CleanupInterval: 2 * time.Minute,
 		}),
@@ -143,7 +140,7 @@ func NewServer(opts NewServerOpts) (*Server, error) {
 	}
 
 	// Init the object
-	err := s.init(log, opts.TraceExporter)
+	err := s.init(log)
 	if err != nil {
 		return nil, err
 	}
@@ -152,43 +149,12 @@ func NewServer(opts NewServerOpts) (*Server, error) {
 }
 
 // Init the Server object and create a Gin server
-func (s *Server) init(log *slog.Logger, traceExporter sdkTrace.SpanExporter) (err error) {
-	// Init tracer
-	err = s.initTracer(traceExporter)
-	if err != nil {
-		return err
-	}
-
+func (s *Server) init(log *slog.Logger) (err error) {
 	// Init the app server
 	err = s.initAppServer(log)
 	if err != nil {
 		return err
 	}
-
-	return nil
-}
-
-func (s *Server) initTracer(exporter sdkTrace.SpanExporter) error {
-	cfg := config.Get()
-
-	// If tracing is disabled, this is a no-op
-	if exporter == nil {
-		return nil
-	}
-
-	resource, err := cfg.GetOtelResource(buildinfo.AppName)
-	if err != nil {
-		return fmt.Errorf("failed to get OpenTelemetry resource: %w", err)
-	}
-
-	s.tracer = sdkTrace.NewTracerProvider(
-		sdkTrace.WithResource(resource),
-		sdkTrace.WithBatcher(exporter),
-	)
-	otel.SetTracerProvider(s.tracer)
-	otel.SetTextMapPropagator(
-		propagation.NewCompositeTextMapPropagator(propagation.TraceContext{}, propagation.Baggage{}),
-	)
 
 	return nil
 }
@@ -206,8 +172,8 @@ func (s *Server) initAppServer(log *slog.Logger) (err error) {
 	s.appRouter = gin.New()
 	s.appRouter.Use(gin.Recovery())
 	s.appRouter.Use(s.MiddlewareAddRequestState)
-	if s.tracer != nil {
-		s.appRouter.Use(otelgin.Middleware("appserver", otelgin.WithTracerProvider(s.tracer)))
+	if s.traceProvider != nil {
+		s.appRouter.Use(otelgin.Middleware("appserver", otelgin.WithTracerProvider(s.traceProvider)))
 	}
 	s.appRouter.Use(s.MiddlewareRequestId)
 	s.appRouter.Use(s.MiddlewareLogger(log))
@@ -292,7 +258,8 @@ func (s *Server) Run(ctx context.Context) error {
 	defer s.wg.Wait()
 
 	// App server
-	err := s.startAppServer(ctx)
+	appSrvErrCh := make(chan error, 1)
+	err := s.startAppServer(ctx, appSrvErrCh)
 	if err != nil {
 		return fmt.Errorf("failed to start app server: %w", err)
 	}
@@ -307,12 +274,12 @@ func (s *Server) Run(ctx context.Context) error {
 			s.tokenCache.Stop()
 		}
 
-		shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), 5*time.Second)
+		shutdownCtx, shutdownCancel := context.WithTimeout(context.WithoutCancel(ctx), 5*time.Second)
 		err := s.appSrv.Shutdown(shutdownCtx)
 		shutdownCancel()
 		if err != nil {
 			// Log the error only (could be context canceled)
-			s.log.WarnContext(ctx,
+			s.log.WarnContext(shutdownCtx,
 				"App server shutdown error",
 				slog.Any("error", err),
 			)
@@ -330,8 +297,12 @@ func (s *Server) Run(ctx context.Context) error {
 	// Periodically clean up the cached predicates
 	go s.predicatesCacheCleanup(ctx)
 
-	// Block until the context is canceled
-	<-ctx.Done()
+	// Block until the context is canceled or the app server exits unexpectedly
+	select {
+	case <-ctx.Done():
+	case err = <-appSrvErrCh:
+		return fmt.Errorf("app server failed: %w", err)
+	}
 
 	// Servers are stopped with deferred calls
 	return nil
@@ -362,7 +333,7 @@ func (s *Server) predicatesCacheCleanup(ctx context.Context) {
 	}
 }
 
-func (s *Server) startAppServer(ctx context.Context) error {
+func (s *Server) startAppServer(ctx context.Context, appSrvErrCh chan<- error) error {
 	cfg := config.Get()
 
 	// Create the HTTP(S) server
@@ -370,6 +341,9 @@ func (s *Server) startAppServer(ctx context.Context) error {
 		Addr:              net.JoinHostPort(cfg.Server.Bind, strconv.Itoa(cfg.Server.Port)),
 		MaxHeaderBytes:    maxHeaderBytes,
 		ReadHeaderTimeout: 10 * time.Second,
+		ReadTimeout:       30 * time.Second,
+		WriteTimeout:      30 * time.Second,
+		IdleTimeout:       60 * time.Second,
 	}
 	if s.tlsConfig != nil {
 		// Using TLS
@@ -401,7 +375,7 @@ func (s *Server) startAppServer(ctx context.Context) error {
 		slog.Bool("tls", s.tlsConfig != nil),
 	)
 	go func() {
-		defer s.appListener.Close()
+		defer s.appListener.Close() //nolint:errcheck
 
 		// Next call blocks until the server is shut down
 		var srvErr error
@@ -411,7 +385,10 @@ func (s *Server) startAppServer(ctx context.Context) error {
 			srvErr = s.appSrv.Serve(s.appListener)
 		}
 		if !errors.Is(srvErr, http.ErrServerClosed) {
-			slogkit.FatalError(s.log, "Error starting app server", srvErr)
+			select {
+			case appSrvErrCh <- srvErr:
+			default:
+			}
 		}
 	}()
 

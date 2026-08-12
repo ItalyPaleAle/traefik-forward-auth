@@ -1,5 +1,9 @@
 version: "2"
 run:
+  timeout: 5m
+  relative-path-mode: cfg
+  issues-exit-code: 1
+  tests: true
   build-tags:
     - unit
 output:

@@ -7,38 +7,39 @@ on:
     tags:
       - "v*"
 
-permissions:
-  contents: read
-  packages: write
-  attestations: write
-  id-token: write
-
 jobs:
   build:
     runs-on: ubuntu-latest
     env:
       # Required by github.com/lestrrat-go/jwx/v4, which uses encoding/json/v2
       GOEXPERIMENT: jsonv2
+
+    permissions:
+      contents: read
+      packages: write
+      attestations: write
+      id-token: write
+
     steps:
       - name: Checkout code
-        uses: actions/checkout@v6
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - name: Set up Go
-        uses: actions/setup-go@v6
+        uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
         with:
           go-version-file: 'go.mod'
           # Do not cache in release workflows
           cache: false
 
       - name: Set up Node.js
-        uses: actions/setup-node@v6
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version: latest
           # Do not cache in release workflows
           package-manager-cache: false
 
       - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v4
+        uses: docker/setup-buildx-action@bb05f3f5519dd87d3ba754cc423b652a5edd6d2c # v4.2.0
         with:
           # Do not cache in release workflows
           cache-binary: false
@@ -55,7 +56,7 @@ jobs:
 
       - name: Generate container tags and labels
         id: meta
-        uses: docker/metadata-action@v6
+        uses: docker/metadata-action@dc802804100637a589fabce1cb79ff13a1411302 # v6.2.0
         with:
           images: ghcr.io/${{ env.REPO_OWNER }}/traefik-forward-auth
           # generate semver tags and 'latest' tag
@@ -90,7 +91,7 @@ jobs:
           echo "BUILD_LDFLAGS: '$BUILD_LDFLAGS'"
 
       - name: Login to container registry
-        uses: docker/login-action@v4
+        uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # v4.6.0
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
@@ -102,104 +103,204 @@ jobs:
           npm ci
           ./build.sh
 
-      - name: Build app for all architectures
+      - name: Build for Linux platforms
+        env:
+          CGO_ENABLED: "0"
         run: |
-          echo -e "\n###\nDownload Go dependencies\n"
-          go mod download
+          mkdir -p .bin .out
 
-          echo -e "\n###\nBuilding for amd64\n"
-          mkdir -p .bin/linux-amd64
-          CGO_ENABLED=0 \
-          GOOS=linux \
-          GOARCH=amd64 \
+          echo -e "\n###\nBuilding linux/amd64\n"
+          mkdir .bin/traefik-forward-auth-${{ env.BUILD_ID }}-linux-amd64
+          GOOS=linux GOARCH=amd64 \
             go build \
-              -o .bin/linux-amd64/traefik-forward-auth \
-              -trimpath \
               -ldflags "${{ env.BUILD_LDFLAGS }}" \
+              -o .bin/traefik-forward-auth-${{ env.BUILD_ID }}-linux-amd64/traefik-forward-auth \
+              -trimpath \
               ./cmd/traefik-forward-auth
+          cp LICENSE.md .bin/traefik-forward-auth-${{ env.BUILD_ID }}-linux-amd64
+          cp -r README.md .bin/traefik-forward-auth-${{ env.BUILD_ID }}-linux-amd64
+          (cd .bin && tar -czvf ../.out/traefik-forward-auth-${{ env.BUILD_ID }}-linux-amd64.tar.gz traefik-forward-auth-${{ env.BUILD_ID }}-linux-amd64)
 
-          echo -e "\n###\nBuilding for arm64\n"
-          mkdir -p .bin/linux-arm64
-          CGO_ENABLED=0 \
-          GOOS=linux \
-          GOARCH=arm64 \
+          echo -e "\n###\nBuilding linux/arm64\n"
+          mkdir .bin/traefik-forward-auth-${{ env.BUILD_ID }}-linux-arm64
+          GOOS=linux GOARCH=arm64 \
             go build \
-              -o .bin/linux-arm64/traefik-forward-auth \
-              -trimpath \
               -ldflags "${{ env.BUILD_LDFLAGS }}" \
+              -o .bin/traefik-forward-auth-${{ env.BUILD_ID }}-linux-arm64/traefik-forward-auth \
+              -trimpath \
               ./cmd/traefik-forward-auth
+          cp LICENSE.md .bin/traefik-forward-auth-${{ env.BUILD_ID }}-linux-arm64
+          cp -r README.md .bin/traefik-forward-auth-${{ env.BUILD_ID }}-linux-arm64
+          (cd .bin && tar -czvf ../.out/traefik-forward-auth-${{ env.BUILD_ID }}-linux-arm64.tar.gz traefik-forward-auth-${{ env.BUILD_ID }}-linux-arm64)
 
-          echo -e "\n###\nBuilding for armhf\n"
-          mkdir -p .bin/linux-arm
-          CGO_ENABLED=0 \
-          GOOS=linux \
-          GOARCH=arm
-          GOARM=7 \
+          echo -e "\n###\nBuilding linux/armv7\n"
+          mkdir .bin/traefik-forward-auth-${{ env.BUILD_ID }}-linux-armv7
+          GOOS=linux GOARCH=arm GOARM=7 \
             go build \
-              -o .bin/linux-arm/traefik-forward-auth \
-              -trimpath \
               -ldflags "${{ env.BUILD_LDFLAGS }}" \
+              -o .bin/traefik-forward-auth-${{ env.BUILD_ID }}-linux-armv7/traefik-forward-auth \
+              -trimpath \
               ./cmd/traefik-forward-auth
+          cp LICENSE.md .bin/traefik-forward-auth-${{ env.BUILD_ID }}-linux-armv7
+          cp -r README.md .bin/traefik-forward-auth-${{ env.BUILD_ID }}-linux-armv7
+          (cd .bin && tar -czvf ../.out/traefik-forward-auth-${{ env.BUILD_ID }}-linux-armv7.tar.gz traefik-forward-auth-${{ env.BUILD_ID }}-linux-armv7)
 
-          echo -e "\n###\nEnsure all binaries are executable\n"
-          chmod +x .bin/*/traefik-forward-auth
+          echo -e "\n###\nLinks for Docker buildx\n"
+          (
+            cd .bin && \
+            ln -v -s traefik-forward-auth-${{ env.BUILD_ID }}-linux-amd64 linux-amd64 && \
+            ln -v -s traefik-forward-auth-${{ env.BUILD_ID }}-linux-arm64 linux-arm64 && \
+            ln -v -s traefik-forward-auth-${{ env.BUILD_ID }}-linux-armv7 linux-arm \
+          )
 
           echo -e "\n###\nCompilation done\n"
-          ls -al .bin .bin/*
+          echo ".bin:"
+          ls -al .bin
+          echo ".out:"
+          ls -al .out
 
-      - name: Build and push Docker images
-        uses: docker/build-push-action@v7
+      - name: Generate checksums
+        working-directory: .out
+        run: |
+          shopt -s nullglob
+          files=(traefik-forward-auth-*.tar.gz)
+          if [[ ${#files[@]} -eq 0 ]]; then
+            echo "::error::No release archives found in .out"
+            exit 1
+          fi
+
+          sha256sum "${files[@]}" | sort -k 2 > checksums.txt
+
+          echo "checksums.txt:"
+          cat checksums.txt
+
+      - name: Build and push Container images
+        uses: docker/build-push-action@53b7df96c91f9c12dcc8a07bcb9ccacbed38856a # v7.3.0
         id: docker-build-push
         with:
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
           platforms: linux/amd64,linux/arm64/v8,linux/arm/v7
           context: .
+          file: Dockerfile
           push: true
 
-      - name: Upload linux-amd64 Actions Artifact
-        uses: actions/upload-artifact@v7
-        with:
-          name: linux-amd64
-          path: .bin/linux-amd64
-
-      - name: Upload linux-arm64 Actions Artifact
-        uses: actions/upload-artifact@v7
-        with:
-          name: linux-arm64
-          path: .bin/linux-arm64
-
-      - name: Upload linux-arm Actions Artifact
-        uses: actions/upload-artifact@v7
-        with:
-          name: linux-arm
-          path: .bin/linux-arm
-
-      - name: Binary attestation linux-amd64
-        uses: actions/attest@v4
+      # A single attestation covering every file attached to the release: the archives plus checksums.txt
+      - name: Attestation for release archives
+        id: attest-archives
+        uses: actions/attest@508db95dd578ae2727ebd6217d5ba78e4fbda05d # 4.2.1
         if: startsWith(github.ref, 'refs/tags/v')
         with:
-          subject-name: linux-amd64/traefik-forward-auth
-          subject-path: '.bin/linux-amd64/traefik-forward-auth'
+          subject-path: '.out/*'
 
-      - name: Binary attestation linux-arm64
-        uses: actions/attest@v4
+      # Attached to the release so the provenance can also be verified offline, with `gh attestation verify <archive> --bundle attestations.json`
+      - name: Stage attestation bundle
         if: startsWith(github.ref, 'refs/tags/v')
-        with:
-          subject-name: linux-arm64/traefik-forward-auth
-          subject-path: '.bin/linux-arm64/traefik-forward-auth'
+        env:
+          BUNDLE_PATH: ${{ steps.attest-archives.outputs.bundle-path }}
+        run: |
+          cp "${BUNDLE_PATH}" .out/attestations.json
 
-      - name: Binary attestation linux-arm
-        uses: actions/attest@v4
-        if: startsWith(github.ref, 'refs/tags/v')
+          echo "Attestations: $(wc -l < .out/attestations.json)"
+
+      - name: Publish binaries as Actions Artifacts
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
-          subject-name: linux-arm/traefik-forward-auth
-          subject-path: '.bin/linux-arm/traefik-forward-auth'
+          name: artifacts
+          path: .out
+          include-hidden-files: true
+          compression-level: 0
 
       - name: Container image attestation
-        uses: actions/attest@v4
+        uses: actions/attest@508db95dd578ae2727ebd6217d5ba78e4fbda05d # 4.2.1
         if: startsWith(github.ref, 'refs/tags/v')
         with:
           subject-name: 'ghcr.io/${{ env.REPO_OWNER }}/traefik-forward-auth'
           subject-digest: ${{ steps.docker-build-push.outputs.digest }}
           push-to-registry: true
+
+  release:
+    name: Publish release
+    runs-on: ubuntu-latest
+    needs: build
+    if: startsWith(github.ref, 'refs/tags/v')
+
+    permissions:
+      contents: write
+
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+      TAG: ${{ github.ref_name }}
+
+    steps:
+
+      - name: Check out code
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          # Fetch the tag so its annotation message is available for release notes
+          fetch-tags: true
+
+      - name: Download build artifacts
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: artifacts
+          path: .out
+
+      - name: Publish release
+        run: |
+          # Published releases are immutable: re-running the workflow on the same tag must fail, not overwrite
+          if gh release view "${TAG}" >/dev/null 2>&1; then
+            echo "::error::Release ${TAG} already exists, and published releases are immutable"
+            exit 1
+          fi
+
+          # Tags carrying a pre-release identifier (such as v1.2.0-rc.1) are marked as pre-releases
+          prerelease=()
+          if [[ "${TAG}" == *-* ]]; then
+            echo "Marking ${TAG} as a pre-release"
+            prerelease=(--prerelease)
+          fi
+
+          # An annotated tag carries a message; use it as the release notes.
+          # A lightweight tag has no message, so fall back to auto-generated notes.
+          notes_args=()
+          tag_type=$(git tag -l --format='%(objecttype)' "${TAG}")
+          if [[ "${tag_type}" == "tag" ]]; then
+            tag_message=$(git tag -l --format='%(contents)' "${TAG}")
+            if [[ -n "${tag_message}" ]]; then
+              echo "Using tag annotation as release notes"
+              notes_args=(--notes "${tag_message}")
+            fi
+          fi
+          if [[ ${#notes_args[@]} -eq 0 ]]; then
+            echo "Tag has no annotation; auto-generating release notes"
+            notes_args=(--generate-notes)
+          fi
+
+          shopt -s nullglob
+          assets=(.out/*)
+          if [[ ${#assets[@]} -eq 0 ]]; then
+            echo "::error::No assets found in .out"
+            exit 1
+          fi
+
+          echo "Attaching ${#assets[@]} assets:"
+          printf '  %s\n' "${assets[@]}"
+
+          # Never pass --draft: the release is published immediately, with no approval step
+          gh release create "${TAG}" \
+            --verify-tag \
+            --title "${TAG}" \
+            "${prerelease[@]}" \
+            "${notes_args[@]}" \
+            "${assets[@]}"
+
+      - name: Job summary
+        run: |
+          url=$(gh release view "${TAG}" --json url --jq '.url')
+          {
+            echo "## Release ${TAG}"
+            echo
+            echo "Published: <${url}>"
+          } >> "${GITHUB_STEP_SUMMARY}"
