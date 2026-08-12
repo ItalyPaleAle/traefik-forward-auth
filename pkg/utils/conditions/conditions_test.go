@@ -12,11 +12,12 @@ func TestConditions(t *testing.T) {
 	profile := &user.Profile{
 		ID: "user1234",
 		Name: user.ProfileName{
-			FullName: "Pinco Pallino",
-			Nickname: "Anyone",
-			First:    "Pinco",
-			Middle:   "Noone",
-			Last:     "Pallino",
+			FullName:          "Pinco Pallino",
+			Nickname:          "Anyone",
+			PreferredUsername: "pinco.pallino",
+			First:             "Pinco",
+			Middle:            "Noone",
+			Last:              "Pallino",
 		},
 		Email: &user.ProfileEmail{
 			Verified: true,
@@ -37,6 +38,7 @@ func TestConditions(t *testing.T) {
 		want      bool
 	}{
 		{name: "matches exact claim", condition: `ClaimEqual("id", "user1234")`, want: true},
+		{name: "matches preferred username", condition: `ClaimEqual("preferred_username", "pinco.pallino")`, want: true},
 		{name: "does not match exact claim", condition: `ClaimEqual("id", "bad")`, want: false},
 		{name: "match AND claims", condition: `ClaimEqual("id", "user1234") && ClaimEqual("location", "earth")`, want: true},
 		{name: "does not match AND claims", condition: `ClaimEqual("id", "bad") && ClaimEqual("location", "earth")`, want: false},

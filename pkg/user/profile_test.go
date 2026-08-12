@@ -3,6 +3,7 @@ package user
 import (
 	"testing"
 
+	"github.com/lestrrat-go/jwx/v4/jwt"
 	"github.com/lestrrat-go/jwx/v4/jwt/openid"
 	"github.com/spf13/cast"
 	"github.com/stretchr/testify/assert"
@@ -26,6 +27,7 @@ func TestNewProfileFromOpenIDToken(t *testing.T) {
 				builder.MiddleName("A")
 				builder.FamilyName("Doe")
 				builder.Nickname("Johnny")
+				builder.PreferredUsername("john.doe")
 				builder.Email("john@example.com")
 				builder.EmailVerified(true)
 				builder.Picture("https://example.com/picture.jpg")
@@ -41,6 +43,7 @@ func TestNewProfileFromOpenIDToken(t *testing.T) {
 				assert.Equal(t, "A", profile.Name.Middle)
 				assert.Equal(t, "Doe", profile.Name.Last)
 				assert.Equal(t, "Johnny", profile.Name.Nickname)
+				assert.Equal(t, "john.doe", profile.Name.PreferredUsername)
 				require.NotNil(t, profile.Email)
 				assert.Equal(t, "john@example.com", profile.Email.Value)
 				assert.True(t, profile.Email.Verified)
@@ -104,6 +107,7 @@ func TestNewProfileFromOpenIDToken(t *testing.T) {
 				builder.Subject("user202")
 				builder.GivenName("Jane")
 				builder.FamilyName("Smith")
+				builder.PreferredUsername("jane.smith")
 				token, _ := builder.Build()
 				return token
 			},
@@ -111,6 +115,7 @@ func TestNewProfileFromOpenIDToken(t *testing.T) {
 				assert.Equal(t, "Jane Smith", profile.Name.FullName)
 				assert.Equal(t, "Jane", profile.Name.First)
 				assert.Equal(t, "Smith", profile.Name.Last)
+				assert.Equal(t, "jane.smith", profile.Name.PreferredUsername)
 			},
 		},
 	}
@@ -135,11 +140,49 @@ func TestNewProfileFromOpenIDToken(t *testing.T) {
 	}
 }
 
+func TestNewProfileFromClaimsPreferredUsername(t *testing.T) {
+	profile, err := NewProfileFromClaims(map[string]any{
+		"sub":                "user123",
+		"preferred_username": "john.doe",
+	}, "testopenid")
+	require.NoError(t, err)
+	require.NotNil(t, profile)
+
+	assert.Equal(t, "testopenid", profile.Provider)
+	assert.Equal(t, "john.doe", profile.Name.PreferredUsername)
+	assert.Equal(t, "john.doe", profile.Name.FullName)
+}
+
+func TestAppendClaimsPreferredUsername(t *testing.T) {
+	profile := &Profile{
+		ID: "user123",
+		Name: ProfileName{
+			PreferredUsername: "john.doe",
+		},
+	}
+	builder := jwt.NewBuilder()
+	profile.AppendClaims(builder)
+	token, err := builder.Build()
+	require.NoError(t, err)
+
+	preferredUsername, err := jwt.Get[string](token, "preferred_username")
+	require.NoError(t, err)
+	assert.Equal(t, "john.doe", preferredUsername)
+
+	emptyProfile := &Profile{ID: "user456"}
+	emptyBuilder := jwt.NewBuilder()
+	emptyProfile.AppendClaims(emptyBuilder)
+	emptyToken, err := emptyBuilder.Build()
+	require.NoError(t, err)
+	_, ok := emptyToken.Field("preferred_username")
+	assert.False(t, ok)
+}
+
 func TestGetAs(t *testing.T) {
 	profile := &Profile{
 		Provider: "test",
 		ID:       "user123",
-		Name:     ProfileName{FullName: "John Doe"},
+		Name:     ProfileName{FullName: "John Doe", PreferredUsername: "john.doe"},
 		Email:    &ProfileEmail{Value: "john@example.com", Verified: true},
 		Groups:   []string{"group1", "group2"},
 		AdditionalClaims: map[string]any{
@@ -160,6 +203,10 @@ func TestGetAs(t *testing.T) {
 		groups, ok := GetAs[[]string](profile, "groups")
 		assert.True(t, ok)
 		assert.Equal(t, []string{"group1", "group2"}, groups)
+
+		preferredUsername, ok := GetAs[string](profile, "preferred_username")
+		assert.True(t, ok)
+		assert.Equal(t, "john.doe", preferredUsername)
 	})
 
 	t.Run("additional claim of matching type", func(t *testing.T) {
@@ -222,7 +269,7 @@ func TestGetStringMatchesGetAs(t *testing.T) {
 		"full": {
 			Provider: "testoauth2",
 			ID:       "user123",
-			Name:     ProfileName{FullName: "John Doe", Nickname: "johnd", First: "John", Middle: "Q", Last: "Doe"},
+			Name:     ProfileName{FullName: "John Doe", Nickname: "johnd", PreferredUsername: "john.doe", First: "John", Middle: "Q", Last: "Doe"},
 			Email:    &ProfileEmail{Value: "john@example.com", Verified: true},
 			Picture:  "https://example.com/avatar.jpg",
 			Locale:   "en-US",
@@ -246,7 +293,7 @@ func TestGetStringMatchesGetAs(t *testing.T) {
 
 	claims := []string{
 		"provider", "id", "sub", "name", "given_name", "middle_name", "family_name",
-		"nickname", "email", "email_verified", "picture", "locale", "zoneinfo",
+		"nickname", "preferred_username", "email", "email_verified", "picture", "locale", "zoneinfo",
 		"groups", "roles",
 		"dept", "level", "active", "ratio", "tags", "explicit", "missing", "",
 	}
@@ -270,11 +317,12 @@ func TestGetStringMatchesGetAs(t *testing.T) {
 }
 
 func TestGetStringDoesNotAllocate(t *testing.T) {
-	p := &Profile{ID: "user123", Name: ProfileName{FullName: "John Doe"}}
+	p := &Profile{ID: "user123", Name: ProfileName{FullName: "John Doe", PreferredUsername: "john.doe"}}
 
 	allocs := testing.AllocsPerRun(100, func() {
 		_, _ = p.GetString("id")
 		_, _ = GetAs[string](p, "name")
+		_, _ = p.GetString("preferred_username")
 	})
 
 	assert.Zero(t, allocs, "reading string claims should not allocate")

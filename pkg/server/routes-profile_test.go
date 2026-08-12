@@ -62,6 +62,7 @@ ID: user123
 Name:
    Full Name: John Doe
    Nickname: johnd
+   Preferred Username: john.doe
    First: John
    Middle: Q
    Last: Doe
@@ -276,6 +277,7 @@ func TestRouteGetProfileJSON(t *testing.T) {
 		require.True(t, ok)
 		assert.Equal(t, "John Doe", name["full"])
 		assert.Equal(t, "johnd", name["nickname"])
+		assert.Equal(t, "john.doe", name["preferredUsername"])
 		assert.Equal(t, "John", name["first"])
 		assert.Equal(t, "Doe", name["last"])
 
@@ -348,6 +350,8 @@ func TestRouteGetProfileJSON(t *testing.T) {
 		name, ok := response["name"].(map[string]any)
 		require.True(t, ok)
 		assert.Equal(t, "Jane Smith", name["full"])
+		_, hasPreferredUsername := name["preferredUsername"]
+		assert.False(t, hasPreferredUsername)
 
 		// Verify optional fields are not present
 		_, hasEmail := response["email"]
@@ -459,11 +463,12 @@ func createFullTestProfile() *user.Profile {
 		Provider: "testoauth2",
 		ID:       "user123",
 		Name: user.ProfileName{
-			FullName: "John Doe",
-			Nickname: "johnd",
-			First:    "John",
-			Middle:   "Q",
-			Last:     "Doe",
+			FullName:          "John Doe",
+			Nickname:          "johnd",
+			PreferredUsername: "john.doe",
+			First:             "John",
+			Middle:            "Q",
+			Last:              "Doe",
 		},
 		Email: &user.ProfileEmail{
 			Value:    "john@example.com",
