@@ -77,7 +77,7 @@ func runService() {
 	// Get a context that is canceled when the application receives a termination signal
 	ctx := signals.SignalContext(context.Background())
 
-	// Get the logger and set it in the context
+	// Get the logger and set it as default
 	log, loggerShutdownFn, err := observability.InitLogs(ctx, observability.InitLogsOpts{
 		Config:     cfg,
 		Level:      cfg.Logs.Level,
@@ -170,6 +170,7 @@ func (s *shutdownManager) Add(fn servicerunner.Service) {
 }
 
 func (s *shutdownManager) Run(ctx context.Context, log *slog.Logger) {
+	// Use a context without cancellation because the context has been canceled already
 	shutdownCtx, shutdownCancel := context.WithTimeout(context.WithoutCancel(ctx), 5*time.Second)
 	defer shutdownCancel()
 	sr := servicerunner.NewServiceRunner(s.fns...)
