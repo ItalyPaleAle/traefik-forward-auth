@@ -35,6 +35,9 @@ func (s *Server) RouteGetProfile(c *gin.Context) {
 	if profile.Name.Nickname != "" {
 		fmt.Fprint(c.Writer, "   Nickname: "+profile.Name.Nickname+"\n")
 	}
+	if profile.Name.PreferredUsername != "" {
+		fmt.Fprint(c.Writer, "   Preferred Username: "+profile.Name.PreferredUsername+"\n")
+	}
 	if profile.Name.First != "" {
 		fmt.Fprint(c.Writer, "   First: "+profile.Name.First+"\n")
 	}
@@ -137,11 +140,12 @@ func (s *Server) RouteGetProfileJSON(c *gin.Context) {
 	// If we are here, we have a valid session
 	// Return all claims in the token to the user
 	type responseDataName struct {
-		Full     string `json:"full"`
-		Nickname string `json:"nickname,omitempty"`
-		First    string `json:"first,omitempty"`
-		Middle   string `json:"middle,omitempty"`
-		Last     string `json:"last,omitempty"`
+		Full              string `json:"full"`
+		Nickname          string `json:"nickname,omitempty"`
+		PreferredUsername string `json:"preferredUsername,omitempty"`
+		First             string `json:"first,omitempty"`
+		Middle            string `json:"middle,omitempty"`
+		Last              string `json:"last,omitempty"`
 	}
 	type responseDataEmail struct {
 		Address  string `json:"address"`
@@ -165,11 +169,12 @@ func (s *Server) RouteGetProfileJSON(c *gin.Context) {
 		Provider:      profile.Provider,
 		ID:            profile.ID,
 		Name: responseDataName{
-			Full:     profile.Name.FullName,
-			Nickname: profile.Name.Nickname,
-			First:    profile.Name.First,
-			Middle:   profile.Name.Middle,
-			Last:     profile.Name.Last,
+			Full:              profile.Name.FullName,
+			Nickname:          profile.Name.Nickname,
+			PreferredUsername: profile.Name.PreferredUsername,
+			First:             profile.Name.First,
+			Middle:            profile.Name.Middle,
+			Last:              profile.Name.Last,
 		},
 		Picture:  profile.Picture,
 		Locale:   profile.Locale,

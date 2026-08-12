@@ -50,8 +50,8 @@ type ProfileName struct {
 	Middle string
 	// Nickname
 	Nickname string
-	// Username
-	Username string
+	// Preferred username
+	PreferredUsername string
 }
 
 // ProfileEmail contains the email of a user.
@@ -85,12 +85,12 @@ func NewProfileFromOpenIDToken(token openid.Token, provider string) (*Profile, e
 
 	// Name
 	profile.Name = ProfileName{
-		FullName: stringOrEmpty(token.Name()),
-		First:    stringOrEmpty(token.GivenName()),
-		Middle:   stringOrEmpty(token.MiddleName()),
-		Last:     stringOrEmpty(token.FamilyName()),
-		Nickname: stringOrEmpty(token.Nickname()),
-		Username: stringOrEmpty(token.PreferredUsername()),
+		FullName:          stringOrEmpty(token.Name()),
+		First:             stringOrEmpty(token.GivenName()),
+		Middle:            stringOrEmpty(token.MiddleName()),
+		Last:              stringOrEmpty(token.FamilyName()),
+		Nickname:          stringOrEmpty(token.Nickname()),
+		PreferredUsername: stringOrEmpty(token.PreferredUsername()),
 	}
 
 	profile.Name.PopulateFullName()
@@ -144,12 +144,12 @@ func NewProfileFromClaims(claims map[string]any, provider string) (*Profile, err
 
 	// Name
 	profile.Name = ProfileName{
-		FullName: cast.ToString(claims["name"]),
-		First:    cast.ToString(claims["given_name"]),
-		Middle:   cast.ToString(claims["middle_name"]),
-		Last:     cast.ToString(claims["family_name"]),
-		Nickname: cast.ToString(claims["nickname"]),
-		Username: cast.ToString(claims["preferred_username"]),
+		FullName:          cast.ToString(claims["name"]),
+		First:             cast.ToString(claims["given_name"]),
+		Middle:            cast.ToString(claims["middle_name"]),
+		Last:              cast.ToString(claims["family_name"]),
+		Nickname:          cast.ToString(claims["nickname"]),
+		PreferredUsername: cast.ToString(claims["preferred_username"]),
 	}
 
 	profile.Name.PopulateFullName()
@@ -242,8 +242,8 @@ func (p *Profile) AppendClaims(builder *jwt.Builder) {
 	if p.Name.Nickname != "" {
 		builder.Claim("nickname", p.Name.Nickname)
 	}
-	if p.Name.Username != "" {
-		builder.Claim("preferred_username", p.Name.Username)
+	if p.Name.PreferredUsername != "" {
+		builder.Claim("preferred_username", p.Name.PreferredUsername)
 	}
 	if p.Email != nil && p.Email.Value != "" {
 		builder.Claim("email", p.Email.Value)
@@ -298,7 +298,7 @@ func (p *Profile) Get(claim string) any {
 	case "nickname":
 		return p.Name.Nickname
 	case "preferred_username":
-		return p.Name.Username
+		return p.Name.PreferredUsername
 	case "email":
 		return p.GetEmail()
 	case "email_verified":
@@ -375,6 +375,8 @@ func (p *Profile) GetString(claim string) (string, bool) {
 		return p.Name.Last, true
 	case "nickname":
 		return p.Name.Nickname, true
+	case "preferred_username":
+		return p.Name.PreferredUsername, true
 	case "email":
 		return p.GetEmail(), true
 	case "picture":
@@ -430,6 +432,9 @@ func (n *ProfileName) PopulateFullName() {
 		fn.WriteString(n.Last)
 	}
 	n.FullName = fn.String()
+	if n.FullName == "" {
+		n.FullName = n.PreferredUsername
+	}
 }
 
 func stringOrEmpty(val string, _ bool) string {
