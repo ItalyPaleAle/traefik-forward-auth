@@ -29,7 +29,7 @@ weight: 41
 | <a id="config-opt-tokens-sessiontokenaudience"></a>`tokens.sessionTokenAudience` | string | Value for the audience claim to expect in session tokens used by Traefik Forward Auth.<br>Defaults to a value based on the current environment, which is appropriate for the majority of cases. Most users should rely on the default value.|  |
 | <a id="config-opt-logs-level"></a>`logs.level` | string | Controls log level and verbosity. Supported values: `debug`, `info` (default), `warn`, `error`.| Default: _"info"_ |
 | <a id="config-opt-logs-omithealthchecks"></a>`logs.omitHealthChecks` | boolean | If true, calls to the healthcheck endpoint (`/healthz`) are not included in the logs.| Default: _true_ |
-| <a id="config-opt-logs-json"></a>`logs.json` | boolean | If true, emits logs formatted as JSON, otherwise uses a text-based structured log format.<br>Defaults to false if a TTY is attached (e.g. in development); true otherwise.|  |
+| <a id="config-opt-logs-json"></a>`logs.json` | boolean | If true, emits logs formatted as JSON, otherwise uses a text-based structured log format.<br>Defaults to false if a TTY is attached (e.g. in development), true otherwise.|  |
 | <a id="config-opt-defaultportal"></a>`defaultPortal` | string | If set to the name of a portal defined in "portals", it makes the portal available on the root endpoint, without the `portals/<name>/` prefix|  |
 
 ## Portal configuration

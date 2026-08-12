@@ -422,7 +422,7 @@ func TestRouteGetAuthProvider(t *testing.T) {
 // All e2e tests below construct requests through it so the only varying input across modes is the host
 type testProxyHeaders struct {
 	host string // X-Forwarded-Host
-	uri  string // X-Forwarded-URI; empty means do not set
+	uri  string // X-Forwarded-URI, empty means do not set
 }
 
 func (p testProxyHeaders) apply(req *http.Request) {

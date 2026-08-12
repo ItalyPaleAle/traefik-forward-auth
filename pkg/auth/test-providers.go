@@ -54,7 +54,8 @@ func (a *TestProviderOAuth2) OAuth2AuthorizeURL(state string, redirectURL string
 }
 
 // OAuth2ExchangeCode uses as "state" the name of a user template, as supported by getTestUserProfile
-// When called from the live route handler the state is in the runtime format "provider~stateCookieID~nonce" (three ~-separated parts); in that case we fall back to a default profile so end-to-end callback tests can drive the full flow without controlling the state value
+// When called from the live route handler the state is in the runtime format "provider~stateCookieID~nonce" (three ~-separated parts)
+// In that case we fall back to a default profile so end-to-end callback tests can drive the full flow without controlling the state value
 func (a *TestProviderOAuth2) OAuth2ExchangeCode(ctx context.Context, state string, code string, redirectURL string) (OAuth2AccessToken, error) {
 	if code == "" {
 		return OAuth2AccessToken{}, errors.New("parameter code is required")

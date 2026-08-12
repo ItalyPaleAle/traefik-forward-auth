@@ -153,7 +153,7 @@ logs:
   ## logs.json (boolean)
   ## Description:
   ##   If true, emits logs formatted as JSON, otherwise uses a text-based structured log format.
-  ##   Defaults to false if a TTY is attached (e.g. in development); true otherwise.
+  ##   Defaults to false if a TTY is attached (e.g. in development), true otherwise.
   #json: false
 
 ## defaultPortal (string)

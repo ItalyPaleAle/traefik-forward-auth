@@ -34,7 +34,8 @@ type NewMicrosoftEntraIDOptions struct {
 	ClientSecret string
 	// Enables the use of client assertions
 	ClientAssertion string
-	// Request timeout; defaults to 10s
+	// Request timeout
+	// Defaults to 10s
 	RequestTimeout time.Duration
 	// Scopes for requesting the token
 	// This is optional and defaults to "openid profile email"

@@ -24,4 +24,4 @@ gen-config:
 # Ensure gen-config ran
 .PHONY: check-config-diff
 check-config-diff: gen-config
-	git diff --exit-code config.sample.yaml config.md docs/content/advanced/all-configuration-options.md
+	git diff --exit-code config.sample.yaml docs/content/advanced/all-configuration-options.md

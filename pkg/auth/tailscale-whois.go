@@ -42,7 +42,8 @@ type TailscaleWhois struct {
 type NewTailscaleWhoisOptions struct {
 	// If non-empty, requires the Tailnet of the user to match this value
 	AllowedTailnet string
-	// Request timeout; defaults to 10s
+	// Request timeout
+	// Defaults to 10s
 	RequestTimeout time.Duration
 	// Names of capabilities to read from Tailscale peer capabilities
 	CapabilityNames []string
@@ -96,7 +97,7 @@ func (a *TailscaleWhois) SeamlessAuth(r *http.Request) (*user.Profile, error) {
 	// License: BSD-3-Clause
 
 	// Extract the originating client IP from X-Forwarded-For
-	// The header may be a comma-separated chain in multi-proxy setups; we take the leftmost entry
+	// The header may be a comma-separated chain in multi-proxy setups: we take the leftmost entry
 	rawXFF := r.Header.Get(headerXForwardedFor)
 	clientIP := utils.ClientIPFromXForwardedFor(rawXFF)
 	sourceIP := net.ParseIP(clientIP)

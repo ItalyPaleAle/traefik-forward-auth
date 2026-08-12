@@ -32,7 +32,8 @@ type NewGitHubOptions struct {
 	ClientID string
 	// Client secret
 	ClientSecret string
-	// Request timeout; defaults to 10s
+	// Request timeout
+	// Defaults to 10s
 	RequestTimeout time.Duration
 }
 

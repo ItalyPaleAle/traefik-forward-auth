@@ -91,7 +91,7 @@ func validateAndNormalizeCapabilityName(name string) (string, error) {
 
 	// Check for http:// prefix (not allowed)
 	if strings.HasPrefix(name, "http://") {
-		return "", errors.New("capability name must not have http:// prefix; use https:// or omit the protocol")
+		return "", errors.New("capability name must not have http:// prefix - use https:// or omit the protocol")
 	}
 
 	// Validate the capability name format (hostname + path)

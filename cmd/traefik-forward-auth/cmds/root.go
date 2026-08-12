@@ -13,7 +13,6 @@ import (
 	"github.com/italypaleale/go-kit/servicerunner"
 	"github.com/italypaleale/go-kit/signals"
 	slogkit "github.com/italypaleale/go-kit/slog"
-	"github.com/spf13/cobra"
 
 	"github.com/italypaleale/traefik-forward-auth/pkg/buildinfo"
 	"github.com/italypaleale/traefik-forward-auth/pkg/config"
@@ -26,18 +25,21 @@ const (
 	configEnvVar  = "TFA_CONFIG"
 )
 
-var rootCmd = &cobra.Command{
-	Use:   "traefik-forward-auth",
-	Short: "A forward-auth service that provides authentication and SSO for the Traefik reverse proxy",
-	Long:  "The root command starts the traefik-forward-auth service",
-	Run: func(_ *cobra.Command, _ []string) {
-		runService()
-	},
-}
-
 func Execute() {
-	err := rootCmd.Execute()
-	if err != nil {
+	args := os.Args[1:]
+	if len(args) == 0 {
+		runService()
+		return
+	}
+
+	switch args[0] {
+	case "healthcheck":
+		exitCode := runHealthcheck(args[1:])
+		if exitCode != 0 {
+			os.Exit(exitCode)
+		}
+	default:
+		slog.Error("Unknown command", slog.String("command", args[0]))
 		os.Exit(1)
 	}
 }

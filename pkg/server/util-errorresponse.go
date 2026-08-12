@@ -86,7 +86,7 @@ func (e InvalidTokenError) Unwrap() error {
 }
 
 // AbortWithError aborts a Gin context and sends a response with an error message.
-// Pass an ErrorResponse object to be able to customize the status code; it defaults to 500 otherwise.
+// Pass an ErrorResponse object to be able to customize the status code (it defaults to 500 otherwise).
 // If the status code is >= 500, the message is not sent to users directly.
 func AbortWithError(c *gin.Context, err error) {
 	// Add to the Gin error list
@@ -103,7 +103,7 @@ func AbortWithError(c *gin.Context, err error) {
 }
 
 // AbortWithErrorJSON aborts a Gin context and sends a response with a JSON error message.
-// Pass an ErrorResponse object to be able to customize the status code; it defaults to 500 otherwise.
+// Pass an ErrorResponse object to be able to customize the status code (it defaults to 500 otherwise).
 // If the status code is >= 500, the message is not sent to users directly.
 func AbortWithErrorJSON(c *gin.Context, err error) {
 	enc := json.NewEncoder(c.Writer)

@@ -68,7 +68,7 @@ func (s *Server) addStaticRoutes(basePath string) error {
 		gin.WrapH(imgHandler),
 	)
 
-	// Add a route for the hashed style.css; pre-gzipped at build time
+	// Add a route for the hashed style.css, pre-gzipped at build time
 	s.addStaticAssetRoute(basePath, s.styleAsset, "text/css", assetsFS, assetsHandler)
 
 	return nil
