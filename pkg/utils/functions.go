@@ -41,7 +41,7 @@ func IsSubDomain(domain, sub string) bool {
 }
 
 // ClientIPFromXForwardedFor returns the canonical client IP from an X-Forwarded-For header value
-// X-Forwarded-For is a comma-separated chain "client, proxy1, proxy2..."; the leftmost entry is the originating client
+// X-Forwarded-For is a comma-separated chain "client, proxy1, proxy2..."
 // The returned string is trimmed of surrounding whitespace and is the empty string if the header is empty
 func ClientIPFromXForwardedFor(headerValue string) string {
 	first, _, _ := strings.Cut(headerValue, ",")

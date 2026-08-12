@@ -58,7 +58,7 @@ type Config struct {
 	// +required
 	Portals []ConfigPortal `yaml:"portals"`
 
-	// Dev is meant for development only; it's undocumented
+	// Dev is meant for development only, it's undocumented
 	Dev ConfigDev `yaml:"dev" ignoredocs:"true"`
 
 	// Internal keys
@@ -73,7 +73,8 @@ type ConfigServer struct {
 
 	// Domains served by Traefik Forward Auth
 	// Each entry sets the cookie domain for matching requests, and optionally the public hostname where Traefik Forward Auth is reachable for that domain (`authHost`)
-	// `authHost` is only required when running in "dedicated sub-domain" mode (where Traefik Forward Auth is served on a different host than the apps); in "sub-path" mode the request host is used and `authHost` can be omitted
+	// `authHost` is only required when running in "dedicated sub-domain" mode (where Traefik Forward Auth is served on a different host than the apps)
+	// In "sub-path" mode the request host is used and `authHost` can be omitted
 	// `authHost` must be the same as, or a sub-domain of, `domain`. If omitted, it defaults to `domain`
 	// +recommended
 	Domains []ConfigServerDomain `yaml:"domains"`
@@ -171,7 +172,7 @@ func (c ConfigCookies) CookieName(portalName string) string {
 
 // DomainForHost returns the cookie domain and the public auth host that best match `host`
 // `cookieDomain` is the value to use for the Set-Cookie Domain attribute (empty for a host-only cookie when host is an IP)
-// `authHost` is the public address of Traefik Forward Auth for that domain, used when building OAuth2 callbacks and sign-in redirects; it includes a port when one was configured
+// `authHost` is the public address of Traefik Forward Auth for that domain, used when building OAuth2 callbacks and sign-in redirects (it includes a port when one was configured)
 // `ok` is false when none of the configured domains match the request host
 func (s ConfigServer) DomainForHost(host string) (cookieDomain string, authHost string, ok bool) {
 	// Normalize the request host so callers can pass either Host or X-Forwarded-Host values
@@ -276,7 +277,7 @@ type ConfigLogs struct {
 	OmitHealthChecks bool `yaml:"omitHealthChecks"`
 
 	// If true, emits logs formatted as JSON, otherwise uses a text-based structured log format.
-	// Defaults to false if a TTY is attached (e.g. in development); true otherwise.
+	// Defaults to false if a TTY is attached (e.g. in development), true otherwise.
 	JSON bool `yaml:"json"`
 }
 
@@ -354,7 +355,8 @@ type ConfigPortalProvider struct {
 	TailscaleWhois *ProviderConfig_TailscaleWhois `yaml:"tailscaleWhois"`
 	// Use PocketID as authentication provider
 	PocketID *ProviderConfig_PocketID `yaml:"pocketID"`
-	// Name of a test provider; used in tests only
+	// Name of a test provider
+	// Used in tests only
 	TestProvider *string `yaml:"testProvider" ignoredocs:"true"`
 
 	// Parsed config object - internal

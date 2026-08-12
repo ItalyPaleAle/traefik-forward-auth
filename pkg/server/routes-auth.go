@@ -468,7 +468,8 @@ func getOAuth2RedirectURI(c *gin.Context, portal string) string {
 }
 
 // Get the URI for a portal
-// In "dedicated sub-domain" mode the matched domain has a configured `authHost` that differs from the request host (Traefik Forward Auth lives at e.g. auth.example.com while apps live at app.example.com); in "sub-path" mode the auth host equals the request host
+// In "dedicated sub-domain" mode the matched domain has a configured `authHost` that differs from the request host (Traefik Forward Auth lives at e.g. auth.example.com while apps live at app.example.com)
+// In "sub-path" mode the auth host equals the request host
 func getPortalURI(c *gin.Context, portal string) string {
 	cfg := config.Get()
 

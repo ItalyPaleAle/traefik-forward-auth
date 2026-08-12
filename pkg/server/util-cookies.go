@@ -597,7 +597,7 @@ func (s *Server) deleteStateCookies(c *gin.Context, portalName string) {
 			continue
 		}
 
-		// We found a state cookie; remove it
+		// We found a state cookie, remove it
 		c.SetCookie(cookie.Name, "", -1, "/", cookieDomain, !cfg.Cookies.Insecure, true)
 	}
 }

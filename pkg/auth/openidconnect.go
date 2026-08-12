@@ -165,7 +165,8 @@ type NewOpenIDConnectOptions struct {
 	ClientAssertion string
 	// Token issuer
 	TokenIssuer string
-	// Request timeout; defaults to 10s
+	// Request timeout
+	// Defaults to 10s
 	RequestTimeout time.Duration
 	// Scopes for requesting the token
 	// This is optional and defaults to "openid profile email"

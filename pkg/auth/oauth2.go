@@ -24,7 +24,7 @@ import (
 const clientAssertionType = "urn:ietf:params:oauth:client-assertion-type:jwt-bearer"
 
 // oAuth2 is a Provider for authenticating with OAuth2.
-// This Provider cannot be used directly; instead, other providers can embed this struct and implement OAuth2RetrieveProfile.
+// This Provider cannot be used directly: other providers can embed this struct and implement OAuth2RetrieveProfile.
 type oAuth2 struct {
 	baseProvider
 
@@ -69,7 +69,8 @@ type NewOAuth2Options struct {
 	// Scopes for requesting the token
 	// This is optional and defaults to "openid profile email"
 	Scopes string
-	// Request timeout; defaults to 10s
+	// Request timeout
+	// Defaults to 10s
 	RequestTimeout time.Duration
 	// Key for generating PKCE code verifiers
 	// Enables the use of PKCE if non-empty
