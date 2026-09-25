@@ -1,6 +1,4 @@
 # Required by github.com/lestrrat-go/jwx/v4, which uses encoding/json/v2
-export GOEXPERIMENT := jsonv2
-
 .PHONY: test
 test:
 	go test -tags unit ./...

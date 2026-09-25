@@ -69,13 +69,11 @@ func NewTailscaleWhois(opts NewTailscaleWhoisOptions) (*TailscaleWhois, error) {
 	httpClient.Transport = otelhttp.NewTransport(http.DefaultTransport.(*http.Transport).Clone()) //nolint:forcetypeassert
 
 	a := &TailscaleWhois{
-		baseProvider: baseProvider{
-			metadata: ProviderMetadata{
-				DisplayName: "Tailscale Whois",
-				Name:        "tailscalewhois",
-				Icon:        "tailscale",
-				Color:       "slate",
-			},
+		metadata: ProviderMetadata{
+			DisplayName: "Tailscale Whois",
+			Name:        "tailscalewhois",
+			Icon:        "tailscale",
+			Color:       "slate",
 		},
 		httpClient:      httpClient,
 		requestTimeout:  reqTimeout,

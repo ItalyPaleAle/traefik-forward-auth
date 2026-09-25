@@ -1,9 +1,3 @@
 {
     "go.buildTags": "unit",
-    "go.testEnvVars": {
-        "GOEXPERIMENT": "jsonv2",
-    },
-    "go.toolsEnvVars": {
-        "GOEXPERIMENT": "jsonv2",
-    }
 }

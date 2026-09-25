@@ -23,11 +23,9 @@ type TestProviderOAuth2 struct {
 
 func NewTestProviderOAuth2() *TestProviderOAuth2 {
 	return &TestProviderOAuth2{
-		baseProvider: baseProvider{
-			metadata: ProviderMetadata{
-				DisplayName: "TesT Oauth2",
-				Name:        "testoauth2",
-			},
+		metadata: ProviderMetadata{
+			DisplayName: "TesT Oauth2",
+			Name:        "testoauth2",
 		},
 	}
 }
@@ -93,11 +91,9 @@ type TestProviderSeamless struct {
 
 func NewTestProviderSeamless() *TestProviderSeamless {
 	return &TestProviderSeamless{
-		baseProvider: baseProvider{
-			metadata: ProviderMetadata{
-				DisplayName: "Test Seamless",
-				Name:        "testseamless",
-			},
+		metadata: ProviderMetadata{
+			DisplayName: "Test Seamless",
+			Name:        "testseamless",
 		},
 	}
 }

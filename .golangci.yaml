@@ -30,6 +30,7 @@ linters:
     - errchkjson
     - exhaustive
     - exhaustruct
+    - exhaustruct_v5
     - forbidigo
     - funcorder
     - funlen

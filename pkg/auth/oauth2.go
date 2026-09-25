@@ -129,10 +129,7 @@ func NewOAuth2(providerType string, providerMetadata ProviderMetadata, opts NewO
 	}
 
 	p = oAuth2{
-		baseProvider: baseProvider{
-			metadata: providerMetadata,
-		},
-
+		metadata:       providerMetadata,
 		config:         opts.Config,
 		providerType:   providerType,
 		tokenIssuer:    opts.TokenIssuer,
