@@ -270,8 +270,9 @@ func processField(field *ast.Field, yamlTag string, sectionName string, outYAML 
 
 	// Get the last part of the YAML path for field name (after the last dot)
 	fieldName := yamlTag
-	if idx := strings.LastIndex(yamlTag, "."); idx > -1 {
-		fieldName = yamlTag[idx+1:]
+	_, after, ok := strings.CutLast(yamlTag, ".")
+	if ok && after != "" {
+		fieldName = after
 	}
 
 	// Field type

@@ -16,12 +16,11 @@ import (
 	"strings"
 	"time"
 
+	"github.com/italypaleale/go-kit/oauth2/clientassertion"
 	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
 
 	"github.com/italypaleale/traefik-forward-auth/pkg/user"
 )
-
-const clientAssertionType = "urn:ietf:params:oauth:client-assertion-type:jwt-bearer"
 
 // oAuth2 is a Provider for authenticating with OAuth2.
 // This Provider cannot be used directly: other providers can embed this struct and implement OAuth2RetrieveProfile.
@@ -36,7 +35,7 @@ type oAuth2 struct {
 	requestTimeout time.Duration
 	pkceKey        []byte
 
-	clientAssertionProvider clientAssertionProviderFn
+	clientAssertionProvider clientassertion.ProviderFn
 
 	httpClient *http.Client
 }
@@ -58,8 +57,6 @@ type OAuth2Endpoints struct {
 	// JWKS URL — only required by providers that verify ID tokens (OIDC)
 	JWKSUri string `json:"jwks_uri"`
 }
-
-type clientAssertionProviderFn func(context.Context) (string, error)
 
 // NewOAuth2Options is the options for NewOAuth2
 type NewOAuth2Options struct {
@@ -83,7 +80,7 @@ type NewOAuth2Options struct {
 	// Allows providers to set a value for the client_assertion parameter passed to the IdP while invoking the token endpoint
 	// This uses client assertions of type "urn:ietf:params:oauth:client-assertion-type:jwt-bearer"
 	// When set, the client_secret is not included in the request
-	clientAssertionProvider clientAssertionProviderFn
+	clientAssertionProvider clientassertion.ProviderFn
 }
 
 // NewOAuth2 returns a new OAuth2 provider
@@ -225,7 +222,7 @@ func (a *oAuth2) OAuth2ExchangeCode(ctx context.Context, state string, code stri
 			return OAuth2AccessToken{}, fmt.Errorf("error getting client assertion: %w", err)
 		}
 
-		data.Set("client_assertion_type", clientAssertionType)
+		data.Set("client_assertion_type", clientassertion.AssertionType)
 		data.Set("client_assertion", clientAssertion)
 	}
 

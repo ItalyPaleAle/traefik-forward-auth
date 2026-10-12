@@ -12,7 +12,7 @@ import (
 	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
 	tailscale "tailscale.com/client/local"
 	"tailscale.com/client/tailscale/apitype"
-	"tailscale.com/tailcfg"
+	"tailscale.com/tailcfg/peercap"
 
 	"github.com/italypaleale/traefik-forward-auth/pkg/user"
 	"github.com/italypaleale/traefik-forward-auth/pkg/utils"
@@ -170,7 +170,7 @@ func (a *TailscaleWhois) SeamlessAuth(r *http.Request) (*user.Profile, error) {
 	if len(a.capabilityNames) > 0 && info.CapMap != nil {
 		for _, capName := range a.capabilityNames {
 			// Look for the capability in the CapMap
-			capValues, ok := info.CapMap[tailcfg.PeerCapability(capName)]
+			capValues, ok := info.CapMap[peercap.Cap(capName)]
 			if ok && len(capValues) > 0 {
 				// Add with https:// prefix as the key
 				profile.AdditionalClaims["https://"+capName] = capValues

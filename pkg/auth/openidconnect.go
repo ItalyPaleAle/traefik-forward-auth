@@ -18,6 +18,7 @@ import (
 	"time"
 
 	"github.com/cenkalti/backoff/v5"
+	"github.com/italypaleale/go-kit/oauth2/clientassertion"
 	"github.com/lestrrat-go/jwx/v4/jwk"
 	"github.com/lestrrat-go/jwx/v4/jws"
 	"github.com/lestrrat-go/jwx/v4/jwt"
@@ -210,7 +211,7 @@ func NewOpenIDConnect(ctx context.Context, opts NewOpenIDConnectOptions) (*OpenI
 	}
 
 	// Get the client assertion provider (will be nil if the option is an empty string)
-	clientAssertionProvider, err := getClientAssertionProvider(opts.ClientAssertion, opts.TokenIssuer)
+	clientAssertionProvider, err := clientassertion.NewProvider(opts.ClientAssertion, opts.TokenIssuer)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get client assertion provider for auth with provider 'openidconnect': %w", err)
 	}
@@ -290,7 +291,7 @@ func newOpenIDConnectInternal(_ context.Context, providerType string, providerMe
 	if clientAssertionAudience == "" {
 		clientAssertionAudience = opts.TokenIssuer
 	}
-	clientAssertionProvider, err := getClientAssertionProvider(opts.ClientAssertion, clientAssertionAudience)
+	clientAssertionProvider, err := clientassertion.NewProvider(opts.ClientAssertion, clientAssertionAudience)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get client assertion provider for auth with provider '%s': %w", providerType, err)
 	}

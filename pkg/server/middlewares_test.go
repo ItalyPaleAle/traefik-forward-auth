@@ -140,25 +140,25 @@ func TestMiddlewareRequestId(t *testing.T) {
 	})
 
 	t.Run("uses trusted header if present", func(t *testing.T) {
-		conf.Server.TrustedRequestIdHeader = "X-Request-Id"
+		conf.Server.TrustedRequestIdHeader = "X-Request-ID"
 		c, rec := newCtx(map[string]string{
-			"X-Request-Id": "custom-id-123",
+			"X-Request-ID": "custom-id-123",
 		})
 
 		s.MiddlewareRequestId(c)
 
 		// Should echo the same ID and set it in context
-		assert.Equal(t, "custom-id-123", rec.Header().Get("x-request-id"))
+		assert.Equal(t, "custom-id-123", rec.Header().Get("X-Request-ID"))
 		assert.Equal(t, "custom-id-123", getRequestState(c).requestID)
 	})
 
 	t.Run("generates UUID if trusted header missing", func(t *testing.T) {
-		conf.Server.TrustedRequestIdHeader = "X-Request-Id"
+		conf.Server.TrustedRequestIdHeader = "X-Request-ID"
 		c, rec := newCtx(nil)
 
 		s.MiddlewareRequestId(c)
 
-		v := rec.Header().Get("x-request-id")
+		v := rec.Header().Get("X-Request-ID")
 		require.NotEmpty(t, v)
 		_, err := uuid.Parse(v)
 		require.NoError(t, err, "generated request id should be a valid uuid")
@@ -171,7 +171,7 @@ func TestMiddlewareRequestId(t *testing.T) {
 
 		s.MiddlewareRequestId(c)
 
-		v := rec.Header().Get("x-request-id")
+		v := rec.Header().Get("X-Request-ID")
 		require.NotEmpty(t, v)
 		_, err := uuid.Parse(v)
 		require.NoError(t, err)
