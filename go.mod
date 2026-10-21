@@ -1,6 +1,6 @@
 module github.com/italypaleale/traefik-forward-auth
 
-go 1.27.2
+go 1.27.3
 
 tool github.com/fchimpan/gomod-age
 
