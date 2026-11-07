@@ -394,7 +394,7 @@ func TestRouteGetAuthProvider(t *testing.T) {
 		assert.Equal(t, http.StatusUnauthorized, res.StatusCode)
 	})
 
-	t.Run("nonce mismatch", func(t *testing.T) {
+	t.Run("nonce mismatch redirects to signin with the cookie's nonce", func(t *testing.T) {
 		state, cookies := getState(t)
 		stateCookieID, nonce, ok := strings.Cut(state, "~")
 		require.True(t, ok)
@@ -414,7 +414,12 @@ func TestRouteGetAuthProvider(t *testing.T) {
 		require.NoError(t, err)
 		defer closeBody(res)
 
-		assert.Equal(t, http.StatusUnauthorized, res.StatusCode)
+		// The request joins the sign-in from the state cookie rather than continuing to the provider
+		require.Equal(t, http.StatusSeeOther, res.StatusCode)
+		locURL := urlMustParse(t, res.Header.Get("Location"))
+		assert.Equal(t, "/portals/test1/signin", locURL.Path)
+		assert.Equal(t, state, locURL.Query().Get("state"))
+		assert.Empty(t, res.Header.Values("Set-Cookie"), "the state cookie should not be deleted")
 	})
 }
 

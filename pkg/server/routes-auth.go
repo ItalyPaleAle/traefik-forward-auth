@@ -52,8 +52,9 @@ func (s *Server) RouteGetAuthRoot(c *gin.Context) {
 	content, _ := s.getStateCookie(c, portal, stateCookieID)
 
 	// If there's no nonce, generate a new one
+	// We also generate a new one if the cookie's sign-in has already completed, so a nonce is never used to start a new sign-in after it was consumed
 	nonce := content.nonce
-	if content.nonce == "" {
+	if nonce == "" || content.consumed {
 		nonce, err = s.generateNonce()
 		if err != nil {
 			AbortWithError(c, fmt.Errorf("failed to generate nonce: %w", err))
@@ -69,7 +70,7 @@ func (s *Server) RouteGetAuthRoot(c *gin.Context) {
 	}
 
 	// Redirect the user
-	signInURL := getPortalURI(c, portal.Name) + "/signin?state=" + stateCookieID + "~" + nonce
+	signInURL := getSigninURL(c, portal.Name, stateCookieID, nonce)
 	if utils.IsTruthy(c.Query("logout")) {
 		// Check if the user has just logged out and forward the query string parameter to the signin page for the banner to be shown
 		signInURL += "&logout=1"
@@ -167,13 +168,19 @@ func (s *Server) RouteGetAuthSignin(c *gin.Context) {
 	}
 
 	// Ensure we have a state parameter
-	content, stateCookieID, err := s.parseStateParamPreAuth(c, portal)
+	// If the nonce in the query string doesn't match the state cookie, we continue with the nonce from the cookie
+	// That happens when another tab started a sign-in for the same return URL and the browser kept that tab's state cookie, so this tab joins the other sign-in
+	// This doesn't let a request do anything it couldn't already do: RouteGetAuthRoot also redirects any request that includes the state cookie to this page with the cookie's nonce
+	content, stateCookieID, _, err := s.parseStateParamPreAuth(c, portal)
 	if err != nil {
 		// In the signin page, if there's an error, it's probably due to something wrong with the cookie
 		// For the best user experience, we redirect the user back to the portal's main page (after deleting the state cookie) so a new cookie can be set
+		// Only the state cookie this request refers to is deleted, because other ones may belong to sign-ins in progress in other tabs
 		_ = c.Error(err)
 
-		s.deleteStateCookies(c, portal.Name)
+		if stateCookieID != "" {
+			s.deleteStateCookie(c, portal.Name, stateCookieID)
+		}
 
 		redirectURL := getPortalURI(c, portal.Name)
 		c.Header(headerLocation, redirectURL)
@@ -202,32 +209,31 @@ func (s *Server) RouteGetAuthSignin(c *gin.Context) {
 	s.renderSigninTemplate(c, portal, stateCookieID, content.nonce, logoutBanner)
 }
 
-func (s *Server) parseStateParamPreAuth(c *gin.Context, portal *Portal) (stateCookieContent, string, error) {
+// Parses the "state" query string parameter and loads the state cookie it refers to
+// If the state cookie is valid but its nonce differs from the one in the query string, nonceMatches is false and the returned content describes the sign-in from the cookie
+// That happens when several tabs start a sign-in for the same return URL at once, because they share a state cookie and the browser keeps the one it received last
+// The state cookie ID is returned whenever the query string parameter can be parsed, even if loading the cookie fails
+func (s *Server) parseStateParamPreAuth(c *gin.Context, portal *Portal) (content stateCookieContent, stateCookieID string, nonceMatches bool, err error) {
 	// Ensure we have a state parameter
 	stateParam := c.Query("state")
 	if stateParam == "" {
-		return stateCookieContent{}, "", NewResponseError(http.StatusBadRequest, "The parameter 'state' is required in the query string")
+		return stateCookieContent{}, "", false, NewResponseError(http.StatusBadRequest, "The parameter 'state' is required in the query string")
 	}
 
 	stateCookieID, expectedNonce, ok := strings.Cut(stateParam, "~")
 	if !ok {
-		return stateCookieContent{}, "", NewResponseError(http.StatusUnauthorized, "Query string parameter 'state' is invalid")
+		return stateCookieContent{}, "", false, NewResponseError(http.StatusUnauthorized, "Query string parameter 'state' is invalid")
 	}
 
 	// Get the state cookie
-	content, err := s.getStateCookie(c, portal, stateCookieID)
+	content, err = s.getStateCookie(c, portal, stateCookieID)
 	if err != nil {
-		return stateCookieContent{}, "", fmt.Errorf("invalid state cookie: %w", err)
+		return stateCookieContent{}, stateCookieID, false, fmt.Errorf("invalid state cookie: %w", err)
 	} else if content.nonce == "" {
-		return stateCookieContent{}, "", NewResponseError(http.StatusUnauthorized, "State cookie not found")
+		return stateCookieContent{}, stateCookieID, false, NewResponseError(http.StatusUnauthorized, "State cookie not found")
 	}
 
-	// Check if the nonce matches
-	if content.nonce != expectedNonce {
-		return stateCookieContent{}, "", NewResponseError(http.StatusUnauthorized, "Parameters in state cookie do not match state token")
-	}
-
-	return content, stateCookieID, nil
+	return content, stateCookieID, content.nonce == expectedNonce, nil
 }
 
 // RouteGetAuthProvider is the handler for GET /portals/:portal/providers/:provider
@@ -240,9 +246,21 @@ func (s *Server) RouteGetAuthProvider(c *gin.Context) {
 	}
 
 	// Ensure we have a state parameter
-	content, stateCookieID, err := s.parseStateParamPreAuth(c, portal)
+	content, stateCookieID, nonceMatches, err := s.parseStateParamPreAuth(c, portal)
 	if err != nil {
 		AbortWithError(c, err)
+		return
+	}
+
+	// If the nonce doesn't match, another tab started a sign-in for the same return URL and the browser kept that tab's state cookie
+	// We send the user back to the sign-in page with the nonce from the cookie, so this tab joins the other sign-in
+	// We don't continue with the provider directly, so a request with a mismatched nonce can't choose the provider on the user's behalf
+	if !nonceMatches {
+		redirectURL := getSigninURL(c, portal.Name, stateCookieID, content.nonce)
+		c.Header(headerLocation, redirectURL)
+		c.Header(headerContentType, contentTypeTextPlain)
+		c.Writer.WriteHeader(http.StatusSeeOther)
+		_, _ = c.Writer.WriteString(`Redirecting to sign-in page: ` + redirectURL)
 		return
 	}
 
@@ -250,7 +268,7 @@ func (s *Server) RouteGetAuthProvider(c *gin.Context) {
 	case auth.OAuth2Provider:
 		s.handleGetAuthProviderOAuth2(c, portal, stateCookieID, content.nonce, provider)
 	case auth.SeamlessProvider:
-		s.handleGetAuthProviderSeamlessAuth(c, portal, content.returnURL, provider)
+		s.handleGetAuthProviderSeamlessAuth(c, portal, stateCookieID, content, provider)
 	}
 }
 
@@ -327,12 +345,27 @@ func (s *Server) RouteGetOAuth2Callback(c *gin.Context) {
 		return
 	}
 
-	// Clear the state cookie for the portal
-	s.deleteStateCookies(c, portal.Name)
-
 	// Check if the nonce matches
 	if content.nonce != parts[2] {
-		AbortWithError(c, NewResponseError(http.StatusUnauthorized, "Parameters in state cookie do not match state token"))
+		// The state cookie is valid, but it belongs to a different sign-in than the one the identity provider returned
+		// That happens when another tab started a sign-in for the same return URL and the browser kept that tab's state cookie
+		// The authorization code is bound to this tab's state, so it can't be used with the cookie
+		// Instead, we restart from the return URL saved in the cookie, and RouteGetAuthRoot will re-use the cookie's nonce so this tab joins the other sign-in
+		// The authorization code is never exchanged, so this is also safe when the request is a login CSRF attempt
+		setLogMessage(c, "Nonce in state token does not match state cookie: restarting sign-in from the return URL")
+		c.Header(headerLocation, content.returnURL)
+		c.Header(headerContentType, contentTypeTextPlain)
+		c.Writer.WriteHeader(http.StatusSeeOther)
+		_, _ = c.Writer.WriteString(`Redirecting to application: ` + content.returnURL)
+		return
+	}
+
+	// Mark the state cookie as consumed
+	// Other tabs that joined this sign-in can still finish for a short time, but the nonce can't be used to start a new sign-in
+	// Other state cookies are left alone, because they may belong to sign-ins in progress in other tabs
+	err = s.consumeStateCookie(c, portal, parts[1], content)
+	if err != nil {
+		AbortWithError(c, fmt.Errorf("failed to update state cookie: %w", err))
 		return
 	}
 
@@ -367,7 +400,7 @@ func (s *Server) RouteGetOAuth2Callback(c *gin.Context) {
 
 // Handles GET /portals/:portal/providers/:provider when using a seamless auth provider
 // This performs seamless auth
-func (s *Server) handleGetAuthProviderSeamlessAuth(c *gin.Context, portal *Portal, returnURL string, provider auth.SeamlessProvider) {
+func (s *Server) handleGetAuthProviderSeamlessAuth(c *gin.Context, portal *Portal, stateCookieID string, content stateCookieContent, provider auth.SeamlessProvider) {
 	// Try to authenticate with the seamless auth
 	var err error
 	profile, err := provider.SeamlessAuth(c.Request)
@@ -378,11 +411,17 @@ func (s *Server) handleGetAuthProviderSeamlessAuth(c *gin.Context, portal *Porta
 		return
 	}
 
-	// Clear the state cookie for the portal
-	s.deleteStateCookies(c, portal.Name)
+	// Mark the state cookie as consumed
+	// Other tabs that joined this sign-in can still finish for a short time, but the nonce can't be used to start a new sign-in
+	// Other state cookies are left alone, because they may belong to sign-ins in progress in other tabs
+	err = s.consumeStateCookie(c, portal, stateCookieID, content)
+	if err != nil {
+		AbortWithError(c, fmt.Errorf("failed to update state cookie: %w", err))
+		return
+	}
 
 	// Set the profile in the cookie
-	err = s.setSessionCookieForReturnURL(c, portal.Name, profile, portal.SessionLifetime, returnURL)
+	err = s.setSessionCookieForReturnURL(c, portal.Name, profile, portal.SessionLifetime, content.returnURL)
 	if err != nil {
 		AbortWithError(c, fmt.Errorf("failed to set session cookie: %w", err))
 		return
@@ -390,10 +429,10 @@ func (s *Server) handleGetAuthProviderSeamlessAuth(c *gin.Context, portal *Porta
 
 	// We need to do a redirect to be able to have the cookies actually set
 	// Also see: https://github.com/traefik/traefik/issues/3660
-	c.Header(headerLocation, returnURL)
+	c.Header(headerLocation, content.returnURL)
 	c.Header(headerContentType, contentTypeTextPlain)
 	c.Writer.WriteHeader(http.StatusSeeOther)
-	_, _ = c.Writer.WriteString(`Redirecting to application: ` + returnURL)
+	_, _ = c.Writer.WriteString(`Redirecting to application: ` + content.returnURL)
 }
 
 // RoutePostLogout is the handler for POST /portals/:portal/logout
@@ -459,6 +498,11 @@ func getStateCookieID(returnURL string) string {
 	digest := h.Sum(nil)
 
 	return base64.RawURLEncoding.EncodeToString(digest[:8])
+}
+
+// Get the URL of the sign-in page for the sign-in identified by the state cookie ID and nonce
+func getSigninURL(c *gin.Context, portalName string, stateCookieID string, nonce string) string {
+	return getPortalURI(c, portalName) + "/signin?state=" + stateCookieID + "~" + nonce
 }
 
 // Get the redirect URI, which is sent to the OAuth2 authentication server and indicates where to return users after a successful auth with the IdP

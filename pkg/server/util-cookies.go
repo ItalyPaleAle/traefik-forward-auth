@@ -35,8 +35,14 @@ const (
 	nonceClaim            = "tf_nonce"
 	sigClaim              = "tf_sig"
 	returnURLClaim        = "tf_return_url"
+	consumedClaim         = "tf_consumed"
 
-	maxTokenCacheTTL = 5 * time.Minute // Maximum TTL for token validation cache
+	// How long a state cookie remains valid after the sign-in it belongs to has completed
+	// This gives other tabs that joined the same sign-in time to finish
+	stateCookieConsumedLifetime = 10 * time.Second
+
+	// Maximum TTL for token validation cache
+	maxTokenCacheTTL = 5 * time.Minute
 
 	// Cookie chunking constants
 	// The maximum size of a cookie is 4096 bytes
@@ -449,6 +455,7 @@ type stateCookieContent struct {
 	portal    string
 	nonce     string
 	returnURL string
+	consumed  bool
 }
 
 func (s *Server) getStateCookie(c *gin.Context, portal *Portal, stateCookieID string) (content stateCookieContent, err error) {
@@ -516,6 +523,9 @@ func (s *Server) getStateCookie(c *gin.Context, portal *Portal, stateCookieID st
 		return stateCookieContent{}, fmt.Errorf("claim '%s' invalid in JWT", sigClaim)
 	}
 
+	// The consumed claim is only present after the sign-in has completed
+	content.consumed, _ = jwt.Get[bool](token, consumedClaim)
+
 	return content, nil
 }
 
@@ -528,9 +538,24 @@ func (s *Server) generateNonce() (string, error) {
 	return base64.RawURLEncoding.EncodeToString(nonceBytes), nil
 }
 
-func (s *Server) setStateCookie(c *gin.Context, portal *Portal, nonce string, returnURL string, stateCookieID string) (err error) {
+func (s *Server) setStateCookie(c *gin.Context, portal *Portal, nonce string, returnURL string, stateCookieID string) error {
+	return s.writeStateCookie(c, portal, nonce, returnURL, stateCookieID, portal.AuthenticationTimeout, false)
+}
+
+// consumeStateCookie marks the state cookie as consumed once the sign-in it belongs to completes, and shortens its lifetime
+// Other tabs that joined the same sign-in can still finish while the cookie lasts, but RouteGetAuthRoot won't re-use its nonce to start a new sign-in
+// A cookie that is already consumed is left unchanged, so that each completed sign-in doesn't extend its lifetime again
+func (s *Server) consumeStateCookie(c *gin.Context, portal *Portal, stateCookieID string, content stateCookieContent) error {
+	if content.consumed {
+		return nil
+	}
+
+	expiration := min(stateCookieConsumedLifetime, portal.AuthenticationTimeout)
+	return s.writeStateCookie(c, portal, content.nonce, content.returnURL, stateCookieID, expiration, true)
+}
+
+func (s *Server) writeStateCookie(c *gin.Context, portal *Portal, nonce string, returnURL string, stateCookieID string, expiration time.Duration, consumed bool) (err error) {
 	cfg := config.Get()
-	expiration := portal.AuthenticationTimeout
 
 	// Computes a signature that includes certain properties from the request that are sufficiently stable
 	nonceBytes, err := base64.RawURLEncoding.DecodeString(nonce)
@@ -548,7 +573,7 @@ func (s *Server) setStateCookie(c *gin.Context, portal *Portal, nonce string, re
 
 	// Claims for the JWT
 	now := time.Now()
-	token, err := jwt.NewBuilder().
+	builder := jwt.NewBuilder().
 		Issuer(jwtIssuer+":"+audience+":"+portal.Name).
 		Audience([]string{audience}).
 		IssuedAt(now).
@@ -558,8 +583,13 @@ func (s *Server) setStateCookie(c *gin.Context, portal *Portal, nonce string, re
 		Claim(portalNameClaim, portal.Name).
 		Claim(nonceClaim, nonce).
 		Claim(sigClaim, sig).
-		Claim(returnURLClaim, returnURL).
-		Build()
+		Claim(returnURLClaim, returnURL)
+
+	if consumed {
+		builder = builder.Claim(consumedClaim, true)
+	}
+
+	token, err := builder.Build()
 	if err != nil {
 		return fmt.Errorf("failed to build JWT: %w", err)
 	}
@@ -580,6 +610,31 @@ func (s *Server) setStateCookie(c *gin.Context, portal *Portal, nonce string, re
 	return nil
 }
 
+// deleteStateCookie removes the state cookie with the given ID, if the request includes it
+// Other state cookies are left alone because they may belong to sign-ins in progress in other tabs
+func (s *Server) deleteStateCookie(c *gin.Context, portalName string, stateCookieID string) {
+	cfg := config.Get()
+	name := stateCookieName(portalName, stateCookieID)
+
+	// Skip if the request doesn't include the cookie
+	// Responding with a deletion anyway could remove a cookie that another tab's response has just set
+	_, err := c.Cookie(name)
+	if err != nil {
+		return
+	}
+
+	// Get the domain for the cookie
+	cookieDomain, _, ok := cookieDomainForContext(c)
+	if !ok {
+		return
+	}
+
+	c.SetSameSite(http.SameSiteLaxMode)
+	c.SetCookie(name, "", -1, "/", cookieDomain, !cfg.Cookies.Insecure, true)
+}
+
+// deleteStateCookies removes all state cookies for the portal that the request includes
+// This also cancels sign-ins in progress in other tabs, so it's only used when signing out
 func (s *Server) deleteStateCookies(c *gin.Context, portalName string) {
 	cfg := config.Get()
 	prefix := stateCookieName(portalName, "")
