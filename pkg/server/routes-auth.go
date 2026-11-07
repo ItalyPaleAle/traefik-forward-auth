@@ -214,16 +214,12 @@ func (s *Server) RouteGetAuthSignin(c *gin.Context) {
 // That happens when several tabs start a sign-in for the same return URL at once, because they share a state cookie and the browser keeps the one it received last
 // The state cookie ID is returned whenever the query string parameter can be parsed, even if loading the cookie fails
 func (s *Server) parseStateParamPreAuth(c *gin.Context, portal *Portal) (content stateCookieContent, stateCookieID string, nonceMatches bool, err error) {
-	// Ensure we have a state parameter
-	stateParam := c.Query("state")
-	if stateParam == "" {
-		return stateCookieContent{}, "", false, NewResponseError(http.StatusBadRequest, "The parameter 'state' is required in the query string")
+	// Ensure we have a valid state parameter
+	state, err := getStateParam(c, portal, false)
+	if err != nil {
+		return stateCookieContent{}, "", false, err
 	}
-
-	stateCookieID, expectedNonce, ok := strings.Cut(stateParam, "~")
-	if !ok {
-		return stateCookieContent{}, "", false, NewResponseError(http.StatusUnauthorized, "Query string parameter 'state' is invalid")
-	}
+	stateCookieID = state.stateCookieID
 
 	// Get the state cookie
 	content, err = s.getStateCookie(c, portal, stateCookieID)
@@ -233,7 +229,77 @@ func (s *Server) parseStateParamPreAuth(c *gin.Context, portal *Portal) (content
 		return stateCookieContent{}, stateCookieID, false, NewResponseError(http.StatusUnauthorized, "State cookie not found")
 	}
 
-	return content, stateCookieID, content.nonce == expectedNonce, nil
+	return content, stateCookieID, content.nonce == state.nonce, nil
+}
+
+// stateParam is the parsed and validated "state" query string parameter
+type stateParam struct {
+	// Raw value of the query string parameter
+	raw string
+	// May be empty when the parameter does not includes the provider name
+	provider      auth.Provider
+	stateCookieID string
+	nonce         string
+}
+
+// Parses and validates the "state" query string parameter
+// The format is "StateCookieID~Nonce", or "Provider~StateCookieID~Nonce" when withProvider is true (OAuth2 callbacks)
+// Every part is validated before it's used, so it's safe to include in cookie names, URLs, and responses
+func getStateParam(c *gin.Context, portal *Portal, withProvider bool) (stateParam, error) {
+	raw := c.Query("state")
+	if raw == "" {
+		return stateParam{}, NewResponseError(http.StatusBadRequest, "The parameter 'state' is required in the query string")
+	}
+
+	res := stateParam{raw: raw}
+	rest := raw
+
+	if withProvider {
+		providerName, after, ok := strings.Cut(rest, "~")
+		if !ok {
+			return stateParam{}, NewResponseError(http.StatusUnauthorized, "Query string parameter 'state' is invalid")
+		}
+		rest = after
+
+		// Validate the name against the portal's providers
+		provider, ok := portal.Providers[providerName]
+		if !ok {
+			return stateParam{}, NewResponseError(http.StatusConflict, "Auth provider not found")
+		}
+
+		res.provider = provider
+	}
+
+	var ok bool
+	res.stateCookieID, res.nonce, ok = strings.Cut(rest, "~")
+	if !ok ||
+		!isValidStateToken(res.stateCookieID, stateCookieIDLen) ||
+		!isValidStateToken(res.nonce, stateNonceLen) {
+		return stateParam{}, NewResponseError(http.StatusUnauthorized, "Query string parameter 'state' is invalid")
+	}
+
+	return res, nil
+}
+
+// Reports whether s has exactly the given length and only contains characters of the unpadded base64url alphabet
+func isValidStateToken(s string, length int) bool {
+	if len(s) != length {
+		return false
+	}
+
+	for i := range len(s) {
+		ch := s[i]
+		switch {
+		case ch >= 'a' && ch <= 'z',
+			ch >= 'A' && ch <= 'Z',
+			ch >= '0' && ch <= '9',
+			ch == '-', ch == '_':
+		default:
+			return false
+		}
+	}
+
+	return true
 }
 
 // RouteGetAuthProvider is the handler for GET /portals/:portal/providers/:provider
@@ -309,22 +375,21 @@ func (s *Server) RouteGetOAuth2Callback(c *gin.Context) {
 		return
 	}
 
-	// Ensure that we have a state and code parameters
-	stateParam := c.Query("state")
-	codeParam := c.Query("code")
-	if stateParam == "" || codeParam == "" {
-		AbortWithError(c, NewResponseError(http.StatusBadRequest, "The parameters 'state' and 'code' are required in the query string"))
+	// Ensure that we have valid state and code parameters
+	// Format of the state is: "Provider~StateCookieID~Nonce"
+	state, err := getStateParam(c, portal, true)
+	if err != nil {
+		AbortWithError(c, err)
 		return
 	}
-	// Format is: "Provider~StateCookieID~Nonce"
-	parts := strings.SplitN(stateParam, "~", 3)
-	if len(parts) != 3 || parts[0] == "" || parts[1] == "" || parts[2] == "" {
-		AbortWithError(c, NewResponseError(http.StatusUnauthorized, "Query string parameter 'state' is invalid"))
+	codeParam := c.Query("code")
+	if codeParam == "" {
+		AbortWithError(c, NewResponseError(http.StatusBadRequest, "The parameter 'code' is required in the query string"))
 		return
 	}
 
 	// Get the state cookie
-	content, err := s.getStateCookie(c, portal, parts[1])
+	content, err := s.getStateCookie(c, portal, state.stateCookieID)
 	if err != nil {
 		AbortWithError(c, fmt.Errorf("invalid state cookie: %w", err))
 		return
@@ -333,20 +398,15 @@ func (s *Server) RouteGetOAuth2Callback(c *gin.Context) {
 		return
 	}
 
-	// Get the provider
-	providerI, ok := portal.Providers[parts[0]]
-	if !ok {
-		AbortWithError(c, NewResponseError(http.StatusConflict, "Auth provider not found"))
-		return
-	}
-	provider, ok := providerI.(auth.OAuth2Provider)
+	// The provider must support OAuth2
+	provider, ok := state.provider.(auth.OAuth2Provider)
 	if !ok {
 		AbortWithError(c, NewResponseError(http.StatusConflict, "Auth provider does not implement OAuth2"))
 		return
 	}
 
 	// Check if the nonce matches
-	if content.nonce != parts[2] {
+	if content.nonce != state.nonce {
 		// The state cookie is valid, but it belongs to a different sign-in than the one the identity provider returned
 		// That happens when another tab started a sign-in for the same return URL and the browser kept that tab's state cookie
 		// The authorization code is bound to this tab's state, so it can't be used with the cookie
@@ -363,14 +423,14 @@ func (s *Server) RouteGetOAuth2Callback(c *gin.Context) {
 	// Mark the state cookie as consumed
 	// Other tabs that joined this sign-in can still finish for a short time, but the nonce can't be used to start a new sign-in
 	// Other state cookies are left alone, because they may belong to sign-ins in progress in other tabs
-	err = s.consumeStateCookie(c, portal, parts[1], content)
+	err = s.consumeStateCookie(c, portal, state.stateCookieID, content)
 	if err != nil {
 		AbortWithError(c, fmt.Errorf("failed to update state cookie: %w", err))
 		return
 	}
 
 	// Exchange the code for a token
-	at, err := provider.OAuth2ExchangeCode(c.Request.Context(), stateParam, codeParam, getOAuth2RedirectURI(c, portal.Name))
+	at, err := provider.OAuth2ExchangeCode(c.Request.Context(), state.raw, codeParam, getOAuth2RedirectURI(c, portal.Name))
 	if err != nil {
 		AbortWithError(c, fmt.Errorf("failed to exchange code for access token: %w", err))
 		return
@@ -490,6 +550,12 @@ func getReturnURL(c *gin.Context, portal string) string {
 	return getForwardedProto(c) + "://" + headerValue(c.Request.Header, headerXForwardedHost) + reqURL.RequestURI()
 }
 
+const (
+	stateCookieIDBytes = 8
+	stateCookieIDLen   = 11 // Length of stateCookieIDBytes bytes encoded as unpadded base64
+	stateNonceLen      = 16 // Length of nonceSize bytes encoded as unpadded base64
+)
+
 // Computes the state cookie ID for the given return URL
 func getStateCookieID(returnURL string) string {
 	h := sha256.New()
@@ -497,7 +563,7 @@ func getStateCookieID(returnURL string) string {
 	h.Write([]byte(returnURL))
 	digest := h.Sum(nil)
 
-	return base64.RawURLEncoding.EncodeToString(digest[:8])
+	return base64.RawURLEncoding.EncodeToString(digest[:stateCookieIDBytes])
 }
 
 // Get the URL of the sign-in page for the sign-in identified by the state cookie ID and nonce
