@@ -4,15 +4,18 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	"net/http/httptest"
 	"net/url"
 	"strings"
 	"testing"
 	"time"
 
 	"github.com/alphadose/haxmap"
+	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/italypaleale/traefik-forward-auth/pkg/auth"
 	"github.com/italypaleale/traefik-forward-auth/pkg/config"
 	"github.com/italypaleale/traefik-forward-auth/pkg/user"
 	"github.com/italypaleale/traefik-forward-auth/pkg/utils"
@@ -394,7 +397,7 @@ func TestRouteGetAuthProvider(t *testing.T) {
 		assert.Equal(t, http.StatusUnauthorized, res.StatusCode)
 	})
 
-	t.Run("nonce mismatch", func(t *testing.T) {
+	t.Run("nonce mismatch redirects to signin with the cookie's nonce", func(t *testing.T) {
 		state, cookies := getState(t)
 		stateCookieID, nonce, ok := strings.Cut(state, "~")
 		require.True(t, ok)
@@ -414,7 +417,12 @@ func TestRouteGetAuthProvider(t *testing.T) {
 		require.NoError(t, err)
 		defer closeBody(res)
 
-		assert.Equal(t, http.StatusUnauthorized, res.StatusCode)
+		// The request joins the sign-in from the state cookie rather than continuing to the provider
+		require.Equal(t, http.StatusSeeOther, res.StatusCode)
+		locURL := urlMustParse(t, res.Header.Get("Location"))
+		assert.Equal(t, "/portals/test1/signin", locURL.Path)
+		assert.Equal(t, state, locURL.Query().Get("state"))
+		assert.Empty(t, res.Header.Values("Set-Cookie"), "the state cookie should not be deleted")
 	})
 }
 
@@ -941,4 +949,344 @@ func TestCheckAuthzConditions(t *testing.T) {
 		assert.Positive(t, cached1.lastUsed.Load())
 		assert.Positive(t, cached2.lastUsed.Load())
 	})
+}
+
+// TestGetReturnURLPreservesQuery exercises the fix for the bug where the post-auth redirect
+// dropped the query string from X-Forwarded-Uri
+// Deep links, OAuth callbacks behind the protected app, CSRF tokens, and pagination all live in the query, so the return URL must round-trip the original request URI verbatim
+func TestGetReturnURLPreservesQuery(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	makeCtx := func(forwardedURI string) *gin.Context {
+		rec := httptest.NewRecorder()
+		c, _ := gin.CreateTestContext(rec)
+		req := httptest.NewRequest(http.MethodGet, "/", nil)
+		req.Header.Set(headerXForwardedHost, "app.example.com")
+		req.Header.Set(headerXForwardedProto, "https")
+		if forwardedURI != "" {
+			req.Header.Set(headerXForwardedURI, forwardedURI)
+		}
+		c.Request = req
+		return c
+	}
+
+	tests := []struct {
+		name         string
+		forwardedURI string
+		want         string
+	}{
+		{
+			name:         "path only",
+			forwardedURI: "/dashboard",
+			want:         "https://app.example.com/dashboard",
+		},
+		{
+			name:         "single query param",
+			forwardedURI: "/dashboard?tab=details",
+			want:         "https://app.example.com/dashboard?tab=details",
+		},
+		{
+			name:         "multiple query params",
+			forwardedURI: "/items?page=3&sort=desc&filter=active",
+			want:         "https://app.example.com/items?page=3&sort=desc&filter=active",
+		},
+		{
+			name:         "url-encoded query",
+			forwardedURI: "/search?q=hello%20world&lang=en-US",
+			want:         "https://app.example.com/search?q=hello%20world&lang=en-US",
+		},
+		{
+			name:         "oauth callback shape",
+			forwardedURI: "/oauth/callback?state=abc123&code=xyz789",
+			want:         "https://app.example.com/oauth/callback?state=abc123&code=xyz789",
+		},
+		{
+			name:         "absolute URI is reduced to path+query - host cannot be hijacked",
+			forwardedURI: "https://evil.example/path?q=v",
+			want:         "https://app.example.com/path?q=v",
+		},
+		{
+			name:         "scheme-relative URI is reduced to path+query",
+			forwardedURI: "//evil.example/path?q=v",
+			want:         "https://app.example.com/path?q=v",
+		},
+		{
+			name:         "empty path becomes /",
+			forwardedURI: "?q=v",
+			want:         "https://app.example.com/?q=v",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			ctx := makeCtx(tt.forwardedURI)
+			got := getReturnURL(ctx, "default")
+			assert.Equal(t, tt.want, got)
+		})
+	}
+}
+
+// TestGetReturnURLNoForwardedURIFallsBackToProfile verifies that the absence of X-Forwarded-Uri (which means the request did not originate from Traefik) routes the user to the portal's profile page instead of constructing an empty URL
+func TestGetReturnURLNoForwardedURIFallsBackToProfile(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	rec := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(rec)
+	req := httptest.NewRequest(http.MethodGet, "/", nil)
+	req.Header.Set(headerXForwardedHost, "auth.example.com")
+	req.Header.Set(headerXForwardedProto, "https")
+	c.Request = req
+
+	got := getReturnURL(c, "default")
+	assert.Contains(t, got, "/profile")
+}
+
+func TestRoutePostLogout(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	srv := &Server{
+		portals: map[string]*Portal{
+			"test1": {Name: "test1"},
+		},
+	}
+
+	newContext := func(path string, portal string) (*gin.Context, *httptest.ResponseRecorder) {
+		rec := httptest.NewRecorder()
+		c, _ := gin.CreateTestContext(rec)
+		c.Request = httptest.NewRequest(http.MethodPost, path, nil)
+		c.Request.Header.Set("X-Forwarded-Proto", "https")
+		if portal != "" {
+			c.Params = gin.Params{{Key: "portal", Value: portal}}
+		}
+		return c, rec
+	}
+
+	t.Run("success redirects to portal with logout flag", func(t *testing.T) {
+		c, rec := newContext("/portals/test1/logout", "test1")
+
+		srv.RoutePostLogout(c)
+
+		assert.Equal(t, http.StatusSeeOther, rec.Code)
+		assert.Equal(t, "https://example.com/portals/test1?logout=1", rec.Header().Get("Location"))
+		assert.Contains(t, rec.Body.String(), "You've been logged out. Redirecting to portal: https://example.com/portals/test1?logout=1")
+	})
+
+	t.Run("unknown portal returns not found error", func(t *testing.T) {
+		c, rec := newContext("/portals/unknown/logout", "unknown")
+
+		srv.RoutePostLogout(c)
+
+		assert.True(t, c.IsAborted())
+		require.Len(t, c.Errors, 1)
+		assert.Equal(t, http.StatusNotFound, rec.Code)
+		assert.Equal(t, "Error: Portal not found", rec.Body.String())
+	})
+}
+
+func TestGetStateParam(t *testing.T) {
+	const (
+		validID    = "AbC-_fGhI9k"
+		validNonce = "AbCdEfGhIjKl-_09"
+	)
+
+	provider := auth.NewTestProviderOAuth2()
+	portal := &Portal{
+		Name: "myportal",
+		Providers: map[string]auth.Provider{
+			provider.GetProviderName(): provider,
+		},
+		ProvidersList: []string{provider.GetProviderName()},
+	}
+
+	// Builds a context for a request whose "state" query string parameter is set to the value
+	// When omit is true the parameter is not included at all
+	makeCtx := func(state string, omit bool) *gin.Context {
+		c, _ := gin.CreateTestContext(httptest.NewRecorder())
+		target := "/"
+		if !omit {
+			target += "?" + url.Values{"state": []string{state}}.Encode()
+		}
+		c.Request = httptest.NewRequest(http.MethodGet, target, nil)
+		return c
+	}
+
+	requireErrorCode := func(t *testing.T, err error, code int) {
+		t.Helper()
+
+		var respErr ResponseError
+		require.ErrorAs(t, err, &respErr)
+		assert.Equal(t, code, respErr.Code)
+	}
+
+	t.Run("without provider", func(t *testing.T) {
+		t.Run("valid state", func(t *testing.T) {
+			raw := validID + "~" + validNonce
+			res, err := getStateParam(makeCtx(raw, false), portal, false)
+			require.NoError(t, err)
+
+			assert.Equal(t, raw, res.raw)
+			assert.Equal(t, validID, res.stateCookieID)
+			assert.Equal(t, validNonce, res.nonce)
+			assert.Nil(t, res.provider)
+		})
+
+		t.Run("missing parameter", func(t *testing.T) {
+			_, err := getStateParam(makeCtx("", true), portal, false)
+			requireErrorCode(t, err, http.StatusBadRequest)
+		})
+
+		t.Run("empty parameter", func(t *testing.T) {
+			_, err := getStateParam(makeCtx("", false), portal, false)
+			requireErrorCode(t, err, http.StatusBadRequest)
+		})
+
+		invalid := map[string]string{
+			"no separator":                  validID + validNonce,
+			"empty cookie ID":               "~" + validNonce,
+			"empty nonce":                   validID + "~",
+			"only separator":                "~",
+			"cookie ID too short":           validID[:len(validID)-1] + "~" + validNonce,
+			"cookie ID too long":            validID + "A~" + validNonce,
+			"nonce too short":               validID + "~" + validNonce[:len(validNonce)-1],
+			"nonce too long":                validID + "~" + validNonce + "A",
+			"extra separator in nonce":      validID + "~" + validNonce[:len(validNonce)-1] + "~",
+			"three parts":                   "testoauth2~" + validID + "~" + validNonce,
+			"HTML in cookie ID":             "<b>bold</b>~" + validNonce,
+			"HTML in nonce":                 validID + "~<script>alert(1)</s>",
+			"script tag with right lengths": "<script>a~" + validNonce,
+			"quote in cookie ID":            `AbC"fGhI9k~` + validNonce,
+			"space in nonce":                validID + "~AbCdEfGh IjKl-_0",
+			"padding character":             validID + "~AbCdEfGhIjKl-_0=",
+			"standard base64 plus":          validID + "~AbCdEfGhIjKl+_09",
+			"standard base64 slash":         validID + "~AbCdEfGhIjKl/_09",
+			"percent sign":                  validID + "~AbCdEfGhIjKl%_09",
+			"null byte":                     validID + "~AbCdEfGhIjKl\x00_09",
+			"non-ASCII character":           validID + "~AbCdEfGhIjKlé_0",
+			"newline":                       validID + "~AbCdEfGhIjKl\n_09",
+		}
+		for name, state := range invalid {
+			t.Run("invalid: "+name, func(t *testing.T) {
+				_, err := getStateParam(makeCtx(state, false), portal, false)
+				requireErrorCode(t, err, http.StatusUnauthorized)
+			})
+		}
+	})
+
+	t.Run("with provider", func(t *testing.T) {
+		t.Run("valid state", func(t *testing.T) {
+			raw := provider.GetProviderName() + "~" + validID + "~" + validNonce
+			res, err := getStateParam(makeCtx(raw, false), portal, true)
+			require.NoError(t, err)
+
+			assert.Equal(t, raw, res.raw)
+			assert.Equal(t, validID, res.stateCookieID)
+			assert.Equal(t, validNonce, res.nonce)
+			assert.Same(t, provider, res.provider)
+		})
+
+		t.Run("missing parameter", func(t *testing.T) {
+			_, err := getStateParam(makeCtx("", true), portal, true)
+			requireErrorCode(t, err, http.StatusBadRequest)
+		})
+
+		t.Run("no separator", func(t *testing.T) {
+			_, err := getStateParam(makeCtx("testoauth2", false), portal, true)
+			requireErrorCode(t, err, http.StatusUnauthorized)
+		})
+
+		unknownProviders := map[string]string{
+			"unknown name":    "other",
+			"empty name":      "",
+			"wrong case":      "TestOAuth2",
+			"HTML in name":    "<script>alert(1)</script>",
+			"prefix of name":  "testoauth",
+			"name with space": "testoauth2 ",
+		}
+		for name, providerName := range unknownProviders {
+			t.Run("unknown provider: "+name, func(t *testing.T) {
+				state := providerName + "~" + validID + "~" + validNonce
+				_, err := getStateParam(makeCtx(state, false), portal, true)
+				requireErrorCode(t, err, http.StatusConflict)
+			})
+		}
+
+		t.Run("state without provider", func(t *testing.T) {
+			// The cookie ID is read as the provider name, which isn't a known provider
+			_, err := getStateParam(makeCtx(validID+"~"+validNonce, false), portal, true)
+			requireErrorCode(t, err, http.StatusConflict)
+		})
+
+		invalid := map[string]string{
+			"no cookie ID and nonce": "testoauth2~",
+			"no nonce":               "testoauth2~" + validID,
+			"empty cookie ID":        "testoauth2~~" + validNonce,
+			"empty nonce":            "testoauth2~" + validID + "~",
+			"cookie ID too short":    "testoauth2~" + validID[:5] + "~" + validNonce,
+			"nonce too long":         "testoauth2~" + validID + "~" + validNonce + "A",
+			"extra separator":        "testoauth2~" + validID + "~" + validNonce + "~extra",
+			"HTML in cookie ID":      "testoauth2~<b>bold</b>~" + validNonce,
+			"HTML in nonce":          "testoauth2~" + validID + "~<script>alert(1)</s>",
+			"invalid character":      "testoauth2~" + validID + "~AbCdEfGhIjKl+_09",
+		}
+		for name, state := range invalid {
+			t.Run("invalid: "+name, func(t *testing.T) {
+				_, err := getStateParam(makeCtx(state, false), portal, true)
+				requireErrorCode(t, err, http.StatusUnauthorized)
+			})
+		}
+	})
+
+	t.Run("accepts values generated by the server", func(t *testing.T) {
+		// Guards the expected lengths against changes to how the cookie ID and nonce are generated
+		stateCookieID := getStateCookieID("https://app.example.com/some/path?foo=bar")
+		nonce, err := (&Server{}).generateNonce()
+		require.NoError(t, err)
+
+		raw := stateCookieID + "~" + nonce
+		res, err := getStateParam(makeCtx(raw, false), portal, false)
+		require.NoError(t, err)
+		assert.Equal(t, stateCookieID, res.stateCookieID)
+		assert.Equal(t, nonce, res.nonce)
+
+		raw = provider.GetProviderName() + "~" + raw
+		res, err = getStateParam(makeCtx(raw, false), portal, true)
+		require.NoError(t, err)
+		assert.Equal(t, stateCookieID, res.stateCookieID)
+		assert.Equal(t, nonce, res.nonce)
+	})
+}
+
+func TestIsValidStateToken(t *testing.T) {
+	tests := []struct {
+		name   string
+		value  string
+		length int
+		want   bool
+	}{
+		{name: "all lowercase", value: "abcdef", length: 6, want: true},
+		{name: "all uppercase", value: "ABCDEF", length: 6, want: true},
+		{name: "digits", value: "012345", length: 6, want: true},
+		{name: "dash and underscore", value: "-_-_-_", length: 6, want: true},
+		{name: "range boundaries", value: "azAZ09", length: 6, want: true},
+		{name: "empty with length 0", value: "", length: 0, want: true},
+		{name: "empty with non-zero length", value: "", length: 6, want: false},
+		{name: "too short", value: "abcde", length: 6, want: false},
+		{name: "too long", value: "abcdefg", length: 6, want: false},
+		{name: "plus", value: "abcde+", length: 6, want: false},
+		{name: "slash", value: "abcde/", length: 6, want: false},
+		{name: "equals", value: "abcde=", length: 6, want: false},
+		{name: "tilde", value: "abcde~", length: 6, want: false},
+		{name: "dot", value: "abcde.", length: 6, want: false},
+		{name: "space", value: "abcde ", length: 6, want: false},
+		{name: "angle bracket", value: "abcde<", length: 6, want: false},
+		{name: "characters adjacent to ranges", value: "@[`{:/", length: 6, want: false},
+		// The multi-byte character is 2 bytes, so the string is 6 bytes long and still must be rejected
+		{name: "multi-byte character", value: "abcdé", length: 6, want: false},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			assert.Equal(t, tc.want, isValidStateToken(tc.value, tc.length))
+		})
+	}
 }
