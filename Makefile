@@ -11,6 +11,11 @@ test-race:
 lint:
 	golangci-lint run -c .golangci.yaml
 
+# Scans for known vulnerabilities in the code that is reachable from traefik-forward-auth, so it needs client/dist
+.PHONY: vulncheck
+vulncheck:
+	go tool govulncheck ./...
+
 .PHONY: build-client
 build-client:
 	cd client && sh build.sh

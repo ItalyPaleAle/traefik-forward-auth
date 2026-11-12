@@ -51,6 +51,10 @@ jobs:
         with:
           version-file: .golangci-lint-version
 
+      - name: Check for known vulnerabilities
+        run: |
+          make vulncheck
+
       - name: Check diff
         run: |
           echo "If this fails, please run 'make gen-config' to fix"

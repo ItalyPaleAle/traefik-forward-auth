@@ -100,47 +100,23 @@ jobs:
           npm ci
           ./build.sh
 
+      # Used by scripts/build-binaries.sh to write a CycloneDX SBOM for each release binary to .out, before the checksum and attestation steps, so both cover them too
+      - name: Install cyclonedx-gomod
+        env:
+          # Pinned to an exact release that is at least a week old
+          # `go install pkg@version` ignores this repo's go.mod and verifies the downloaded modules against sum.golang.org
+          CYCLONEDX_GOMOD_VERSION: "v1.12.0"
+        run: |
+          GOBIN="${RUNNER_TEMP}/bin" go install "github.com/CycloneDX/cyclonedx-gomod/cmd/cyclonedx-gomod@${CYCLONEDX_GOMOD_VERSION}"
+          echo "CYCLONEDX_GOMOD=${RUNNER_TEMP}/bin/cyclonedx-gomod" >> "$GITHUB_ENV"
+
       - name: Build for Linux platforms
         env:
           CGO_ENABLED: "0"
         run: |
-          mkdir -p .bin .out
-
-          echo -e "\n###\nBuilding linux/amd64\n"
-          mkdir .bin/traefik-forward-auth-${{ env.BUILD_ID }}-linux-amd64
-          GOOS=linux GOARCH=amd64 \
-            go build \
-              -ldflags "${{ env.BUILD_LDFLAGS }}" \
-              -o .bin/traefik-forward-auth-${{ env.BUILD_ID }}-linux-amd64/traefik-forward-auth \
-              -trimpath \
-              ./cmd/traefik-forward-auth
-          cp LICENSE.md .bin/traefik-forward-auth-${{ env.BUILD_ID }}-linux-amd64
-          cp -r README.md .bin/traefik-forward-auth-${{ env.BUILD_ID }}-linux-amd64
-          (cd .bin && tar -czvf ../.out/traefik-forward-auth-${{ env.BUILD_ID }}-linux-amd64.tar.gz traefik-forward-auth-${{ env.BUILD_ID }}-linux-amd64)
-
-          echo -e "\n###\nBuilding linux/arm64\n"
-          mkdir .bin/traefik-forward-auth-${{ env.BUILD_ID }}-linux-arm64
-          GOOS=linux GOARCH=arm64 \
-            go build \
-              -ldflags "${{ env.BUILD_LDFLAGS }}" \
-              -o .bin/traefik-forward-auth-${{ env.BUILD_ID }}-linux-arm64/traefik-forward-auth \
-              -trimpath \
-              ./cmd/traefik-forward-auth
-          cp LICENSE.md .bin/traefik-forward-auth-${{ env.BUILD_ID }}-linux-arm64
-          cp -r README.md .bin/traefik-forward-auth-${{ env.BUILD_ID }}-linux-arm64
-          (cd .bin && tar -czvf ../.out/traefik-forward-auth-${{ env.BUILD_ID }}-linux-arm64.tar.gz traefik-forward-auth-${{ env.BUILD_ID }}-linux-arm64)
-
-          echo -e "\n###\nBuilding linux/armv7\n"
-          mkdir .bin/traefik-forward-auth-${{ env.BUILD_ID }}-linux-armv7
-          GOOS=linux GOARCH=arm GOARM=7 \
-            go build \
-              -ldflags "${{ env.BUILD_LDFLAGS }}" \
-              -o .bin/traefik-forward-auth-${{ env.BUILD_ID }}-linux-armv7/traefik-forward-auth \
-              -trimpath \
-              ./cmd/traefik-forward-auth
-          cp LICENSE.md .bin/traefik-forward-auth-${{ env.BUILD_ID }}-linux-armv7
-          cp -r README.md .bin/traefik-forward-auth-${{ env.BUILD_ID }}-linux-armv7
-          (cd .bin && tar -czvf ../.out/traefik-forward-auth-${{ env.BUILD_ID }}-linux-armv7.tar.gz traefik-forward-auth-${{ env.BUILD_ID }}-linux-armv7)
+          for target in linux-amd64 linux-arm64 linux-armv7; do
+            ./scripts/build-binaries.sh "${target}"
+          done
 
           echo -e "\n###\nLinks for Docker buildx\n"
           (
@@ -160,7 +136,7 @@ jobs:
         working-directory: .out
         run: |
           shopt -s nullglob
-          files=(traefik-forward-auth-*.tar.gz)
+          files=(traefik-forward-auth-*.tar.gz traefik-forward-auth-*.cdx.json)
           if [[ ${#files[@]} -eq 0 ]]; then
             echo "::error::No release archives found in .out"
             exit 1
@@ -182,7 +158,7 @@ jobs:
           file: Dockerfile
           push: true
 
-      # A single attestation covering every file attached to the release: the archives plus checksums.txt
+      # A single attestation covering every file attached to the release: the archives, their SBOMs, and checksums.txt
       - name: Attestation for release archives
         id: attest-archives
         uses: actions/attest@508db95dd578ae2727ebd6217d5ba78e4fbda05d # 4.2.1
