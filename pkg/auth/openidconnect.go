@@ -15,10 +15,13 @@ import (
 	"net/url"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/cenkalti/backoff/v5"
 	"github.com/italypaleale/go-kit/oauth2/clientassertion"
+	"github.com/jwx-go/jwkfetch/v4"
+	"github.com/lestrrat-go/httprc/v3"
 	"github.com/lestrrat-go/jwx/v4/jwk"
 	"github.com/lestrrat-go/jwx/v4/jws"
 	"github.com/lestrrat-go/jwx/v4/jwt"
@@ -31,10 +34,11 @@ import (
 const (
 	// Allowed clock skew when validating exp/nbf/iat
 	idTokenClockSkew = 30 * time.Second
-	// How long a fetched JWKS is considered fresh
-	jwksTTL = 15 * time.Minute
-	// Bounds how often we retry after a fetch failure
-	jwksNegativeCacheTTL = 30 * time.Second
+	// How often the JWKS is refreshed in the background
+	jwksRefreshInterval = 15 * time.Minute
+	// Minimum time between refreshes triggered by a sign-in, when the keys haven't been fetched yet or a token is signed with a key we don't have
+	// This bounds how often sign-ins can wait on a struggling IdP
+	jwksForcedRefreshInterval = 30 * time.Second
 )
 
 // OpenIDConnect manages authentication with a generic OpenID Connect provider.
@@ -50,105 +54,155 @@ type OpenIDConnect struct {
 	jwks *jwksFetcher
 }
 
-// jwksFetcher fetches and caches a JWKS over HTTP
-// It performs an initial fetch on first use and then refreshes the keys after jwksTTL has elapsed
-// Fetch failures fall back to the last known good set (when available) and are retried at most every jwksNegativeCacheTTL
+// jwksFetcher keeps the IdP's JWKS in a jwkfetch cache, which refreshes it in the background
+// The URL is registered with the cache on first use, so creating a provider doesn't perform any network call
+// If a refresh fails, the cache keeps serving the last keys it fetched successfully
 type jwksFetcher struct {
-	uri          string
-	httpClientFn func() *http.Client
-	timeout      time.Duration
+	uri     string
+	cache   *jwkfetch.Cache
+	timeout time.Duration
 
-	mu        sync.RWMutex
-	set       jwk.Set
-	fetchedAt time.Time
-	lastErrAt time.Time
-	lastErr   error
+	registerMu sync.Mutex
+	registered atomic.Bool
+
+	// Unix nanoseconds of the last refresh triggered by a sign-in
+	lastForcedRefresh atomic.Int64
 }
 
-// Get returns the latest JWKS, fetching or refreshing it as needed
-func (f *jwksFetcher) Get(ctx context.Context) (jwk.Set, error) {
-	f.mu.RLock()
-	if f.set != nil && time.Since(f.fetchedAt) < jwksTTL {
-		set := f.set
-		f.mu.RUnlock()
+// Get returns the JWKS to verify a token signed with the key kid
+// If the keys haven't been fetched yet, or none of them has the key ID kid, the keys are refreshed first, at most once every jwksForcedRefreshInterval
+// A missing key usually means the IdP rotated its keys since the last refresh
+func (f *jwksFetcher) Get(ctx context.Context, kid string) (jwk.Set, error) {
+	ctx, cancel := context.WithTimeout(ctx, f.timeout)
+	defer cancel()
+
+	err := f.register(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	// Use the cached keys if they include the key the token was signed with
+	// Tokens without a key ID can't be matched to a key here, so verification decides
+	set, lookupErr := f.cache.Lookup(ctx, f.uri)
+	if lookupErr == nil {
+		_, found := set.LookupKeyID(kid)
+		if kid == "" || found {
+			return set, nil
+		}
+	}
+
+	// Refresh the keys, unless another sign-in did so recently
+	now := time.Now().UnixNano()
+	last := f.lastForcedRefresh.Load()
+	if now-last < int64(jwksForcedRefreshInterval) || !f.lastForcedRefresh.CompareAndSwap(last, now) {
+		if lookupErr != nil {
+			return nil, fmt.Errorf("failed to fetch JWKS from %q: %w", f.uri, lookupErr)
+		}
 		return set, nil
 	}
-	f.mu.RUnlock()
 
-	return f.refresh(ctx)
-}
-
-func (f *jwksFetcher) refresh(ctx context.Context) (jwk.Set, error) {
-	f.mu.Lock()
-	defer f.mu.Unlock()
-
-	// Re-check after acquiring the write lock — another goroutine may have refreshed
-	if f.set != nil && time.Since(f.fetchedAt) < jwksTTL {
-		return f.set, nil
-	}
-
-	// Honor the negative cache so we don't hammer a struggling IdP
-	if f.set == nil && f.lastErr != nil && time.Since(f.lastErrAt) < jwksNegativeCacheTTL {
-		return nil, f.lastErr
-	}
-
-	fetchCtx, cancel := context.WithTimeout(ctx, f.timeout)
-	defer cancel()
-
-	set, err := fetchJWKS(fetchCtx, f.httpClientFn(), f.uri)
+	refreshed, err := f.cache.Refresh(ctx, f.uri)
 	if err != nil {
-		f.lastErr = fmt.Errorf("failed to fetch JWKS from %q: %w", f.uri, err)
-		f.lastErrAt = time.Now()
-
-		// Serve a stale set if we have one — better than failing during a transient failure
-		if f.set != nil {
-			return f.set, nil
+		// Keep using the keys we have: if the token's key isn't among them, verification fails
+		if lookupErr == nil {
+			return set, nil
 		}
-
-		return nil, f.lastErr
+		return nil, fmt.Errorf("failed to fetch JWKS from %q: %w", f.uri, err)
 	}
 
-	f.set = set
-	f.fetchedAt = time.Now()
-	f.lastErr = nil
-
-	return set, nil
+	return refreshed, nil
 }
 
-// fetchJWKS retrieves and parses a JWKS from the given URI
-func fetchJWKS(parentCtx context.Context, client *http.Client, uri string) (jwk.Set, error) {
-	ctx, cancel := context.WithTimeout(parentCtx, 10*time.Second)
-	defer cancel()
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, uri, nil)
-	if err != nil {
-		return nil, fmt.Errorf("failed to create HTTP request: %w", err)
+// register adds the JWKS URL to the cache on first use, and waits for the first fetch to complete
+// The cache only reports the URL as ready after a successful fetch, so if the IdP is failing this waits until ctx is done
+// In that case the URL stays registered and Get retries the fetch later
+func (f *jwksFetcher) register(ctx context.Context) error {
+	if f.registered.Load() {
+		return nil
 	}
+
+	f.registerMu.Lock()
+	defer f.registerMu.Unlock()
+
+	if f.registered.Load() {
+		return nil
+	}
+
+	err := f.cache.Register(ctx, f.uri,
+		jwkfetch.WithConstantInterval(jwksRefreshInterval),
+		jwkfetch.WithWaitReady(true),
+	)
+	// A "not ready" error means the URL was registered but the first fetch didn't succeed in time
+	// Get then counts that attempt as a forced refresh, so it doesn't immediately fetch again
+	// An "already exists" error means an earlier call registered the URL but gave up waiting for the reply
+	if err != nil && !errors.Is(err, httprc.ErrNotReady()) && !errors.Is(err, httprc.ErrResourceAlreadyExists()) {
+		return fmt.Errorf("failed to register JWKS URL %q: %w", f.uri, err)
+	}
+
+	f.lastForcedRefresh.Store(time.Now().UnixNano())
+	f.registered.Store(true)
+
+	return nil
+}
+
+// jwksHTTPClient performs the HTTP requests for the JWKS cache
+// The client is looked up on every request, so a client swapped after the provider is created (as tests do) is used
+// Requests are bounded by the timeout, because the cache's background refreshes don't have a deadline of their own
+type jwksHTTPClient struct {
+	clientFn func() *http.Client
+	timeout  time.Duration
+}
+
+func (c jwksHTTPClient) Do(req *http.Request) (*http.Response, error) {
+	ctx, cancel := context.WithTimeout(req.Context(), c.timeout)
+	req = req.WithContext(ctx)
 	req.Header.Set("Accept", "application/json")
 
-	res, err := client.Do(req)
+	// The only URL requested here is the jwks_uri from the IdP's discovery document, which comes from the issuer set in the configuration
+	res, err := c.clientFn().Do(req) //nolint:gosec
 	if err != nil {
-		return nil, fmt.Errorf("failed to perform request: %w", err)
-	}
-	defer func() {
-		_, _ = io.Copy(io.Discard, res.Body)
-		res.Body.Close()
-	}()
-
-	if res.StatusCode < 200 || res.StatusCode > 299 {
-		return nil, fmt.Errorf("invalid response status code: %d", res.StatusCode)
+		cancel()
+		return nil, err
 	}
 
-	body, err := io.ReadAll(res.Body)
+	// The cache reads the request URL from the response, which custom transports may not set
+	if res.Request == nil {
+		res.Request = req
+	}
+
+	// The context must stay alive until the body has been read, so it's canceled when the body is closed
+	res.Body = &cancelOnCloseBody{ReadCloser: res.Body, cancel: cancel}
+	return res, nil
+}
+
+// cancelOnCloseBody cancels a context when the response body is closed
+type cancelOnCloseBody struct {
+	io.ReadCloser
+
+	cancel context.CancelFunc
+}
+
+func (b *cancelOnCloseBody) Close() error {
+	err := b.ReadCloser.Close()
+	b.cancel()
+	return err
+}
+
+// idTokenKeyID returns the key ID from the JWS header of a token, or an empty string if it doesn't have one
+// The header isn't verified here: it's only used to pick which key to verify the signature with
+func idTokenKeyID(raw []byte) string {
+	msg, err := jws.Parse(raw)
 	if err != nil {
-		return nil, fmt.Errorf("failed to read response body: %w", err)
+		return ""
 	}
 
-	set, err := jwk.Parse(body)
-	if err != nil {
-		return nil, fmt.Errorf("failed to parse JWKS: %w", err)
+	sigs := msg.Signatures()
+	if len(sigs) == 0 {
+		return ""
 	}
 
-	return set, nil
+	kid, _ := sigs[0].ProtectedHeaders().KeyID()
+	return kid
 }
 
 type profileModifierFn struct {
@@ -267,8 +321,8 @@ func NewOpenIDConnect(ctx context.Context, opts NewOpenIDConnectOptions) (*OpenI
 
 	// JWKS is required for the public OIDC entrypoint: ID tokens must be verifiable
 	// The discovery document is required to include `jwks_uri` per OpenID Connect Discovery 1.0
-	// The fetcher is lazy: keys are fetched on first ID-token verification
-	oidc.jwks, err = newJWKSFetcher(endpoints.JWKSUri, oidc.GetHTTPClient, opts.RequestTimeout)
+	// The keys are fetched on first ID-token verification, then refreshed in the background
+	oidc.jwks, err = newJWKSFetcher(ctx, endpoints.JWKSUri, oidc.GetHTTPClient, opts.RequestTimeout)
 	if err != nil {
 		return nil, fmt.Errorf("failed to configure JWKS for auth with provider 'openidconnect': %w", err)
 	}
@@ -278,7 +332,7 @@ func NewOpenIDConnect(ctx context.Context, opts NewOpenIDConnectOptions) (*OpenI
 
 // newOpenIDConnectInternal returns a new OpenIDConnect provider
 // It is meant to be used by structs that embed OpenIDConnect
-func newOpenIDConnectInternal(_ context.Context, providerType string, providerMetadata ProviderMetadata, opts NewOpenIDConnectOptions, endpoints OAuth2Endpoints) (*OpenIDConnect, error) {
+func newOpenIDConnectInternal(ctx context.Context, providerType string, providerMetadata ProviderMetadata, opts NewOpenIDConnectOptions, endpoints OAuth2Endpoints) (*OpenIDConnect, error) {
 	if opts.ClientID == "" {
 		return nil, fmt.Errorf("value for clientId is required in config for auth with provider '%s'", providerType)
 	}
@@ -329,7 +383,7 @@ func newOpenIDConnectInternal(_ context.Context, providerType string, providerMe
 	// If a JWKS URI is provided, configure a fetcher so we can verify ID-token signatures
 	// When unset, the provider falls back to UserInfo-based profile retrieval
 	if endpoints.JWKSUri != "" {
-		oidc.jwks, err = newJWKSFetcher(endpoints.JWKSUri, oidc.GetHTTPClient, opts.RequestTimeout)
+		oidc.jwks, err = newJWKSFetcher(ctx, endpoints.JWKSUri, oidc.GetHTTPClient, opts.RequestTimeout)
 		if err != nil {
 			return nil, fmt.Errorf("failed to configure JWKS for auth with provider '%s': %w", providerType, err)
 		}
@@ -346,7 +400,7 @@ func (a *OpenIDConnect) OAuth2RetrieveProfile(ctx context.Context, at OAuth2Acce
 	// Check if we have an ID token to get the profile from
 	// We only use the ID token when we can verify its signature against a JWKS, otherwise fall through to the UserInfo endpoint, which is authenticated by the bearer access token
 	if at.IDToken != "" && a.tokenIssuer != "" && a.jwks != nil {
-		set, err := a.jwks.Get(ctx)
+		set, err := a.jwks.Get(ctx, idTokenKeyID([]byte(at.IDToken)))
 		if err != nil {
 			return nil, fmt.Errorf("failed to fetch JWKS for ID token verification: %w", err)
 		}
@@ -419,7 +473,7 @@ func (a *OpenIDConnect) OAuth2RetrieveProfile(ctx context.Context, at OAuth2Acce
 	}
 
 	claims := map[string]any{}
-	err = json.NewDecoder(res.Body).Decode(&claims)
+	err = json.NewDecoder(io.LimitReader(res.Body, maxIdPResponseSize)).Decode(&claims)
 	if err != nil {
 		return nil, fmt.Errorf("invalid response body: %w", err)
 	}
@@ -467,7 +521,7 @@ func fetchOIDCEndpoints(ctx context.Context, tokenIssuer string, client *http.Cl
 		return endpoints, fmt.Errorf("failed to request openid-configuration document: invalid response status code '%d'", res.StatusCode)
 	}
 
-	err = json.NewDecoder(res.Body).Decode(&endpoints)
+	err = json.NewDecoder(io.LimitReader(res.Body, maxIdPResponseSize)).Decode(&endpoints)
 	if err != nil {
 		return endpoints, fmt.Errorf("failed to parse response from openid-configuration document: %w", err)
 	}
@@ -479,10 +533,11 @@ func fetchOIDCEndpoints(ctx context.Context, tokenIssuer string, client *http.Cl
 	return endpoints, nil
 }
 
-// newJWKSFetcher validates the JWKS URI and returns a lazy fetcher
-// The first network call happens on first use, not at construction
+// newJWKSFetcher validates the JWKS URI and returns a fetcher backed by a jwkfetch cache
+// The cache's background workers stop when ctx is canceled, so ctx must live as long as the provider
+// No network call happens until the keys are first needed
 // httpClientFn is invoked at fetch time so test code can swap the underlying client after provider construction without losing the JWKS path
-func newJWKSFetcher(jwksURI string, httpClientFn func() *http.Client, requestTimeout time.Duration) (*jwksFetcher, error) {
+func newJWKSFetcher(ctx context.Context, jwksURI string, httpClientFn func() *http.Client, requestTimeout time.Duration) (*jwksFetcher, error) {
 	if jwksURI == "" {
 		return nil, errors.New("jwks_uri is required to verify ID token signatures: the OpenID Connect discovery document did not include one")
 	}
@@ -503,10 +558,20 @@ func newJWKSFetcher(jwksURI string, httpClientFn func() *http.Client, requestTim
 		requestTimeout = 10 * time.Second
 	}
 
+	// The cache only ever handles this one URL, so a single worker is enough
+	cache, err := jwkfetch.NewCache(ctx,
+		httprc.NewClient(httprc.WithWorkers(1)),
+		jwkfetch.WithHTTPClient(jwksHTTPClient{clientFn: httpClientFn, timeout: requestTimeout}),
+		jwkfetch.WithMaxBodySize(maxIdPResponseSize),
+	)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create JWKS cache: %w", err)
+	}
+
 	return &jwksFetcher{
-		uri:          jwksURI,
-		httpClientFn: httpClientFn,
-		timeout:      requestTimeout,
+		uri:     jwksURI,
+		cache:   cache,
+		timeout: requestTimeout,
 	}, nil
 }
 

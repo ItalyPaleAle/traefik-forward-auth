@@ -2,9 +2,13 @@ package server
 
 import (
 	"encoding/base64"
+	"net/http"
+	"net/http/httptest"
 	"strings"
 	"testing"
+	"time"
 
+	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -82,4 +86,29 @@ func TestDecodeFaviconBase64(t *testing.T) {
 		require.Error(t, err)
 		assert.ErrorContains(t, err, "decoded favicon base64 value is empty")
 	})
+}
+
+func TestFaviconRouteHeaders(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	svg := []byte(`<svg xmlns="http://www.w3.org/2000/svg"><script>alert(1)</script></svg>`)
+	favicon, err := detectFavicon(svg)
+	require.NoError(t, err)
+
+	srv := &Server{
+		appRouter: gin.New(),
+		favicon:   favicon,
+		startTime: time.Now(),
+	}
+	srv.appRouter.Use(srv.MiddlewareSecurityHeaders)
+	srv.addFaviconRoute("/")
+
+	rec := httptest.NewRecorder()
+	srv.appRouter.ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/favicon.svg", nil))
+
+	assert.Equal(t, http.StatusOK, rec.Code)
+	assert.Equal(t, "image/svg+xml", rec.Header().Get("Content-Type"))
+	assert.NotEmpty(t, rec.Header().Get("Content-Security-Policy"))
+	assert.Equal(t, "nosniff", rec.Header().Get("X-Content-Type-Options"))
+	assert.Equal(t, svg, rec.Body.Bytes())
 }

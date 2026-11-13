@@ -128,6 +128,12 @@ func (s *Server) MiddlewareAddRequestState(c *gin.Context) {
 	c.Request = c.Request.WithContext(context.WithValue(c.Request.Context(), requestStateKey{}, rs))
 }
 
+// MiddlewareSecurityHeaders is a middleware that adds security headers to every response.
+// X-Content-Type-Options stops browsers from guessing a content type other than the one we send, such as treating a response as a script.
+func (s *Server) MiddlewareSecurityHeaders(c *gin.Context) {
+	setResponseHeader(c, headerXContentTypeOptions, "nosniff")
+}
+
 // MiddlewareRequireClientCertificate is a middleware that requires a valid client certificate to be present.
 // This is meant to be used to enforce mTLS on specific routes, when the server's TLS is configured with VerifyClientCertIfGiven.
 func (s *Server) MiddlewareRequireClientCertificate(c *gin.Context) {

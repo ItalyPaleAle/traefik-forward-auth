@@ -17,6 +17,9 @@ func TestHeaderConstantsAreCanonical(t *testing.T) {
 	names := []string{
 		headerContentType,
 		headerLocation,
+		headerOrigin,
+		headerSecFetchSite,
+		headerXContentTypeOptions,
 		headerXForwardedDisplayName,
 		headerXForwardedFor,
 		headerXForwardedPort,

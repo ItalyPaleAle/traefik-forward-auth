@@ -32,5 +32,8 @@ func TestServerHealthzRoutes(t *testing.T) {
 
 		// Check the response
 		assertResponseNoContent(t, res)
+
+		// Every response includes the security headers
+		require.Equal(t, "nosniff", res.Header.Get("X-Content-Type-Options"))
 	})
 }

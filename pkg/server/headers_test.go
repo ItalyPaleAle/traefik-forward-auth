@@ -3,7 +3,9 @@ package server
 import (
 	"encoding/json"
 	"fmt"
+	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 
 	"github.com/gin-gonic/gin"
@@ -357,4 +359,70 @@ func TestSetAuthenticatedHeaders(t *testing.T) {
 
 		assert.Equal(t, 1, int(allocs))
 	})
+}
+
+func TestValidateHeaderValue(t *testing.T) {
+	tests := []struct {
+		name  string
+		value string
+		want  string
+	}{
+		{name: "printable ASCII is unchanged", value: "John Doe <john@example.com>", want: "John Doe <john@example.com>"},
+		{name: "empty value", value: "", want: ""},
+		{name: "valid UTF-8 is kept", value: "José Müller – Zoë", want: "José Müller – Zoë"},
+		{name: "tabs are kept", value: "a\tb", want: "a\tb"},
+		{name: "CR and LF are removed", value: "X\r\nSet-Cookie: evil=1", want: "XSet-Cookie: evil=1"},
+		{name: "NUL is removed", value: "a\x00b", want: "ab"},
+		{name: "DEL is removed", value: "a\x7fb", want: "ab"},
+		{name: "C1 control characters are removed", value: "a\u0085b\u009fc", want: "abc"},
+		{name: "invalid UTF-8 is removed", value: "a\xffb\xc3c", want: "abc"},
+		{name: "a literal replacement character is kept", value: "a�b", want: "a�b"},
+		{name: "only control characters becomes empty", value: "\r\n\x00", want: ""},
+		{name: "1KB is allowed", value: strings.Repeat("a", 1<<10), want: strings.Repeat("a", 1<<10)},
+		{name: "longer than 1KB is dropped", value: strings.Repeat("a", 1<<10+1), want: ""},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equal(t, tt.want, validateHeaderValue(tt.value))
+		})
+	}
+
+	t.Run("printable ASCII does not allocate", func(t *testing.T) {
+		value := "John Doe <john@example.com>"
+		allocs := testing.AllocsPerRun(100, func() {
+			_ = validateHeaderValue(value)
+		})
+		assert.Zero(t, allocs)
+	})
+}
+
+// TestSetAuthenticatedHeadersReadableByGoClient checks that a claim containing control characters doesn't produce a response that Go HTTP clients (like Traefik) refuse to parse
+func TestSetAuthenticatedHeadersReadableByGoClient(t *testing.T) {
+	provider := auth.NewTestProviderSeamless()
+	profile := &user.Profile{
+		Provider: "testseamless",
+		ID:       "user123",
+		Name:     user.ProfileName{FullName: "Jo\x00hn\x7f D\xffoe\r\nSet-Cookie: evil=1"},
+	}
+	portal := &Portal{
+		Name: "myportal",
+		Headers: []AuthenticatedHeader{
+			authenticatedClaimHeader{name: "X-Forwarded-Displayname", claim: "name"},
+		},
+	}
+
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		c, _ := gin.CreateTestContext(w)
+		setAuthenticatedHeaders(c, portal, provider, profile)
+		w.WriteHeader(http.StatusOK)
+	}))
+	defer srv.Close()
+
+	res, err := srv.Client().Get(srv.URL)
+	require.NoError(t, err)
+	defer res.Body.Close()
+
+	assert.Equal(t, "John DoeSet-Cookie: evil=1", res.Header.Get("X-Forwarded-Displayname"))
+	assert.Empty(t, res.Header.Values("Set-Cookie"))
 }

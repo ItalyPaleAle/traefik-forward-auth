@@ -9,6 +9,7 @@ import (
 	"net/http/httptest"
 	"net/url"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -413,4 +414,174 @@ func TestFetchOIDCEndpoints(t *testing.T) {
 	assert.Equal(t, "https://idp.example.com/auth", endpoints.Authorization)
 	assert.Equal(t, "https://idp.example.com/token", endpoints.Token)
 	assert.Equal(t, "https://idp.example.com/userinfo", endpoints.UserInfo)
+}
+
+// jwksTestServer is a mock JWKS endpoint that counts the requests it receives
+type jwksTestServer struct {
+	mu      sync.Mutex
+	key     *signingKey
+	fail    bool
+	fetches int
+}
+
+func (s *jwksTestServer) client() *http.Client {
+	return &http.Client{
+		Transport: roundTripperFunc(func(req *http.Request) (*http.Response, error) {
+			s.mu.Lock()
+			defer s.mu.Unlock()
+
+			s.fetches++
+			if s.fail {
+				return &http.Response{
+					StatusCode: http.StatusInternalServerError,
+					Body:       io.NopCloser(strings.NewReader("down")),
+				}, nil
+			}
+			return s.key.serveJWKS(), nil
+		}),
+	}
+}
+
+func (s *jwksTestServer) set(key *signingKey, fail bool) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.key = key
+	s.fail = fail
+}
+
+func (s *jwksTestServer) count() int {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.fetches
+}
+
+func newTestJWKSFetcher(t *testing.T, srv *jwksTestServer) *jwksFetcher {
+	t.Helper()
+	httpClient := srv.client()
+	f, err := newJWKSFetcher(t.Context(), "https://idp.example.com/jwks", func() *http.Client { return httpClient }, time.Second)
+	require.NoError(t, err)
+	return f
+}
+
+// allowForcedRefresh makes the next Get behave as if the last forced refresh happened long enough ago
+func allowForcedRefresh(f *jwksFetcher) {
+	f.lastForcedRefresh.Store(time.Now().Add(-2 * jwksForcedRefreshInterval).UnixNano())
+}
+
+// TestJWKSFetcherRefreshesOnUnknownKeyID verifies that a token signed with a key that isn't in the cached JWKS triggers a refresh, which is what happens after the IdP rotates its keys
+func TestJWKSFetcherRefreshesOnUnknownKeyID(t *testing.T) {
+	oldKey := newTestSigningKeyWithID(t, "old-key")
+	newKey := newTestSigningKeyWithID(t, "new-key")
+	srv := &jwksTestServer{key: oldKey}
+	f := newTestJWKSFetcher(t, srv)
+
+	// The keys are fetched on first use
+	set, err := f.Get(t.Context(), "old-key")
+	require.NoError(t, err)
+	_, ok := set.LookupKeyID("old-key")
+	assert.True(t, ok)
+	assert.Equal(t, 1, srv.count())
+
+	// A known key doesn't cause a fetch
+	_, err = f.Get(t.Context(), "old-key")
+	require.NoError(t, err)
+	assert.Equal(t, 1, srv.count())
+
+	// The IdP rotates its keys
+	srv.set(newKey, false)
+
+	// Right after the first fetch, an unknown key doesn't cause another fetch, so tokens with made-up key IDs can't make us hammer the IdP
+	set, err = f.Get(t.Context(), "new-key")
+	require.NoError(t, err)
+	_, ok = set.LookupKeyID("new-key")
+	assert.False(t, ok)
+	assert.Equal(t, 1, srv.count())
+
+	// Once the interval has passed, the unknown key causes a refresh
+	allowForcedRefresh(f)
+	set, err = f.Get(t.Context(), "new-key")
+	require.NoError(t, err)
+	_, ok = set.LookupKeyID("new-key")
+	assert.True(t, ok)
+	assert.Equal(t, 2, srv.count())
+
+	// Tokens without a key ID never cause a refresh
+	allowForcedRefresh(f)
+	_, err = f.Get(t.Context(), "")
+	require.NoError(t, err)
+	assert.Equal(t, 2, srv.count())
+}
+
+// TestJWKSFetcherFailures verifies that fetch failures are retried at most once per interval, and that the last keys fetched successfully keep being used
+func TestJWKSFetcherFailures(t *testing.T) {
+	key := newTestSigningKeyWithID(t, "key-1")
+	srv := &jwksTestServer{key: key, fail: true}
+	f := newTestJWKSFetcher(t, srv)
+
+	// The first fetch fails
+	_, err := f.Get(t.Context(), "key-1")
+	require.Error(t, err)
+	assert.Equal(t, 1, srv.count())
+
+	// Within the interval, there's no new attempt
+	_, err = f.Get(t.Context(), "key-1")
+	require.Error(t, err)
+	assert.Equal(t, 1, srv.count())
+
+	// After the interval, the IdP has recovered and the keys are fetched
+	srv.set(key, false)
+	allowForcedRefresh(f)
+	set, err := f.Get(t.Context(), "key-1")
+	require.NoError(t, err)
+	_, ok := set.LookupKeyID("key-1")
+	assert.True(t, ok)
+	assert.Equal(t, 2, srv.count())
+
+	// The IdP fails again: a refresh for an unknown key fails, but the keys we already have are still returned
+	srv.set(key, true)
+	allowForcedRefresh(f)
+	set, err = f.Get(t.Context(), "other-key")
+	require.NoError(t, err)
+	_, ok = set.LookupKeyID("key-1")
+	assert.True(t, ok)
+	assert.Equal(t, 3, srv.count())
+}
+
+// TestIDTokenKeyID verifies that the key ID is read from the token's JWS header
+func TestIDTokenKeyID(t *testing.T) {
+	key := newTestSigningKeyWithID(t, "my-key")
+	token := key.SignClaims(t, map[string]any{"sub": "user"})
+
+	assert.Equal(t, "my-key", idTokenKeyID([]byte(token)))
+	assert.Empty(t, idTokenKeyID([]byte("not-a-jwt")))
+}
+
+// TestIdPResponseSizeIsLimited verifies that a response from the identity provider larger than maxIdPResponseSize is rejected instead of being read whole
+func TestIdPResponseSizeIsLimited(t *testing.T) {
+	const doc = `{"issuer":"https://issuer.example.com","authorization_endpoint":"https://issuer.example.com/authorize","token_endpoint":"https://issuer.example.com/token","userinfo_endpoint":"https://issuer.example.com/userinfo","jwks_uri":"https://issuer.example.com/jwks"}`
+
+	newServer := func(padding int) *httptest.Server {
+		return httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			w.Header().Set("Content-Type", "application/json")
+			// Leading whitespace is valid JSON, so the document only fails to parse if the reader stops before reaching it
+			_, _ = io.WriteString(w, strings.Repeat(" ", padding)+doc)
+		}))
+	}
+
+	t.Run("within the limit", func(t *testing.T) {
+		ts := newServer(maxIdPResponseSize - len(doc))
+		defer ts.Close()
+
+		endpoints, err := fetchOIDCEndpoints(t.Context(), ts.URL, ts.Client(), 2*time.Second)
+		require.NoError(t, err)
+		assert.Equal(t, "https://issuer.example.com/token", endpoints.Token)
+	})
+
+	t.Run("over the limit", func(t *testing.T) {
+		ts := newServer(maxIdPResponseSize)
+		defer ts.Close()
+
+		_, err := fetchOIDCEndpoints(t.Context(), ts.URL, ts.Client(), 2*time.Second)
+		require.Error(t, err)
+	})
 }

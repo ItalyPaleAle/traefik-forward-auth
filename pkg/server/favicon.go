@@ -150,6 +150,9 @@ func (s *Server) addFaviconRoute(basePath string) {
 		s.addClientCacheHeaders(30*86400),
 		func(c *gin.Context) {
 			c.Header("Content-Type", s.favicon.ContentType)
+			// An SVG opened directly in the browser is rendered as a document, so any script in it would run on our origin
+			// This policy stops that, and it has no effect when the browser loads the favicon as an image
+			c.Header("Content-Security-Policy", "default-src 'none'; style-src 'unsafe-inline'; sandbox")
 			_, _ = c.Writer.Write(s.favicon.Data)
 		},
 	)

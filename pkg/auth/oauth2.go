@@ -22,6 +22,10 @@ import (
 	"github.com/italypaleale/traefik-forward-auth/pkg/user"
 )
 
+// maxIdPResponseSize is the most we read from a response sent by an identity provider
+// Legitimate responses are a few KB at most, and this keeps a misbehaving or compromised server from using up our memory
+const maxIdPResponseSize = 1 << 20
+
 // oAuth2 is a Provider for authenticating with OAuth2.
 // This Provider cannot be used directly: other providers can embed this struct and implement OAuth2RetrieveProfile.
 type oAuth2 struct {
@@ -248,13 +252,13 @@ func (a *oAuth2) OAuth2ExchangeCode(ctx context.Context, state string, code stri
 		// Try reading the response body (limit to 4KB)
 		body, _ := io.ReadAll(io.LimitReader(res.Body, 4<<10))
 		if len(body) > 0 {
-			return OAuth2AccessToken{}, fmt.Errorf("invalid response status code: %d. Response: %s", res.StatusCode, string(body))
+			return OAuth2AccessToken{}, fmt.Errorf("invalid response status code: %d. Response: %q", res.StatusCode, string(body))
 		}
 		return OAuth2AccessToken{}, fmt.Errorf("invalid response status code: %d", res.StatusCode)
 	}
 
 	var tokenResponse oAuth2TokenResponse
-	err = json.NewDecoder(res.Body).Decode(&tokenResponse)
+	err = json.NewDecoder(io.LimitReader(res.Body, maxIdPResponseSize)).Decode(&tokenResponse)
 	if err != nil {
 		return OAuth2AccessToken{}, fmt.Errorf("invalid response body: %w", err)
 	}

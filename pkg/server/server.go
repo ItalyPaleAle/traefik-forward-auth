@@ -34,6 +34,9 @@ import (
 const (
 	headerContentType           = "Content-Type"
 	headerLocation              = "Location"
+	headerOrigin                = "Origin"
+	headerSecFetchSite          = "Sec-Fetch-Site"
+	headerXContentTypeOptions   = "X-Content-Type-Options"
 	headerXForwardedDisplayName = "X-Forwarded-Displayname"
 	headerXForwardedFor         = "X-Forwarded-For"
 	headerXForwardedPort        = "X-Forwarded-Port"
@@ -172,6 +175,7 @@ func (s *Server) initAppServer(log *slog.Logger) (err error) {
 	s.appRouter = gin.New()
 	s.appRouter.Use(gin.Recovery())
 	s.appRouter.Use(s.MiddlewareAddRequestState)
+	s.appRouter.Use(s.MiddlewareSecurityHeaders)
 	if s.traceProvider != nil {
 		s.appRouter.Use(otelgin.Middleware("appserver", otelgin.WithTracerProvider(s.traceProvider)))
 	}

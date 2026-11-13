@@ -4,6 +4,8 @@ import (
 	"encoding/json"
 	"net/http"
 	"strings"
+	"unicode"
+	"unicode/utf8"
 
 	"github.com/gin-gonic/gin"
 
@@ -43,6 +45,59 @@ func setAuthenticatedHeaders(c *gin.Context, portal *Portal, provider auth.Provi
 		// Capping the slice at its length means anything that later adds to this header allocates its own array instead of writing into ours
 		h[name] = values[len(values)-1 : len(values) : len(values)]
 	}
+}
+
+// validateHeaderValue returns the value to use for a response header, or an empty string if the header should not be set
+func validateHeaderValue(value string) string {
+	// Limit the value to 1KB
+	const maxLen = 1 << 10
+
+	if len(value) > maxLen {
+		return ""
+	}
+
+	// Control characters are removed because Go HTTP clients (including Traefik) reject a response whose headers contain them, which would break every request for that user
+	// Invalid UTF-8 is removed because apps reading the header expect text
+	// Fast path: nearly every value is printable ASCII, which is returned as-is without allocating
+	for i := range len(value) {
+		ch := value[i]
+		if ch < 0x20 || ch >= 0x7f {
+			return sanitizeHeaderValue(value)
+		}
+	}
+
+	return value
+}
+
+// sanitizeHeaderValue removes control characters and invalid UTF-8 from a header value
+// Tabs are kept because they're allowed in HTTP header values
+func sanitizeHeaderValue(value string) string {
+	var sb strings.Builder
+	sb.Grow(len(value))
+
+	for i := 0; i < len(value); {
+		ch := value[i]
+
+		// ASCII: keep printable characters and tabs, drop C0 control characters and DEL
+		if ch < utf8.RuneSelf {
+			if (ch >= 0x20 && ch != 0x7f) || ch == '\t' {
+				sb.WriteByte(ch)
+			}
+			i++
+			continue
+		}
+
+		// Multi-byte sequence: drop invalid UTF-8 (reported as RuneError with size 1) and C1 control characters
+		// A literal U+FFFD in the input decodes as RuneError with size 3 and is kept
+		r, size := utf8.DecodeRuneInString(value[i:])
+		invalid := r == utf8.RuneError && size == 1
+		if !invalid && !unicode.IsControl(r) {
+			sb.WriteString(value[i : i+size])
+		}
+		i += size
+	}
+
+	return sb.String()
 }
 
 type authenticatedClaimHeader struct {

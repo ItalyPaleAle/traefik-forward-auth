@@ -118,7 +118,7 @@ func (a *GitHub) OAuth2RetrieveProfile(ctx context.Context, at OAuth2AccessToken
 			} `json:"viewer"`
 		} `json:"data"`
 	}
-	err = json.NewDecoder(res.Body).Decode(&resBody)
+	err = json.NewDecoder(io.LimitReader(res.Body, maxIdPResponseSize)).Decode(&resBody)
 	if err != nil {
 		return nil, err
 	}

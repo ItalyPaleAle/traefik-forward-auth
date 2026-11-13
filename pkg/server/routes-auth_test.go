@@ -1081,6 +1081,80 @@ func TestRoutePostLogout(t *testing.T) {
 		assert.Equal(t, http.StatusNotFound, rec.Code)
 		assert.Equal(t, "Error: Portal not found", rec.Body.String())
 	})
+
+	// The request host is example.com in all these cases
+	crossSiteTests := []struct {
+		name          string
+		secFetchSite  string
+		origin        string
+		wantForbidden bool
+	}{
+		{name: "same-origin form post", secFetchSite: "same-origin", origin: "https://example.com"},
+		{name: "same-origin with a port in the origin", secFetchSite: "same-origin", origin: "https://example.com:8443"},
+		{name: "same-site without origin", secFetchSite: "same-site"},
+		{name: "user-initiated request", secFetchSite: "none"},
+		{name: "origin without sec-fetch-site", origin: "https://example.com"},
+		{name: "cross-site sec-fetch-site", secFetchSite: "cross-site", wantForbidden: true},
+		{name: "cross-site sec-fetch-site with matching origin", secFetchSite: "cross-site", origin: "https://example.com", wantForbidden: true},
+		{name: "origin from another site", origin: "https://evil.example", wantForbidden: true},
+		{name: "same-site from a host the request isn't for", secFetchSite: "same-site", origin: "https://other.example.com", wantForbidden: true},
+		{name: "null origin", origin: "null", wantForbidden: true},
+	}
+	for _, tt := range crossSiteTests {
+		t.Run(tt.name, func(t *testing.T) {
+			c, rec := newContext("/portals/test1/logout", "test1")
+			if tt.secFetchSite != "" {
+				c.Request.Header.Set("Sec-Fetch-Site", tt.secFetchSite)
+			}
+			if tt.origin != "" {
+				c.Request.Header.Set("Origin", tt.origin)
+			}
+
+			srv.RoutePostLogout(c)
+
+			if tt.wantForbidden {
+				assert.True(t, c.IsAborted())
+				assert.Equal(t, http.StatusForbidden, rec.Code)
+				assert.Empty(t, rec.Header().Values("Set-Cookie"), "cookies must not be deleted on a rejected request")
+			} else {
+				assert.Equal(t, http.StatusSeeOther, rec.Code)
+			}
+		})
+	}
+
+	t.Run("dedicated sub-domain accepts apps under the same domain", func(t *testing.T) {
+		t.Cleanup(config.SetTestConfig(func(c *config.Config) {
+			c.Cookies.Domain = ""
+			c.Server.Domains = []config.ConfigServerDomain{
+				{Domain: "example.com", AuthHost: "auth.example.com"},
+				{Domain: "example.net", AuthHost: "auth.example.net"},
+			}
+		}))
+
+		tests := []struct {
+			origin        string
+			wantForbidden bool
+		}{
+			{origin: "https://auth.example.com"},
+			{origin: "https://app.example.com"},
+			{origin: "https://app.example.net", wantForbidden: true},
+			{origin: "https://example.org", wantForbidden: true},
+		}
+		for _, tt := range tests {
+			c, rec := newContext("/portals/test1/logout", "test1")
+			c.Request.Header.Set(headerXForwardedHost, "auth.example.com")
+			c.Request.Header.Set("Sec-Fetch-Site", "same-site")
+			c.Request.Header.Set("Origin", tt.origin)
+
+			srv.RoutePostLogout(c)
+
+			if tt.wantForbidden {
+				assert.Equal(t, http.StatusForbidden, rec.Code, "origin %s", tt.origin)
+			} else {
+				assert.Equal(t, http.StatusSeeOther, rec.Code, "origin %s", tt.origin)
+			}
+		}
+	})
 }
 
 func TestGetStateParam(t *testing.T) {

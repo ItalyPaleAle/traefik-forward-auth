@@ -504,6 +504,13 @@ func (s *Server) RoutePostLogout(c *gin.Context) {
 		return
 	}
 
+	// Other websites must not be able to sign users out by submitting a form to this endpoint
+	// SameSite cookies don't protect this route, because deleting cookies doesn't require the request to carry them
+	if isCrossSiteRequest(c) {
+		AbortWithError(c, NewResponseError(http.StatusForbidden, "Cross-site requests are not allowed"))
+		return
+	}
+
 	// Delete the state and session cookies
 	s.deleteSessionCookie(c, portal.Name)
 	s.deleteStateCookies(c, portal.Name)
@@ -514,6 +521,36 @@ func (s *Server) RoutePostLogout(c *gin.Context) {
 	c.Header(headerContentType, contentTypeTextPlain)
 	c.Writer.WriteHeader(http.StatusSeeOther)
 	_, _ = c.Writer.WriteString(`You've been logged out. Redirecting to portal: ` + portalURL)
+}
+
+// isCrossSiteRequest reports whether a browser sent the request from a page outside the domain that the request is for
+// Requests from other apps under the same configured domain are allowed, for example a logout button on app.example.com that posts to auth.example.com
+// Requests without the Sec-Fetch-Site and Origin headers are allowed, since they come from non-browser clients or very old browsers
+func isCrossSiteRequest(c *gin.Context) bool {
+	// Browsers set Sec-Fetch-Site themselves and pages can't change it, so a "cross-site" value is conclusive
+	if headerValue(c.Request.Header, headerSecFetchSite) == "cross-site" {
+		return true
+	}
+
+	// Sec-Fetch-Site considers every sub-domain of the same registrable domain as "same-site", and older browsers don't send it
+	// The Origin header lets us also require the page to be under the same configured domain as the request
+	origin := headerValue(c.Request.Header, headerOrigin)
+	if origin == "" {
+		return false
+	}
+
+	// An Origin of "null" (sent for sandboxed or privacy-sensitive contexts) has no host, so it's treated as cross-site
+	originURL, err := url.Parse(origin)
+	if err != nil || originURL.Host == "" {
+		return true
+	}
+
+	// Both hosts must resolve to the same cookie domain and auth host
+	// Comparing the auth host too matters when no domains are configured or the host is an IP, because the cookie domain alone doesn't identify the host then
+	cfg := config.Get()
+	reqDomain, reqAuthHost, reqOk := cfg.Server.DomainForHost(requestHost(c))
+	originDomain, originAuthHost, originOk := cfg.Server.DomainForHost(originURL.Host)
+	return !reqOk || !originOk || reqDomain != originDomain || reqAuthHost != originAuthHost
 }
 
 func (s *Server) getProfileFromContext(c *gin.Context) (*user.Profile, auth.Provider) {
@@ -614,15 +651,4 @@ func getForwardedProto(c *gin.Context) string {
 		// Fallback to HTTP for unknown protocols
 		return "http"
 	}
-}
-
-// Validates the header value before adding it to the response
-func validateHeaderValue(value string) string {
-	// Limit the value to 1KB
-	const maxLen = 1 << 10
-
-	if len(value) > maxLen {
-		return ""
-	}
-	return value
 }

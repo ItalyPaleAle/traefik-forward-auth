@@ -44,18 +44,26 @@ func buildUnsignedJWT(claims map[string]any) (string, error) {
 // signingKey is a generated ECDSA P-256 keypair plus its public JWK published as a one-key JWKS
 type signingKey struct {
 	priv    *ecdsa.PrivateKey
+	kid     string
 	jwksRaw []byte
 }
 
 // newTestSigningKey generates a fresh ECDSA P-256 key pair and serializes the public key as a JWKS suitable for serving from a mock JWKS endpoint
 func newTestSigningKey(t *testing.T) *signingKey {
 	t.Helper()
+	return newTestSigningKeyWithID(t, "test-key-1")
+}
+
+// newTestSigningKeyWithID is like newTestSigningKey, with the given key ID
+// Tests that simulate a key rotation use it to create keys with different IDs
+func newTestSigningKeyWithID(t *testing.T, kid string) *signingKey {
+	t.Helper()
 	priv, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
 	require.NoError(t, err)
 
 	pub, err := jwk.Import[jwk.Key](priv.Public())
 	require.NoError(t, err)
-	require.NoError(t, pub.Set(jwk.KeyIDKey, "test-key-1"))
+	require.NoError(t, pub.Set(jwk.KeyIDKey, kid))
 	require.NoError(t, pub.Set(jwk.AlgorithmKey, "ES256"))
 	require.NoError(t, pub.Set(jwk.KeyUsageKey, "sig"))
 
@@ -64,7 +72,7 @@ func newTestSigningKey(t *testing.T) *signingKey {
 	raw, err := json.Marshal(set)
 	require.NoError(t, err)
 
-	return &signingKey{priv: priv, jwksRaw: raw}
+	return &signingKey{priv: priv, kid: kid, jwksRaw: raw}
 }
 
 // SignClaims signs the given claims as an ES256 JWT with the test key
@@ -76,7 +84,7 @@ func (s *signingKey) SignClaims(t *testing.T, claims map[string]any) string {
 	}
 	priv, err := jwk.Import[jwk.Key](s.priv)
 	require.NoError(t, err)
-	require.NoError(t, priv.Set(jwk.KeyIDKey, "test-key-1"))
+	require.NoError(t, priv.Set(jwk.KeyIDKey, s.kid))
 	signed, err := jwt.Sign(tok, jwt.WithKey(jwa.ES256(), priv))
 	require.NoError(t, err)
 	return string(signed)

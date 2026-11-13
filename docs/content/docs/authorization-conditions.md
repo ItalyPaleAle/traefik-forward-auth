@@ -182,8 +182,6 @@ http:
           - "X-Forwarded-User"
           - "X-Forwarded-Displayname"
           - "X-Authenticated-User"
-        authRequestHeaders:
-          - "X-Forward-Auth-If"
         trustForwardHeader: true
 
   routers:
@@ -196,6 +194,11 @@ http:
         - "authzConditionHeader"
         - "traefikForwardAuth"
 ```
+
+> **Important:** the `headers` middleware must come before the `forwardauth` one.
+> Traefik forwards the client's request headers to Traefik Forward Auth, and the `headers` middleware is what replaces any `X-Forward-Auth-If` header sent by the client. If the order is reversed, a client could send its own condition.
+>
+> Do not set `authRequestHeaders` on the `forwardauth` middleware either: Traefik would then only forward the headers in that list, and Traefik Forward Auth needs others too (including `Cookie`, `User-Agent`, and `Accept-Language`) for users to sign in.
 
 ## Sessions and Authorization Conditions
 
