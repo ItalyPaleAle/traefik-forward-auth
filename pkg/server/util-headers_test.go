@@ -38,6 +38,22 @@ func TestHeaderConstantsAreCanonical(t *testing.T) {
 	}
 }
 
+func TestLastHeaderValue(t *testing.T) {
+	t.Run("returns the last value of a repeated header", func(t *testing.T) {
+		req := httptest.NewRequest(http.MethodGet, "/", nil)
+		req.Header.Add(headerXForwardedFor, "203.0.113.10")
+		req.Header.Add(headerXForwardedFor, "10.0.0.1")
+
+		assert.Equal(t, "10.0.0.1", lastHeaderValue(req.Header, headerXForwardedFor))
+	})
+
+	t.Run("returns an empty string when the header is absent", func(t *testing.T) {
+		req := httptest.NewRequest(http.MethodGet, "/", nil)
+
+		assert.Empty(t, lastHeaderValue(req.Header, headerXForwardedFor))
+	})
+}
+
 func TestHeaderValue(t *testing.T) {
 	t.Run("returns the value set on the request", func(t *testing.T) {
 		req := httptest.NewRequest(http.MethodGet, "/", nil)

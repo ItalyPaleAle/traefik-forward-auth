@@ -15,7 +15,6 @@ import (
 	"tailscale.com/tailcfg/peercap"
 
 	"github.com/italypaleale/traefik-forward-auth/pkg/user"
-	"github.com/italypaleale/traefik-forward-auth/pkg/utils"
 )
 
 const (
@@ -94,13 +93,9 @@ func (a *TailscaleWhois) SeamlessAuth(r *http.Request) (*user.Profile, error) {
 	// Copyright: Tailscale Inc & AUTHORS
 	// License: BSD-3-Clause
 
-	// Extract the originating client IP from X-Forwarded-For
-	// The header may be a comma-separated chain in multi-proxy setups: we take the leftmost entry
-	rawXFF := r.Header.Get(headerXForwardedFor)
-	clientIP := utils.ClientIPFromXForwardedFor(rawXFF)
-	sourceIP := net.ParseIP(clientIP)
-	if sourceIP == nil {
-		return nil, fmt.Errorf("value of X-Forwarded-For header '%s' is not valid: not an IP", rawXFF)
+	sourceIP, err := tailscaleClientIP(r)
+	if err != nil {
+		return nil, err
 	}
 
 	// Use the Tailscale client to authenticate the user
@@ -183,11 +178,9 @@ func (a *TailscaleWhois) SeamlessAuth(r *http.Request) (*user.Profile, error) {
 
 func (a *TailscaleWhois) ValidateRequestClaims(r *http.Request, profile *user.Profile) error {
 	// We need to make sure that the IP of the request matches the value in the "ip" claim in the profile
-	rawXFF := r.Header.Get(headerXForwardedFor)
-	clientIP := utils.ClientIPFromXForwardedFor(rawXFF)
-	sourceIP := net.ParseIP(clientIP)
-	if sourceIP == nil {
-		return fmt.Errorf("value of X-Forwarded-For header '%s' is not valid: not an IP", rawXFF)
+	sourceIP, err := tailscaleClientIP(r)
+	if err != nil {
+		return err
 	}
 
 	var expectIP string
@@ -199,6 +192,23 @@ func (a *TailscaleWhois) ValidateRequestClaims(r *http.Request, profile *user.Pr
 	}
 
 	return nil
+}
+
+// tailscaleClientIP returns the IP of the Tailscale node making the request, from the X-Forwarded-For header
+// Traefik sets the header to the address of the peer that connected to it, so with Traefik reached directly over Tailscale it contains exactly one IP
+// A list of IPs means there are other proxies in front of Traefik, and a WhoIs on that proxy would sign every visitor in as the proxy's node, so those requests are rejected
+func tailscaleClientIP(r *http.Request) (net.IP, error) {
+	values := r.Header.Values(headerXForwardedFor)
+	if len(values) != 1 || strings.IndexByte(values[0], ',') >= 0 {
+		return nil, fmt.Errorf("X-Forwarded-For header must contain exactly one IP, but its value is '%s': Tailscale Whois can't be used when there are other proxies in front of Traefik", strings.Join(values, ", "))
+	}
+
+	sourceIP := net.ParseIP(strings.TrimSpace(values[0]))
+	if sourceIP == nil {
+		return nil, fmt.Errorf("value of X-Forwarded-For header %q is not valid: not an IP", values[0])
+	}
+
+	return sourceIP, nil
 }
 
 func (a *TailscaleWhois) PopulateAdditionalClaims(token jwt.Token, setClaimFn func(key string, val any)) {

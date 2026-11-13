@@ -40,12 +40,14 @@ func IsSubDomain(domain, sub string) bool {
 		strings.HasSuffix(sub, "."+domain)
 }
 
-// ClientIPFromXForwardedFor returns the canonical client IP from an X-Forwarded-For header value
-// X-Forwarded-For is a comma-separated chain "client, proxy1, proxy2..."
+// ClientIPFromXForwardedFor returns the client IP from an X-Forwarded-For header value
+// X-Forwarded-For is a comma-separated chain "client, proxy1, proxy2...", where each proxy appends the address of the peer that connected to it
+// We use the last entry because it's the only one added by Traefik itself: every entry before it was sent by an earlier proxy or by the client, so it can be spoofed
+// When there are other proxies in front of Traefik, this means the IP is the one of the closest proxy rather than the user's
 // The returned string is trimmed of surrounding whitespace and is the empty string if the header is empty
 func ClientIPFromXForwardedFor(headerValue string) string {
-	first, _, _ := strings.Cut(headerValue, ",")
-	return strings.TrimSpace(first)
+	idx := strings.LastIndexByte(headerValue, ',')
+	return strings.TrimSpace(headerValue[idx+1:])
 }
 
 // ReadFileFromFS reads a file from a fs.FS

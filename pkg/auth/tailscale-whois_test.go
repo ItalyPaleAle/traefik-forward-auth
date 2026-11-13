@@ -173,17 +173,19 @@ func TestTailscaleWhoisValidateRequestClaims(t *testing.T) {
 	require.ErrorContains(t, err, "token was issued for Tailscale IP")
 }
 
-// TestTailscaleWhoisSeamlessAuthMultiHopXFF verifies that a comma-separated X-Forwarded-For chain (which is what arrives in real multi-proxy deployments) is parsed correctly
-// MiddlewareProxyHeaders already accepts these values, so the Tailscale provider must too
-func TestTailscaleWhoisSeamlessAuthMultiHopXFF(t *testing.T) {
+// TestTailscaleWhoisSeamlessAuthRequiresSingleIP verifies that sign-in only works when X-Forwarded-For contains exactly one IP
+// With other proxies in front of Traefik, the last entry would be a proxy and a WhoIs on it would sign every visitor in as that proxy's node
+func TestTailscaleWhoisSeamlessAuthRequiresSingleIP(t *testing.T) {
 	const clientIP = "100.64.0.1"
 
+	whoIsCalls := 0
 	provider, err := NewTailscaleWhois(NewTailscaleWhoisOptions{
 		AllowedTailnet: "mytailnet.ts.net",
 		tsClient: &mockTailscaleWhoIsClient{
 			whoIsFn: func(_ context.Context, remoteAddr string) (*apitype.WhoIsResponse, error) {
+				whoIsCalls++
 				if remoteAddr != clientIP {
-					return nil, fmt.Errorf("unexpected remote addr: %s — leftmost IP from XFF chain was not extracted", remoteAddr)
+					return nil, fmt.Errorf("unexpected remote addr: %s", remoteAddr)
 				}
 				return &apitype.WhoIsResponse{
 					Node: &tailcfg.Node{
@@ -201,32 +203,46 @@ func TestTailscaleWhoisSeamlessAuthMultiHopXFF(t *testing.T) {
 	})
 	require.NoError(t, err)
 
-	tests := []struct {
-		name string
-		xff  string
-	}{
-		{"single hop", clientIP},
-		{"two hops", clientIP + ", 10.0.0.5"},
-		{"three hops with extra spaces", clientIP + " , 10.0.0.5 , 192.168.1.1"},
-		{"two hops no space after comma", clientIP + ",10.0.0.5"},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
+	t.Run("single IP", func(t *testing.T) {
+		for _, xff := range []string{clientIP, " " + clientIP + " "} {
 			req := httptest.NewRequest(http.MethodGet, "http://example.com", nil)
-			req.Header.Set(headerXForwardedFor, tt.xff)
+			req.Header.Set(headerXForwardedFor, xff)
 
 			profile, authErr := provider.SeamlessAuth(req)
 			require.NoError(t, authErr)
 			assert.Equal(t, "alice", profile.ID)
 			assert.Equal(t, clientIP, profile.AdditionalClaims[tailscaleWhoisClaimIP])
+		}
+	})
+
+	rejected := []struct {
+		name   string
+		values []string
+	}{
+		{"client IP first", []string{clientIP + ", 10.0.0.5"}},
+		{"client IP last", []string{"10.0.0.5, " + clientIP}},
+		{"three hops", []string{clientIP + " , 10.0.0.5 , 192.168.1.1"}},
+		{"no space after comma", []string{clientIP + ",10.0.0.5"}},
+		{"repeated header", []string{clientIP, "10.0.0.5"}},
+		{"missing header", nil},
+	}
+	for _, tt := range rejected {
+		t.Run(tt.name, func(t *testing.T) {
+			req := httptest.NewRequest(http.MethodGet, "http://example.com", nil)
+			for _, v := range tt.values {
+				req.Header.Add(headerXForwardedFor, v)
+			}
+
+			before := whoIsCalls
+			_, authErr := provider.SeamlessAuth(req)
+			require.Error(t, authErr)
+			assert.Equal(t, before, whoIsCalls, "WhoIs must not be called")
 		})
 	}
 }
 
-// TestTailscaleWhoisValidateRequestClaimsMultiHopXFF verifies that when an existing session is validated against a request whose X-Forwarded-For carries a comma-separated chain, the leftmost IP is compared against the claim
-// Without this, sessions break the moment a new proxy hop appears upstream of Traefik
-func TestTailscaleWhoisValidateRequestClaimsMultiHopXFF(t *testing.T) {
+// TestTailscaleWhoisValidateRequestClaimsRequiresSingleIP verifies that an existing session is only valid for requests whose X-Forwarded-For contains exactly one IP, matching the one in the session
+func TestTailscaleWhoisValidateRequestClaimsRequiresSingleIP(t *testing.T) {
 	provider, err := NewTailscaleWhois(NewTailscaleWhoisOptions{})
 	require.NoError(t, err)
 
@@ -236,19 +252,24 @@ func TestTailscaleWhoisValidateRequestClaimsMultiHopXFF(t *testing.T) {
 
 	tests := []struct {
 		name    string
-		xff     string
+		values  []string
 		wantErr bool
 	}{
-		{"matching single hop", "100.64.0.1", false},
-		{"matching two hops", "100.64.0.1, 10.0.0.5", false},
-		{"matching three hops with whitespace", "100.64.0.1 , 10.0.0.5 , 192.168.1.1", false},
-		{"non-matching leftmost IP", "100.64.0.99, 10.0.0.5", true},
+		{"matching IP", []string{"100.64.0.1"}, false},
+		{"matching IP with whitespace", []string{" 100.64.0.1 "}, false},
+		{"different IP", []string{"100.64.0.99"}, true},
+		{"chain starting with the matching IP", []string{"100.64.0.1, 10.0.0.5"}, true},
+		{"chain ending with the matching IP", []string{"10.0.0.5, 100.64.0.1"}, true},
+		{"repeated header", []string{"100.64.0.1", "100.64.0.1"}, true},
+		{"not an IP", []string{"not-an-ip"}, true},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			req := httptest.NewRequest(http.MethodGet, "http://example.com", nil)
-			req.Header.Set(headerXForwardedFor, tt.xff)
+			for _, v := range tt.values {
+				req.Header.Add(headerXForwardedFor, v)
+			}
 
 			validateErr := provider.ValidateRequestClaims(req, profile)
 			if tt.wantErr {

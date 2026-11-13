@@ -18,6 +18,17 @@ func headerValue(h http.Header, canonicalName string) string {
 	return v[0]
 }
 
+// lastHeaderValue returns the last value of a request header, whose name must already be in canonical form
+// This is for headers like X-Forwarded-For, where a repeated header is read as one list in order, so the latest entry is at the end of the last line
+func lastHeaderValue(h http.Header, canonicalName string) string {
+	v := h[canonicalName]
+	if len(v) == 0 {
+		return ""
+	}
+
+	return v[len(v)-1]
+}
+
 // setResponseHeader sets a response header, skipping the canonicalization http.Header.Set performs
 // The name must already be in canonical form
 // An empty value removes the header, matching the behavior of gin's Context.Header

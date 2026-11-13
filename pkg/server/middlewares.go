@@ -155,7 +155,7 @@ func (s *Server) MiddlewareRequireClientCertificate(c *gin.Context) {
 func (s *Server) MiddlewareProxyHeaders(c *gin.Context) {
 	// Read each header we need once, rather than once to check it's present and again to use its value
 	h := c.Request.Header
-	xForwardedFor := headerValue(h, headerXForwardedFor)
+	xForwardedFor := lastHeaderValue(h, headerXForwardedFor)
 	xForwardedPort := headerValue(h, headerXForwardedPort)
 	xForwardedProto := headerValue(h, headerXForwardedProto)
 	xForwardedHost := headerValue(h, headerXForwardedHost)
@@ -177,8 +177,8 @@ func (s *Server) MiddlewareProxyHeaders(c *gin.Context) {
 		return
 	}
 
-	// Get the X-Forwarded-For header and extract the originating client IP
-	// X-Forwarded-For is conventionally a comma-separated chain "client, proxy1, ..."
+	// Get the client IP from the X-Forwarded-For header
+	// This is the last entry in the chain, which is the only one that can't be spoofed
 	clientIP := utils.ClientIPFromXForwardedFor(xForwardedFor)
 
 	// Get and validate the remote address

@@ -408,7 +408,22 @@ func TestMiddlewareLoggerClientIP(t *testing.T) {
 
 		newRouter(buf, true).ServeHTTP(httptest.NewRecorder(), req)
 
-		assert.Contains(t, buf.String(), "client=203.0.113.10")
+		// The last entry is the one added by Traefik, so it's the only one that can't be spoofed
+		assert.Contains(t, buf.String(), "client=10.0.0.1")
+	})
+
+	t.Run("uses the last entry of a repeated X-Forwarded-For header", func(t *testing.T) {
+		buf := &bytes.Buffer{}
+		req := httptest.NewRequest(http.MethodGet, "/test", nil)
+		req.Header.Add(headerXForwardedFor, "203.0.113.10")
+		req.Header.Add(headerXForwardedFor, "198.51.100.1, 10.0.0.2")
+		req.Header.Set(headerXForwardedPort, "443")
+		req.Header.Set(headerXForwardedProto, "https")
+		req.Header.Set(headerXForwardedHost, "example.com")
+
+		newRouter(buf, true).ServeHTTP(httptest.NewRecorder(), req)
+
+		assert.Contains(t, buf.String(), "client=10.0.0.2")
 	})
 
 	t.Run("falls back to Gin on routes without the proxy headers middleware", func(t *testing.T) {
